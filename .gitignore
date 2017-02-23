@@ -1,0 +1,8 @@
+*.pyc
+__pycache__
+doc/_build
+autocrypt.egg-info
+.cache
+.tox
+build
+dist

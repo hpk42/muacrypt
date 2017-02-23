@@ -14,7 +14,6 @@ def main():
                      'Intended Audience :: Developers',
                      'License :: OSI Approved :: MIT License',
                      'Operating System :: POSIX',
-                     'Operating System :: Microsoft :: Windows',
                      'Operating System :: MacOS :: MacOS X',
                      'Topic :: Utilities',
                      'Intended Audience :: Developers',
