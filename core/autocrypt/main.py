@@ -5,6 +5,7 @@
 """
 
 import os
+import sys
 import six
 import click
 from .account import Account
@@ -139,6 +140,27 @@ def process_incoming(ctx, mail):
         click.echo("processed mail, found nothing")
 
 
+@mycommand("process-outgoing")
+@click.argument("args", nargs=-1)
+@click.pass_context
+def process_outgoing(ctx, args):
+    """process mail from stdin by adding/replacing the Autocrypt
+    header and sending the resulting message to stdout by default.
+    """
+    account = get_account(ctx)
+    msg = mime.parse_message_from_file(sys.stdin)
+    _, adr = mime.parse_email_addr(msg["From"])
+
+    try:
+        del msg["Autocrypt"]
+    except KeyError:
+        pass
+    msg["Autocrypt"] = account.make_header(adr, headername="")
+    input = msg.as_string()
+    click.echo(input)
+    # subprocess.check_call(["/usr/sbin/sendmail"] + args, input=input)
+
+
 @mycommand("export-public-key")
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
@@ -198,6 +220,7 @@ autocrypt_main.add_command(status)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(set_prefer_encrypt)
 autocrypt_main.add_command(process_incoming)
+autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 
