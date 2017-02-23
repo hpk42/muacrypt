@@ -109,12 +109,13 @@ class ClickRunner:
         self._rootargs.insert(0, "--basedir")
         self._rootargs.insert(1, account_dir)
 
-    def run_ok(self, args, fnmatch_lines=None):
+    def run_ok(self, args, fnmatch_lines=None, input=None):
         __tracebackhide__ = True
         argv = self._rootargs + args
         # we use our nextbackup helper to cache account creation
         # unless --no-test-cache is specified
-        res = self.runner.invoke(self._main, argv, catch_exceptions=False)
+        res = self.runner.invoke(self._main, argv, catch_exceptions=False,
+                                 input=input)
         if res.exit_code != 0:
             print(res.output)
             raise Exception("cmd exited with %d: %s" % (res.exit_code, argv))

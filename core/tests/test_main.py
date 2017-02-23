@@ -2,7 +2,7 @@ from __future__ import print_function, unicode_literals
 import os
 import six
 import pytest
-from autocrypt.mime import parse_one_ac_header_from_string
+from autocrypt import mime
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def test_init_and_make_header(mycmd):
     adr = "x@yz.org"
     mycmd.run_ok(["init"])
     out = mycmd.run_ok(["make-header", adr])
-    d = parse_one_ac_header_from_string(out)
+    d = mime.parse_one_ac_header_from_string(out)
     assert "prefer-encrypt" not in out
     assert "type" not in out
     assert d["to"] == adr
@@ -95,7 +95,7 @@ def test_set_prefer_encrypt(mycmd):
     """)
     adr = "x@yz.org"
     out3 = mycmd.run_ok(["make-header", adr])
-    d3 = parse_one_ac_header_from_string(out3)
+    d3 = mime.parse_one_ac_header_from_string(out3)
     assert d3["prefer-encrypt"] == "yes"
 
 
@@ -138,3 +138,16 @@ def test_process_incoming(mycmd, datadir):
         *---peers---*
         alice@testsuite.autocrypt.org*D993BD7F*1636 bytes*prefer-encrypt*
     """)
+
+
+def test_process_outgoing(mycmd, datadir):
+    mycmd.run_ok(["init"])
+    mail = datadir.read_bytes("rsa2048-simple.eml")
+    out1 = mycmd.run_ok(["process-outgoing", "--", "--qwe"], input=mail)
+    m = mime.parse_message_from_string(out1)
+    assert len(m.get_all("Autocrypt")) == 1
+    found_header = "Autocrypt: " + m["Autocrypt"]
+    gen_header = mycmd.run_ok(["make-header", "alice@testsuite.autocrypt.org"])
+    x1 = mime.parse_one_ac_header_from_string(gen_header)
+    x2 = mime.parse_one_ac_header_from_string(found_header)
+    assert x1 == x2
