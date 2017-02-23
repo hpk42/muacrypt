@@ -1,10 +1,17 @@
+import os
 from setuptools import setup
 
 def main():
+    with open(os.path.join("autocrypt", "__init__.py")) as f:
+        for line in f:
+            if "__version__" in line.strip():
+                version = line.split("=", 1)[1].strip()
+                break
+
     setup(
         name='autocrypt',
         description='Autocrypt: E-mail Encryption for Everyone example implementation',
-        version="0.2",
+        version=version,
         url='https://autocrypt.org',
         license='MIT license',
         platforms=['unix', 'linux', 'osx', 'cygwin', 'win32'],
