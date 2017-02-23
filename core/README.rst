@@ -2,9 +2,12 @@
 Autocrypt command line and library Python code
 ==============================================
 
-This README is intended to help contributors to get setup
-with running tests and using the code and "autocrypt"
-command line.
+The Python Autocrypt implementation offers a command line
+tool and API.  This README is intended to help contributors
+to get setup with running tests and using the code and
+"autocrypt" command line.  There also are online docs at
+https://py-autocrypt.readthedocs.io which contain more
+documentation.
 
 testing
 +++++++
