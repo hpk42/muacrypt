@@ -10,7 +10,7 @@ Autocrypt Python Reference tool and implementation
 
 .. toctree::
 
-   cmd
+   cmdline
    api
 
 .. _installation:
