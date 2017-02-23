@@ -241,4 +241,4 @@ dummy:
 	@echo "Build finished. Dummy builder generates no files."
 
 regen:
-	python with_tmphome.py regendoc --update src/cmdline.rst
+	python with_tmphome.py regendoc --update cmdline.rst
