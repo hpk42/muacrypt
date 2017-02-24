@@ -4,8 +4,11 @@
 """Autocrypt Command line implementation.
 """
 
+from __future__ import print_function
+
 import os
 import sys
+import subprocess
 import six
 import click
 from .account import Account
@@ -15,6 +18,16 @@ from . import mime
 
 def out_red(msg):
     click.secho(msg, fg="red")
+
+
+def log_info(string):
+    """log information to stderr. """
+    # we can't log to stderr because the tests do currently
+    # not separate err and out for now, so our debugging output
+    # intermingles
+    # with open("/tmp/log", "a") as f:
+    #    print(string, file=f)
+    #    # click.echo("[info] " + string, err=True)
 
 
 class MyGroup(click.Group):
@@ -37,6 +50,10 @@ class MyCommand(click.Command):
         except Account.NotInitialized as e:
             out_red(str(e))
             ctx.exit(1)
+
+
+class MyCommandUnknownOptions(MyCommand):
+    ignore_unknown_options = True
 
 
 def mycommand(*args):
@@ -127,12 +144,12 @@ def set_prefer_encrypt(ctx, value):
 
 
 @mycommand("process-incoming")
-@click.argument("mail", type=click.File())
 @click.pass_context
-def process_incoming(ctx, mail):
-    """process incoming mail from file/stdin."""
+def process_incoming(ctx):
+    """process incoming mail from stdin, parse and process
+    a possibly contained autocrypt header. """
     account = get_account(ctx)
-    msg = mime.parse_message_from_file(mail)
+    msg = mime.parse_message_from_file(sys.stdin)
     peerinfo = account.process_incoming(msg)
     if peerinfo:
         click.echo("processed mail, found: {}".format(peerinfo))
@@ -141,22 +158,56 @@ def process_incoming(ctx, mail):
 
 
 @mycommand("process-outgoing")
-@click.argument("args", nargs=-1)
 @click.pass_context
-def process_outgoing(ctx, args):
+def process_outgoing(ctx):
     """process mail from stdin by adding an Autocrypt
     header and sending the resulting message to stdout by default.
-    If the mail from stdin contains an Autocrypt header already
-    no Autocrypt header is added.
+    If the mail from stdin contains an Autocrypt header we use it
+    for the outgoing message and do not add one.
     """
     account = get_account(ctx)
+    msg, emailadr = _prepare_stdin_message(account)
+    click.echo(msg.as_string())
+
+
+@click.command(cls=MyCommandUnknownOptions)
+@click.argument("args", nargs=-1)
+@click.pass_context
+def sendmail(ctx, args):
+    """process mail from stdin by adding an Autocrypt
+    header and piping the resulting message to the "sendmail" program.
+    If the mail from stdin contains an Autocrypt header we use it
+    for the outgoing message and do not add one.
+
+    Note that all arguments and unknown options are passed to sendmail.
+    """
+    assert args
+    account = get_account(ctx)
+    args = list(args)
+    msg, emailadr = _prepare_stdin_message(account)
+
+    input = msg.as_string()
+    log_info("piping to: {}".format(" ".join(args)))
+    sendmail = find_executable("sendmail")
+    args.insert(0, sendmail)
+    popen = subprocess.Popen(args, stdin=subprocess.PIPE)
+    popen.communicate(input=input)
+    ret = popen.wait()
+    if ret != 0:
+        out_red("sendmail return {!r} exitcode, path: {}".format(
+                ret, sendmail))
+        ctx.exit(ret)
+
+
+def _prepare_stdin_message(account):
     msg = mime.parse_message_from_file(sys.stdin)
     _, adr = mime.parse_email_addr(msg["From"])
     if "Autocrypt" not in msg:
         msg["Autocrypt"] = account.make_header(adr, headername="")
-    input = msg.as_string()
-    click.echo(input)
-    # subprocess.check_call(["/usr/sbin/sendmail"] + args, input=input)
+        log_info("Autocrypt header set for {!r}".format(adr))
+    else:
+        log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
+    return msg, adr
 
 
 @mycommand("export-public-key")
@@ -219,6 +270,7 @@ autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(set_prefer_encrypt)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
+autocrypt_main.add_command(sendmail)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 

@@ -122,10 +122,10 @@ def check_ascii(out):
 
 def test_process_incoming(mycmd, datadir):
     mycmd.run_ok(["init"])
-    fn = datadir.join("rsa2048-simple.eml")
-    mycmd.run_ok(["process-incoming", fn], """
+    mail = datadir.read("rsa2048-simple.eml")
+    mycmd.run_ok(["process-incoming"], """
         *processed mail*alice@testsuite.autocrypt.org*key*BAFC533CD993BD7F*
-    """)
+    """, input=mail)
     out1 = mycmd.run_ok(["export-public-key", "alice@testsuite.autocrypt.org"], """
         *---BEGIN PGP*
     """)
@@ -141,7 +141,7 @@ def test_process_incoming(mycmd, datadir):
 
 
 class TestProcessOutgoing:
-    def test_simple(self, mycmd, datadir, gen_mail):
+    def test_simple(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])
         mail = gen_mail()
         out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
@@ -153,7 +153,7 @@ class TestProcessOutgoing:
         x2 = mime.parse_one_ac_header_from_string(found_header)
         assert x1 == x2
 
-    def test_simple_dont_replace(self, mycmd, datadir, gen_mail):
+    def test_simple_dont_replace(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])
         mail = gen_mail()
         gen_header = mycmd.run_ok(["make-header", "x@x.org"])
@@ -165,3 +165,31 @@ class TestProcessOutgoing:
         x1 = mime.parse_ac_headervalue(m["Autocrypt"])
         x2 = mime.parse_ac_headervalue(gen_header)
         assert x1 == x2
+
+    def test_sendmail(self, mycmd, gen_mail, popen_mock):
+        mycmd.run_ok(["init"])
+        mail = gen_mail().as_string()
+        pargs = ["-oi", "b@b.org"]
+        mycmd.run_ok(["sendmail", "-f", "--"] + pargs, input=mail)
+        assert len(popen_mock.calls) == 1
+        call = popen_mock.pop_next_call()
+        for x in pargs:
+            assert x in call.args
+        # make sure unknown option is passed to pipe
+        assert "-f" in call.args
+        out_msg = mime.parse_message_from_string(call.input)
+        assert "Autocrypt" in out_msg, out_msg.as_string()
+
+    def test_sendmail_fails(self, mycmd, gen_mail, popen_mock):
+        mycmd.run_ok(["init"])
+        mail = gen_mail().as_string()
+        pargs = ["-oi", "b@b.org"]
+        popen_mock.mock_next_call(ret=2)
+        mycmd.run_fail(["sendmail", "-f", "--", "--qwe"] + pargs, input=mail, code=2)
+        assert len(popen_mock.calls) == 1
+        call = popen_mock.pop_next_call()
+        for x in pargs:
+            assert x in call.args
+        # make sure unknown option is passed to pipe
+        assert "-f" in call.args
+        assert "--qwe" in call.args

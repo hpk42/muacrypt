@@ -31,7 +31,7 @@ def gpgpath(request):
     """
     name = "gpg" if request.param == "gpg1" else "gpg2"
     if name == "gpg2" and not request.config.getoption("--with-gpg2"):
-        pytest.skip("skip gpg2 tests unless you specify --slow")
+        pytest.skip("skipped gpg2 tests (specify --with-gpg2 to run)")
     path = find_executable(name)
     if path is None:
         pytest.skip("can not find executable: %s" % request.name)
@@ -121,13 +121,15 @@ class ClickRunner:
             raise Exception("cmd exited with %d: %s" % (res.exit_code, argv))
         return self._perform_match(res, fnmatch_lines)
 
-    def run_fail(self, args, fnmatch_lines=None):
+    def run_fail(self, args, input=None, code=None, fnmatch_lines=None):
         __tracebackhide__ = True
         argv = self._rootargs + args
-        res = self.runner.invoke(self._main, argv, catch_exceptions=False)
-        if res.exit_code == 0:
+        res = self.runner.invoke(self._main, argv, catch_exceptions=False,
+                                 input=input)
+        if res.exit_code == 0 or (code is not None and res.exit_code != code):
             print (res.output)
-            raise Exception("command did not fail: %s" % argv)
+            raise Exception("got exit code {!r}, expected {!r}, output: {}".format(
+                res.exit_code, code, res.output))
         return self._perform_match(res, fnmatch_lines)
 
     def _perform_match(self, res, fnmatch_lines):
@@ -260,3 +262,52 @@ def gen_mail(request):
             msg.set_payload(body)
         return msg
     return do_gen_mail
+
+
+@pytest.fixture
+def popen_mock(monkeypatch):
+    """ returns a subprocess mock controller object and mocks out all calls to
+    subprocess.Popen() so that you can later look at them by calling
+    ``mock_controller.pop_next_call()`` which returns an object which has all
+    parameters of the mocked ``subprocess.Popen()`` call as attributes.
+
+    Note that this only works if the code-under-test accesses ``subprocess.Popen``
+    and has not imported ``Popen`` directly.
+    """
+    import subprocess
+
+    class PopenMock:
+        def __init__(self):
+            self.calls = []
+            self._nextcall_ret = 0
+
+        def _on_call(self, mcall):
+            self.calls.append(mcall)
+
+        def pop_next_call(self):
+            return self.calls.pop(0)
+
+        def mock_next_call(self, ret=0):
+            self._nextcall_ret = ret
+
+    class MCall:
+        def __init__(self, args, kwargs):
+            self.args = list(args)
+            self.__dict__.update(kwargs)
+
+    pm = PopenMock()
+
+    class MyPopen:
+        def __init__(self, args, **kwargs):
+            self._ongoing_call = c = MCall(args, kwargs)
+            pm._on_call(c)
+
+        def wait(self):
+            return pm._nextcall_ret
+
+        def communicate(self, input):
+            self._ongoing_call.input = input
+            return "", ""
+
+    monkeypatch.setattr(subprocess, "Popen", MyPopen)
+    return pm
