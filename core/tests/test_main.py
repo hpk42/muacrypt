@@ -140,14 +140,28 @@ def test_process_incoming(mycmd, datadir):
     """)
 
 
-def test_process_outgoing(mycmd, datadir):
-    mycmd.run_ok(["init"])
-    mail = datadir.read_bytes("rsa2048-simple.eml")
-    out1 = mycmd.run_ok(["process-outgoing", "--", "--qwe"], input=mail)
-    m = mime.parse_message_from_string(out1)
-    assert len(m.get_all("Autocrypt")) == 1
-    found_header = "Autocrypt: " + m["Autocrypt"]
-    gen_header = mycmd.run_ok(["make-header", "alice@testsuite.autocrypt.org"])
-    x1 = mime.parse_one_ac_header_from_string(gen_header)
-    x2 = mime.parse_one_ac_header_from_string(found_header)
-    assert x1 == x2
+class TestProcessOutgoing:
+    def test_simple(self, mycmd, datadir, gen_mail):
+        mycmd.run_ok(["init"])
+        mail = gen_mail()
+        out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
+        m = mime.parse_message_from_string(out1)
+        assert len(m.get_all("Autocrypt")) == 1
+        found_header = "Autocrypt: " + m["Autocrypt"]
+        gen_header = mycmd.run_ok(["make-header", "a@a.org"])
+        x1 = mime.parse_one_ac_header_from_string(gen_header)
+        x2 = mime.parse_one_ac_header_from_string(found_header)
+        assert x1 == x2
+
+    def test_simple_dont_replace(self, mycmd, datadir, gen_mail):
+        mycmd.run_ok(["init"])
+        mail = gen_mail()
+        gen_header = mycmd.run_ok(["make-header", "x@x.org"])
+        mail.add_header("Autocrypt", gen_header)
+
+        out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
+        m = mime.parse_message_from_string(out1)
+        assert len(m.get_all("Autocrypt")) == 1
+        x1 = mime.parse_ac_headervalue(m["Autocrypt"])
+        x2 = mime.parse_ac_headervalue(gen_header)
+        assert x1 == x2

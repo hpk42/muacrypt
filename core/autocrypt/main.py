@@ -144,18 +144,16 @@ def process_incoming(ctx, mail):
 @click.argument("args", nargs=-1)
 @click.pass_context
 def process_outgoing(ctx, args):
-    """process mail from stdin by adding/replacing the Autocrypt
+    """process mail from stdin by adding an Autocrypt
     header and sending the resulting message to stdout by default.
+    If the mail from stdin contains an Autocrypt header already
+    no Autocrypt header is added.
     """
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     _, adr = mime.parse_email_addr(msg["From"])
-
-    try:
-        del msg["Autocrypt"]
-    except KeyError:
-        pass
-    msg["Autocrypt"] = account.make_header(adr, headername="")
+    if "Autocrypt" not in msg:
+        msg["Autocrypt"] = account.make_header(adr, headername="")
     input = msg.as_string()
     click.echo(input)
     # subprocess.check_call(["/usr/sbin/sendmail"] + args, input=input)

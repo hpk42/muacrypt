@@ -244,3 +244,19 @@ def account_maker(tmpdir, gpgpath):
             ac.init(gpgbin=gpgpath)
         return ac
     return maker
+
+
+@pytest.fixture
+def gen_mail(request):
+    nid = request.node.nodeid
+    counter = itertools.count()
+
+    def do_gen_mail(body=None):
+        msg = mime.gen_mail_msg(
+            From="a@a.org", To="b@b.org",
+            Subject="test mail {} [{}]".format(next(counter), nid),
+        )
+        if body is not None:
+            msg.set_payload(body)
+        return msg
+    return do_gen_mail
