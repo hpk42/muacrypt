@@ -28,7 +28,7 @@ def main():
         packages=['autocrypt'],
         entry_points='''
             [console_scripts]
-            autocrypt=autocrypt.main:autocrypt_main
+            autocrypt=autocrypt.cmdline:autocrypt_main
         ''',
         install_requires = ["click>=6.0"],
         zip_safe=False,

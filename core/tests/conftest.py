@@ -148,7 +148,7 @@ class ClickRunner:
 @pytest.fixture
 def cmd():
     """ invoke a command line subcommand. """
-    from autocrypt.main import autocrypt_main
+    from autocrypt.cmdline import autocrypt_main
     return ClickRunner(autocrypt_main)
 
 

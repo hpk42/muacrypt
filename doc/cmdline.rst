@@ -104,6 +104,10 @@ Getting our own public encryption key in armored format::
 initializing with using system key ring
 ---------------------------------------
 
+.. note::
+
+    mostly un-implemented docs below!
+
 If you want to use autocrypt with an existing mail setup you
 can initialize by specifying an existing key in your system
 gpg or gpg2 key ring.  To present a fully self-contained example
@@ -195,8 +199,8 @@ We now have a second identity and key which is shown with status::
 
     $ autocrypt status
 
-This is sufficient now to call the `process-incoming`_ and `process-outgoing`_
-commands and automatically retrieve and send keys to and from peers.
+This is sufficient now to call the ``process-incoming`` and ``process-outgoing``
+sub commands and automatically retrieve and send keys to and from peers.
 
 We can set our home identity to want to receive always encrypted mails like this::
 
