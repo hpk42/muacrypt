@@ -82,7 +82,6 @@ def bingpg_maker(request, tmpdir, gpgpath):
         else:
             p = tmpdir.join("bingpg%d" % next(counter))
             bingpg = BinGPG(p.strpath, gpgpath=gpgpath)
-            bingpg.init()
         return bingpg
     return maker
 

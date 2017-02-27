@@ -138,37 +138,30 @@ class Account(object):
                 "Account directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
 
-    def init(self, gpgbin="gpg"):
+    def init(self, gpgbin="gpg", keyhandle=None):
         """ Initialize this account with a new secret key, uuid
         and default settings.
         """
         assert not self.exists()
         with self.config.atomic_change():
             self.config.uuid = uuid.uuid4().hex
-            self.config.gpgmode = "own"
+            self.config.gpgmode = "own" if keyhandle is None else "system"
             self.config.gpgbin = gpgbin
-            self.bingpg.init()
-            keyhandle = self.bingpg.gen_secret_key(self.config.uuid)
+            if keyhandle is None:
+                keyhandle = self.bingpg.gen_secret_key(self.config.uuid)
+            else:
+                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
+                for k in keyinfos:
+                    is_in_uids = any(keyhandle in uid for uid in k.uids)
+                    if is_in_uids or k.match(keyhandle):
+                        keyhandle = k.id
+                        break
+                else:
+                    raise ValueError("could not find secret key for {!r}, found {!r}"
+                                     .format(keyhandle, keyinfos))
             self.config.own_keyhandle = keyhandle
             self.config.prefer_encrypt = "notset"
         assert self.exists()
-
-    def init_with_existing(self, keyhandle, gpgbin="gpg"):
-        assert not self.exists()
-        with self.config.atomic_change():
-            self.config.uuid = uuid.uuid4().hex
-            self.config.gpgmode = "system"
-            self.config.gpgbin = gpgbin
-            keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
-            for k in keyinfos:
-                is_in_uids = any(keyhandle in uid for uid in k.uids)
-                if is_in_uids or k.match(keyhandle):
-                    break
-            else:
-                raise ValueError("could not find secret key for {!r}, found {!r}"
-                                 .format(keyhandle, keyinfos))
-            self.config.own_keyhandle = k.id
-            self.config.prefer_encrypt = "notset"
 
     def set_prefer_encrypt(self, value):
         """ set prefer-encrypt setting to be used when generating a

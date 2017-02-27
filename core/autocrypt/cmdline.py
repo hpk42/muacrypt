@@ -106,10 +106,7 @@ def init(ctx, replace, use_existing_key, gpgbin):
             account.remove()
     if not os.path.exists(account.dir):
         os.mkdir(account.dir)
-    if use_existing_key:
-        account.init_with_existing(keyhandle=use_existing_key, gpgbin=gpgbin)
-    else:
-        account.init(gpgbin=gpgbin)
+    account.init(gpgbin=gpgbin, keyhandle=use_existing_key)
     click.echo("{}: account {} created".format(account.dir, account.config.uuid))
     _status(account)
 

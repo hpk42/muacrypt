@@ -50,12 +50,12 @@ def test_account_header_defaults(account):
     assert d["type"] == "p"
 
 
-def test_account_init_with_existing(account_maker, datadir, gpgpath, monkeypatch):
+def test_account_init_using_key(account_maker, datadir, gpgpath, monkeypatch):
     acc1 = account_maker()
     monkeypatch.setenv("GNUPGHOME", acc1.bingpg.homedir)
     acc2 = account_maker(init=False)
     gpgbin = os.path.basename(gpgpath)
-    acc2.init_with_existing(gpgbin=gpgbin, keyhandle=acc1.config.own_keyhandle)
+    acc2.init(gpgbin=gpgbin, keyhandle=acc1.config.own_keyhandle)
     assert acc2.config.own_keyhandle == acc1.config.own_keyhandle
     assert acc2.config.gpgmode == "system"
     assert acc2.config.gpgbin == gpgbin

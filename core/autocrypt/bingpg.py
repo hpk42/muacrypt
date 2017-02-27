@@ -72,6 +72,7 @@ class BinGPG(object):
         if p is None:
             raise ValueError("could not find binary for {!r}".format(gpgpath))
         self.gpgpath = p
+        self._ensure_init()
 
     def __str__(self):
         return "BinGPG(gpgpath={gpgpath!r}, homedir={homedir!r})".format(
@@ -81,7 +82,7 @@ class BinGPG(object):
     def isgpg2(self, min_version=V("2.0")):
         return V(self.get_version()) >= min_version
 
-    def init(self):
+    def _ensure_init(self):
         if self.homedir is None:
             return
 
