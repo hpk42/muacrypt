@@ -36,7 +36,7 @@ def test_init_help(cmd):
 
 def test_init(mycmd):
     mycmd.run_ok(["init"], """
-            *account*created*
+            *account*initialized*
             *gpgmode*own*
     """)
     mycmd.run_fail(["init"], """
@@ -44,7 +44,7 @@ def test_init(mycmd):
     """)
     mycmd.run_ok(["init", "--replace"], """
             *deleting account dir*
-            *account*created*
+            *account*initialized*
     """)
 
 
@@ -53,11 +53,11 @@ def test_init_existing_key_native_gpg(mycmd, monkeypatch, bingpg, gpgpath):
     keyhandle = bingpg.gen_secret_key(adr)
     monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
     mycmd.run_ok(["init", "--use-existing-key", adr, "--gpgbin=%s" % gpgpath], """
-            *account*created*
-            *own-keyhandle*{}*
-            *gpgbin*{}*
+            *account*initialized*
             *gpgmode*system*
-    """.format(keyhandle, gpgpath))
+            *gpgbin*{}*
+            *own-keyhandle*{}*
+    """.format(gpgpath, keyhandle))
     mycmd.run_ok(["make-header", adr], """
         *Autocrypt*to=x@y.org*
     """)
@@ -107,9 +107,9 @@ def test_exports_and_status(mycmd):
     check_ascii(out)
     out = mycmd.run_ok(["status"], """
         account-dir:*
-        uuid:*
-        own-keyhandle:*
-        prefer-encrypt: notset
+        *identity*default*uuid*
+        *own-keyhandle:*
+        *prefer-encrypt: notset*
     """)
 
 
@@ -136,7 +136,7 @@ def test_process_incoming(mycmd, datadir):
 
     mycmd.run_ok(["status"], """
         *---peers---*
-        alice@testsuite.autocrypt.org*D993BD7F*1636 bytes*prefer-encrypt*
+        *alice@testsuite.autocrypt.org*D993BD7F*1636 bytes*prefer-encrypt*
     """)
 
 

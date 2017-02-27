@@ -15,6 +15,7 @@ import json
 import shutil
 import six
 import uuid
+from copy import deepcopy
 from .bingpg import cached_property, BinGPG
 from contextlib import contextmanager
 from base64 import b64decode
@@ -34,7 +35,7 @@ class PersistentAttrMixin(object):
                 d = json.load(f)
         else:
             d = {}
-        self._dict_old = d.copy()
+        self._dict_old = deepcopy(d)
         return d
 
     # def _reload(self):
@@ -47,8 +48,11 @@ class PersistentAttrMixin(object):
         if self._dict != self._dict_old:
             with open(self._path, "w") as f:
                 json.dump(self._dict, f)
-            self._dict_old = self._dict.copy()
+            self._dict_old = deepcopy(self._dict)
             return True
+
+    def exists(self):
+        return os.path.exists(self._path)
 
     @contextmanager
     def atomic_change(self):
@@ -57,7 +61,7 @@ class PersistentAttrMixin(object):
         try:
             yield
         except:
-            self._dict = self._dict_old.copy()
+            self._dict = deepcopy(self._dict_old)
             raise
         else:
             self._commit()
@@ -79,18 +83,31 @@ def persistent_property(name, typ, values=None):
     return property(get, set)
 
 
-class Config(PersistentAttrMixin):
+class AccountConfig(PersistentAttrMixin):
+    version = persistent_property("version", six.text_type)
+
+
+class IdentityConfig(PersistentAttrMixin):
     uuid = persistent_property("uuid", six.text_type)
+    name = persistent_property("name", six.text_type)
+    email_regex = persistent_property("email_regex", six.text_type)
     gpgmode = persistent_property("gpgmode", six.text_type, ["system", "own"])
     gpgbin = persistent_property("gpgbin", six.text_type)
     own_keyhandle = persistent_property("own_keyhandle", six.text_type)
     prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
                                          ["yes", "no", "notset"])
-    identities = persistent_property("identities", dict)
     peers = persistent_property("peers", dict)
+
+    def __repr__(self):
+        return "IdentityConfig(name={}, own_keyhandle={}, numpeers={})".format(
+            self.name, self.own_keyhandle, len(self.peers))
 
     def exists(self):
         return self.uuid
+
+
+class NotInitialized(Exception):
+    pass
 
 
 class Account(object):
@@ -103,8 +120,6 @@ class Account(object):
     headers and process incoming mails to discover and memorize
     a peer's Autocrypt headers.
     """
-    class NotInitialized(Exception):
-        pass
 
     def __init__(self, dir):
         """ Initialize the account configuration and internally
@@ -124,7 +139,154 @@ class Account(object):
             we raise ValueError.
         """
         self.dir = dir
-        self.config = Config(os.path.join(self.dir, "config"))
+        self.config = AccountConfig(os.path.join(self.dir, "config.json"))
+        self._idpath = os.path.join(self.dir, "id")
+
+    def init(self):
+        assert not self.config.exists()
+        with self.config.atomic_change():
+            self.config.version = "0.1"
+        os.mkdir(self._idpath)
+
+    def exists(self):
+        return self.config.exists()
+
+    def get_identity(self, id_name="default", check=True):
+        ident = Identity(os.path.join(self._idpath, id_name))
+        if check and not ident.exists():
+            raise NotInitialized("identity {!r} not known".format(id_name))
+        return ident
+
+    def list_identities(self):
+        try:
+            names = [x for x in os.listdir(self._idpath) if x[0] != "."]
+        except OSError:
+            names = []
+        return [self.get_identity(x) for x in names]
+
+    def add_identity(self, id_name="default", email_regex=".*",
+                     keyhandle=None, gpgbin="gpg", gpgmode="own"):
+        ident = self.get_identity(id_name, check=False)
+        assert not ident.exists()
+        ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle,
+                     gpgbin=gpgbin, gpgmode=gpgmode)
+        return ident
+
+    def get_identity_from_emailadr(self, emailadr_list):
+        for ident in self.list_identities():
+            for emailadr in emailadr_list:
+                if re.match(ident.config.email_regex, emailadr):
+                    return ident
+
+    def remove(self):
+        """ remove the account directory and reset this account configuration
+        to empty.  You need to add identities to reinitialize.
+        """
+        shutil.rmtree(self.dir)
+
+    def make_header(self, emailadr, headername="Autocrypt: "):
+        """ return an Autocrypt header line which uses our own
+        key and the provided emailadr if this account is managing
+        the emailadr.
+
+        :type emailadr: unicode
+        :param emailadr:
+            pure email address which we use as the "to" attribute
+            in the generated Autocrypt header.  An account may generate
+            and send mail from multiple aliases and we advertise
+            the same key across those aliases.
+            (XXX discuss whether "to" is all that useful for level-0 autocrypt.)
+
+        :type headername: unicode
+        :param headername:
+            the prefix we use for the header, defaults to "Autocrypt".
+            By specifying an empty string you just get the header value.
+
+        :rtype: unicode
+        :returns: autocrypt header with prefix and value (or empty string)
+        """
+        ident = self.get_identity_from_emailadr(emailadr)
+        if ident is None:
+            if not self.config.exists():
+                raise NotInitialized(self.dir)
+            return ""
+        else:
+            assert ident.config.own_keyhandle
+            return headername + mime.make_ac_header_value(
+                emailadr=emailadr,
+                keydata=ident.bingpg.get_public_keydata(ident.config.own_keyhandle),
+                prefer_encrypt=ident.config.prefer_encrypt,
+            )
+
+    def process_incoming(self, msg):
+        """ process incoming mail message and store information
+        from any Autocrypt header for the From/Autocrypt peer
+        which created the message.
+
+        :type msg: email.message.Message
+        :param msg: instance of a standard email Message.
+        :rtype: PeerInfo
+        """
+        adrlist = mime.get_target_emailadr(msg)
+        ident = self.get_identity_from_emailadr(adrlist)
+        if ident is None:
+            # no matching identity
+            return
+        From = mime.parse_email_addr(msg["From"])[1]
+        old = ident.config.peers.get(From, {})
+        d = mime.parse_one_ac_header_from_msg(msg)
+        date = msg.get("Date")
+        if d:
+            if d["to"] == From:
+                if parsedate(date) >= parsedate(old.get("*date", date)):
+                    d["*date"] = date
+                    keydata = b64decode(d["key"])
+                    keyhandle = ident.bingpg.import_keydata(keydata)
+                    d["*keyhandle"] = keyhandle
+                    with ident.config.atomic_change():
+                        ident.config.peers[From] = d
+                        print("added to peers len={}".format(len(ident.config.peers)))
+                    return PeerInfo(ident, d)
+        elif old:
+            # we had an autocrypt header and now forget about it
+            # because we got a mail which doesn't have one
+            with ident.config.atomic_change():
+                ident.config.peers[From] = {}
+
+
+class Identity:
+    def __init__(self, dir):
+        self.dir = dir
+        self.config = IdentityConfig(os.path.join(self.dir, "config.json"))
+
+    def __repr__(self):
+        return "Identity[{}]".format(self.config)
+
+    def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
+        os.makedirs(self.dir)
+        with self.config.atomic_change():
+            self.config.uuid = uuid.uuid4().hex
+            self.config.name = name
+            self.config.email_regex = email_regex
+            self.config.prefer_encrypt = "notset"
+            self.config.gpgbin = gpgbin
+            self.config.gpgmode = gpgmode
+            self.config.peers = {}
+            if keyhandle is None:
+                emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
+                keyhandle = self.bingpg.gen_secret_key(emailadr)
+            else:
+                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
+                for k in keyinfos:
+                    is_in_uids = any(keyhandle in uid for uid in k.uids)
+                    if is_in_uids or k.match(keyhandle):
+                        keyhandle = k.id
+                        break
+                else:
+                    raise ValueError("could not find secret key for {!r}, found {!r}"
+                                     .format(keyhandle, keyinfos))
+            self.config.own_keyhandle = keyhandle
+        assert self.config.exists()
 
     @cached_property
     def bingpg(self):
@@ -140,46 +302,16 @@ class Account(object):
                 "Account directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
 
-    def init(self, gpgbin="gpg", keyhandle=None):
-        """ Initialize this account with a new secret key, uuid
-        and default settings.
+    def get_peerinfo(self, emailadr):
+        """ get peerinfo object for a given email address.
+
+        :type emailadr: unicode
+        :param emailadr: pure email address without any prefixes or real names.
+        :rtype: PeerInfo or None
         """
-        assert not self.exists()
-        with self.config.atomic_change():
-            self.config.uuid = uuid.uuid4().hex
-            self.config.gpgmode = "own" if keyhandle is None else "system"
-            self.config.gpgbin = gpgbin
-            if keyhandle is None:
-                keyhandle = self.bingpg.gen_secret_key(self.config.uuid)
-            else:
-                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
-                for k in keyinfos:
-                    is_in_uids = any(keyhandle in uid for uid in k.uids)
-                    if is_in_uids or k.match(keyhandle):
-                        keyhandle = k.id
-                        break
-                else:
-                    raise ValueError("could not find secret key for {!r}, found {!r}"
-                                     .format(keyhandle, keyinfos))
-            self.config.own_keyhandle = keyhandle
-            self.config.prefer_encrypt = "notset"
-        assert self.exists()
-
-    def add_identity(self, id_name, email_regex, keyhandle=None):
-        assert id_name not in self.config.identities
-        with self.config.atomic_change():
-            self.config.identities[id_name] = dict(
-                name=id_name, email_regex=email_regex, keyhandle=keyhandle,
-                prefer_encrypt="notset", peers={},
-                uuid=uuid.uuid4().hex,
-            )
-
-    def get_identity_from_emailadr(self, emailadr_list):
-        for id_name, d in self.config.identities.items():
-            ident_info = IdentityInfo(**d)
-            for emailadr in emailadr_list:
-                if re.match(ident_info.email_regex, emailadr):
-                    return ident_info
+        state = self.config.peers.get(emailadr)
+        if state:
+            return PeerInfo(self, state)
 
     def set_prefer_encrypt(self, value):
         """ set prefer-encrypt setting to be used when generating a
@@ -196,79 +328,6 @@ class Account(object):
         """
         return self.config.exists()
 
-    def remove(self):
-        """ remove the account directory and reset this account configuration
-        to empty.  You need to call init() to reinitialize.
-        """
-        shutil.rmtree(self.dir)
-        self.config._dict.clear()
-
-    def make_header(self, emailadr, headername="Autocrypt: "):
-        """ return an Autocrypt header line which uses our own
-        key and the provided emailadr.
-
-        :type emailadr: unicode
-        :param emailadr:
-            pure email address which we use as the "to" attribute
-            in the generated Autocrypt header.  An account may generate
-            and send mail from multiple aliases and we advertise
-            the same key across those aliases.
-            (XXX discuss whether "to" is all that useful for level-0 autocrypt.)
-
-        :type headername: unicode
-        :param headername:
-            the prefix we use for the header, defaults to "Autocrypt".
-            By specifying an empty string you just get the header value.
-
-        :rtype: unicode
-        :returns: autocrypt header with prefix and value
-        """
-        return headername + mime.make_ac_header_value(
-            emailadr=emailadr,
-            keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
-            prefer_encrypt=self.config.prefer_encrypt,
-        )
-
-    def process_incoming(self, msg):
-        """ process incoming mail message and store information
-        from any Autocrypt header for the From/Autocrypt peer
-        which created the message.
-
-        :type msg: email.message.Message
-        :param msg: instance of a standard email Message.
-        :rtype: PeerInfo
-        """
-        From = mime.parse_email_addr(msg["From"])[1]
-        old = self.config.peers.get(From, {})
-        d = mime.parse_one_ac_header_from_msg(msg)
-        date = msg.get("Date")
-        if d:
-            if d["to"] == From:
-                if parsedate(date) >= parsedate(old.get("*date", date)):
-                    d["*date"] = date
-                    keydata = b64decode(d["key"])
-                    keyhandle = self.bingpg.import_keydata(keydata)
-                    d["*keyhandle"] = keyhandle
-                    with self.config.atomic_change():
-                        self.config.peers[From] = d
-                    return PeerInfo(d)
-        elif old:
-            # we had an autocrypt header and now forget about it
-            # because we got a mail which doesn't have one
-            with self.config.atomic_change():
-                self.config.peers[From] = {}
-
-    def get_peerinfo(self, emailadr):
-        """ get peerinfo object for a given email address.
-
-        :type emailadr: unicode
-        :param emailadr: pure email address without any prefixes or real names.
-        :rtype: PeerInfo or None
-        """
-        state = self.config.peers.get(emailadr)
-        if state:
-            return PeerInfo(state)
-
     def export_public_key(self, keyhandle=None):
         """ return armored public key of this account or the one
         indicated by the key handle. """
@@ -284,8 +343,9 @@ class Account(object):
 class PeerInfo:
     """ Read only Information coming from the Parsed Autocrypt header of a previous
     incoming Mail from a peer. """
-    def __init__(self, d):
+    def __init__(self, identity, d):
         self._dict = dic = d.copy()
+        self.identity = identity
         self.keyhandle = dic.pop("*keyhandle")
         self.date = dic.pop("*date")
 
@@ -316,7 +376,7 @@ class IdentityInfo:
 
     @cached_property
     def peers(self):
-        return dict((name, PeerInfo(self._peers[name])) for name in self._peers)
+        return dict((name, PeerInfo(self, self._peers[name])) for name in self._peers)
 
     def __str__(self):
         return "Identity(name={}, email_regex={}, keyhandle={}, num_peers={})".format(

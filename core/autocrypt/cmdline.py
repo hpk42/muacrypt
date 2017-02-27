@@ -11,7 +11,7 @@ import sys
 import subprocess
 import six
 import click
-from .account import Account
+from .account import Account, NotInitialized
 from .bingpg import find_executable
 from . import mime
 
@@ -47,7 +47,7 @@ class MyCommand(click.Command):
     def invoke(self, ctx):
         try:
             return super(MyCommand, self).invoke(ctx)
-        except Account.NotInitialized as e:
+        except NotInitialized as e:
             out_red(str(e))
             ctx.exit(1)
 
@@ -98,22 +98,26 @@ def init(ctx, replace, use_existing_key, gpgbin):
     account = ctx.parent.account
     if account.exists():
         if not replace:
-            out_red("account {} exists at {} and --replace was not specified".format(
-                    account.config.uuid, account.dir))
+            out_red("account exists at {} and --replace was not specified".format(
+                    account.dir))
             ctx.exit(1)
         else:
             out_red("deleting account directory: {}".format(account.dir))
             account.remove()
     if not os.path.exists(account.dir):
         os.mkdir(account.dir)
-    account.init(gpgbin=gpgbin, keyhandle=use_existing_key)
-    click.echo("{}: account {} created".format(account.dir, account.config.uuid))
+    account.init()
+    click.echo("account directory initialized: {}".format(account.dir))
+    account.add_identity("default", keyhandle=use_existing_key, gpgbin=gpgbin,
+                         gpgmode="own" if not use_existing_key else "system")
     _status(account)
 
 
 def get_account(ctx):
-    ctx.parent.account.bingpg  # to raise NotInitialized
-    return ctx.parent.account
+    account = ctx.parent.account
+    if not account.exists():
+        raise NotInitialized(account.dir)
+    return account
 
 
 @mycommand("make-header")
@@ -133,10 +137,10 @@ def set_prefer_encrypt(ctx, value):
     """print or set prefer-encrypted setting."""
     account = get_account(ctx)
     if value is None:
-        click.echo(account.config.prefer_encrypt)
+        click.echo(account.get_identity().config.prefer_encrypt)
     else:
         value = six.text_type(value)
-        account.set_prefer_encrypt(value)
+        account.get_identity().set_prefer_encrypt(value)
         click.echo("set prefer-encrypt to %r" % value)
 
 
@@ -216,8 +220,8 @@ def export_public_key(ctx, keyhandle_or_email):
     kh = keyhandle_or_email
     if kh is not None:
         if "@" in kh:
-            kh = account.get_peerinfo(kh).keyhandle
-    click.echo(account.export_public_key(keyhandle=kh))
+            kh = account.get_identity().get_peerinfo(kh).keyhandle
+    click.echo(account.get_identity().export_public_key(keyhandle=kh))
 
 
 @mycommand("export-secret-key")
@@ -225,7 +229,7 @@ def export_public_key(ctx, keyhandle_or_email):
 def export_secret_key(ctx):
     """print secret key of own autocrypt account. """
     account = get_account(ctx)
-    click.echo(account.export_secret_key())
+    click.echo(account.get_identity().export_secret_key())
 
 
 @mycommand()
@@ -238,27 +242,33 @@ def status(ctx):
 
 def _status(account):
     click.echo("account-dir: " + account.dir)
-    click.echo("uuid: " + account.config.uuid)
-    click.echo("own-keyhandle: " + account.config.own_keyhandle)
-    click.echo("prefer-encrypt: " + account.config.prefer_encrypt)
+    for ident in account.list_identities():
+        ic = ident.config
+        click.echo("identity: '{}' uuid {}".format(ic.name, ic.uuid))
+        click.echo("  email_regex: {}".format(ic.email_regex))
+        if ic.gpgmode == "own":
+            click.echo("  gpgmode: {} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
+        else:
+            click.echo("  gpgmode: {}".format(ic.gpgmode))
+        if os.sep not in ic.gpgbin:
+            click.echo("  gpgbin: {} [currently resolves to: {}]".format(
+                       ic.gpgbin, find_executable(ic.gpgbin)))
+        else:
+            click.echo("  gpgbin: {}".format(ic.gpgbin))
+        click.echo("  own-keyhandle: " + ic.own_keyhandle)
+        click.echo("  prefer-encrypt: " + ic.prefer_encrypt)
 
-    gpgbin = account.config.gpgbin
-    if os.sep not in gpgbin:
-        click.echo("gpgbin: {} [currently resolves to: {}]".format(
-                   gpgbin, find_executable(gpgbin)))
-    else:
-        click.echo("gpgbin: {}".format(gpgbin))
-
-    click.echo("gpgmode: " + account.config.gpgmode)
-    peers = account.config.peers
-    if peers:
-        click.echo("----peers-----")
-        for name, ac_dict in peers.items():
-            d = ac_dict.copy()
-            click.echo("{to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
-                       to=d.pop("to"), keyhandle=d.pop("*keyhandle"),
-                       bytes=len(d.pop("key")),
-                       attrs="; ".join(["%s=%s" % x for x in d.items()])))
+        peers = ic.peers
+        if peers:
+            click.echo("  ----peers-----")
+            for name, ac_dict in peers.items():
+                d = ac_dict.copy()
+                click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
+                           to=d.pop("to"), keyhandle=d.pop("*keyhandle"),
+                           bytes=len(d.pop("key")),
+                           attrs="; ".join(["%s=%s" % x for x in d.items()])))
+        else:
+            click.echo("  ---- no peers registered -----")
 
 
 autocrypt_main.add_command(init)

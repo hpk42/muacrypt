@@ -47,11 +47,12 @@ def cached_property(f):
 
 
 class InvocationFailure(Exception):
-    def __init__(self, ret, cmd, out, err):
+    def __init__(self, ret, cmd, out, err, extrainfo=None):
         self.ret = ret
         self.cmd = cmd
         self.out = out
         self.err = err
+        self.extrainfo = extrainfo
 
     def __str__(self):
         lines = ["GPG Command '%s' retcode=%d" % (self.cmd, self.ret)]
@@ -59,6 +60,8 @@ class InvocationFailure(Exception):
             lines.append(name)
             for line in olines.splitlines():
                 lines.append("  " + line)
+        if self.extrainfo:
+            lines.append(self.extrainfo)
         return "\n".join(lines)
 
 
@@ -94,9 +97,9 @@ class BinGPG(object):
         # fix bad defaults for certain gpg2 versions
         if V("2.0") <= V(self.get_version()) < V("2.1.12"):
             p = os.path.join(self.homedir, "gpg-agent.conf")
-            assert not os.path.exists(p)
-            with open(p, "w") as f:
-                f.write("allow-loopback-pinentry\n")
+            if not os.path.exists(p):
+                with open(p, "w") as f:
+                    f.write("allow-loopback-pinentry\n")
 
     def killagent(self):
         if self.isgpg2:
@@ -183,7 +186,6 @@ class BinGPG(object):
 
     def gen_secret_key(self, emailadr):
         spec = "\n".join([
-            "%no-protection",
             "Key-Type: RSA",
             "Key-Length: 2048",
             "Key-Usage: sign",
@@ -196,7 +198,11 @@ class BinGPG(object):
             "%commit"
         ]).encode("utf8")
         with self.temp_written_file(spec) as fn:
-            out, err = self._gpg_outerr(self._nopassphrase + ["--gen-key", fn])
+            try:
+                out, err = self._gpg_outerr(self._nopassphrase + ["--gen-key", fn])
+            except InvocationFailure as e:
+                e.extrainfo = open(fn).read()
+                raise
 
         keyhandle = self._find_keyhandle(err)
         logging.debug("created secret key: %s", keyhandle)

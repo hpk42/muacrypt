@@ -228,21 +228,26 @@ class DirCache:
 @pytest.fixture
 def account(account_maker):
     """ return an uninitialized Autocrypt account. """
-    return account_maker(init=False)
+    return account_maker(addid=False)
 
 
 @pytest.fixture
-def account_maker(tmpdir, gpgpath):
+def account_maker(tmpdir_factory, gpgpath):
     """ return a function which creates a new Autocrypt account, by default initialized.
     pass init=False to the function to avoid initizialtion.
     """
+    # we have to be careful to not generate too long paths
+    # because gpg-2.1.11 chokes while trying to start gpg-agent
     count = itertools.count()
+    tmpdir = tmpdir_factory.mktemp("test")
 
-    def maker(init=True):
-        basedir = tmpdir.mkdir("account%d" % next(count)).strpath
+    def maker(init=True, addid=True):
+        basedir = tmpdir.mkdir("a%d" % next(count)).strpath
         ac = Account(basedir)
         if init:
-            ac.init(gpgbin=gpgpath)
+            ac.init()
+            if addid:
+                ac.add_identity(gpgbin=gpgpath)
         return ac
     return maker
 

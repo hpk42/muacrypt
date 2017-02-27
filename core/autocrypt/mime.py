@@ -24,6 +24,14 @@ def make_ac_header_value(emailadr, keydata, prefer_encrypt="notset", keytype="p"
     return "; ".join(l)
 
 
+def get_target_emailadr(msg):
+    l = []
+    tos = msg.get_all("to") + (msg.get_all("cc") or [])
+    for realname, emailadr in email.utils.getaddresses(tos):
+        l.append(emailadr)
+    return l
+
+
 def parse_email_addr(string):
     """ return a (prefix, emailadr) tuple. """
     return email.utils.parseaddr(string)
