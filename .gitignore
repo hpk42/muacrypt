@@ -1,8 +1,9 @@
 *.pyc
 __pycache__
-doc/_build
 autocrypt.egg-info
+doc/_build
 .cache
+*.swp
 .tox
 build
 dist

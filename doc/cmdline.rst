@@ -101,8 +101,8 @@ Getting our own public encryption key in armored format::
 
 .. _init_system:
 
-initializing with key in system key ring
-----------------------------------------
+initializing with using system key ring
+---------------------------------------
 
 If you want to use autocrypt with an existing mail setup you
 can initialize by specifying an existing key in your system
@@ -134,12 +134,12 @@ Let's run gpg to create the key::
 
 We can now try initialize autocrypt using the just generated key::
 
-    $ autocrypt init --use-existing-key test@autocrypt.org
+    $ autocrypt init --use-system-keyring
     account 89a7329750454bbe9f319a77b64f6acb exists at /tmp/home/.config/autocrypt and --replace was not specified
 
 Oh, the previous autocrypt init state is still there.  Let's replace it::
 
-    $ autocrypt init --replace --use-existing-key test@autocrypt.org
+    $ autocrypt init --replace --use-system-keyring
     deleting account directory: /tmp/home/.config/autocrypt
     /tmp/home/.config/autocrypt: account 1fee5e74d6a643f5962d649489150171 created
     account-dir: /tmp/home/.config/autocrypt
@@ -149,5 +149,62 @@ Oh, the previous autocrypt init state is still there.  Let's replace it::
     gpgbin: gpg [currently resolves to: /usr/bin/gpg]
     gpgmode: system
 
-Success! We now have an initialized autocrypt account which will store
-Autocrypt keys from incoming mails in the system key ring.
+Success! We now have an initialized autocrypt account which keeps
+both our secret and the Autocrypt keys from incoming mails in
+the system key ring.
+
+.. _identities:
+
+Separate identities
+-----------------------
+
+If you receive mails to alias email addresses or from multiple
+accounts and you want to keep those identities separate you can
+manage identities in a more fine-grained manner.  Each identity:
+
+- is defined by a name, a regex-mail address and an encryption
+  private/public key pair and prefer-encrypt settings.
+
+- ties Autocrypt parsed header information from incoming mails
+  if its regex matches a "To" address.
+
+- adds Autocrypt headers to outgoing mails if its regex matches
+  the "From" header.
+
+In order to manage identities more you need to initialize
+using the ``-n|--no-default-identities`` option::
+
+    $ autocrypt init --no-default-identity
+
+You can then add an identity::
+
+    $ autocrypt add-identity home '(xyz|abc)@private.example.org'
+
+this creates an decryption/encryption key pair and ties it to
+the name "gmail" and the regex which matches both ``xyz@private.example.org``
+and ``abc@private.example.org``.  Let's look at the resulting account status
+which lists identities:
+
+    $ autocrypt status
+
+And now let's create another identity::
+
+    $ autocrypt add-identity office 'abc@company.example.org``
+
+We now have a second identity and key which is shown with status::
+
+    $ autocrypt status
+
+This is sufficient now to call the `process-incoming`_ and `process-outgoing`_
+commands and automatically retrieve and send keys to and from peers.
+
+We can set our home identity to want to receive always encrypted mails like this::
+
+    $ autocrypt mod-identity home --prefer-encrypt=yes
+
+This will cause proccessing of outgoing mails from the home address
+to add a header indicating that we want to receive encrypted mails if possible.
+
+Removing an identity::
+
+    $ autocrypt del-identity home
