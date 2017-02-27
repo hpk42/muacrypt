@@ -148,3 +148,29 @@ def test_account_export_public_key(account, datadir):
     peerinfo = account.process_incoming(msg)
     x = account.export_public_key(peerinfo.keyhandle)
     assert x
+
+
+class TestIdentities:
+    def test_add_one_and_check_defaults(self, account):
+        account.init()
+        regex = "(office|work)@example.org"
+        account.add_identity("office", regex)
+        ident = account.get_identity_from_emailadr(["office@example.org"])
+        assert ident.prefer_encrypt == "notset"
+        assert ident.email_regex == regex
+        assert ident.uuid
+        assert hasattr(ident, "keyhandle")
+        assert ident.peers == {}
+        assert str(ident)
+
+    def test_add_two(self, account):
+        account.init()
+        account.add_identity("office", email_regex="office@example.org")
+        account.add_identity("home", email_regex="home@example.org")
+
+        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        assert ident1.name == "office"
+        ident2 = account.get_identity_from_emailadr(["home@example.org"])
+        assert ident2.name == "home"
+        ident3 = account.get_identity_from_emailadr(["hqweome@example.org"])
+        assert ident3 is None

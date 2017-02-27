@@ -10,6 +10,7 @@ which help to persist config and peer state.
 from __future__ import unicode_literals
 
 import os
+import re
 import json
 import shutil
 import six
@@ -85,6 +86,7 @@ class Config(PersistentAttrMixin):
     own_keyhandle = persistent_property("own_keyhandle", six.text_type)
     prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
                                          ["yes", "no", "notset"])
+    identities = persistent_property("identities", dict)
     peers = persistent_property("peers", dict)
 
     def exists(self):
@@ -162,6 +164,22 @@ class Account(object):
             self.config.own_keyhandle = keyhandle
             self.config.prefer_encrypt = "notset"
         assert self.exists()
+
+    def add_identity(self, id_name, email_regex, keyhandle=None):
+        assert id_name not in self.config.identities
+        with self.config.atomic_change():
+            self.config.identities[id_name] = dict(
+                name=id_name, email_regex=email_regex, keyhandle=keyhandle,
+                prefer_encrypt="notset", peers={},
+                uuid=uuid.uuid4().hex,
+            )
+
+    def get_identity_from_emailadr(self, emailadr_list):
+        for id_name, d in self.config.identities.items():
+            ident_info = IdentityInfo(**d)
+            for emailadr in emailadr_list:
+                if re.match(ident_info.email_regex, emailadr):
+                    return ident_info
 
     def set_prefer_encrypt(self, value):
         """ set prefer-encrypt setting to be used when generating a
@@ -284,3 +302,24 @@ class PeerInfo:
                bytes=len(d.pop("key")),
                date=self.date,
                attrs="; ".join(["%s=%s" % x for x in d.items()]))
+
+
+class IdentityInfo:
+    """ Read only information about an Identity in an account. """
+    def __init__(self, name, email_regex, prefer_encrypt, keyhandle, peers, uuid):
+        self.name = name
+        self.email_regex = email_regex
+        self.keyhandle = keyhandle or ""
+        self.prefer_encrypt = prefer_encrypt
+        self.uuid = uuid
+        self._peers = peers
+
+    @cached_property
+    def peers(self):
+        return dict((name, PeerInfo(self._peers[name])) for name in self._peers)
+
+    def __str__(self):
+        return "Identity(name={}, email_regex={}, keyhandle={}, num_peers={})".format(
+               self.name, self.email_regex, self.keyhandle, len(self._peers))
+
+    __repr__ = __str__
