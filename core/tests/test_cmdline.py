@@ -100,7 +100,7 @@ class TestProcessIncoming:
         """, input=mail)
 
         msg = mime.parse_message_from_string(mail)
-        msg["to"] = "some@example.org"
+        msg.replace_header("Delivered-To", "some@example.org")
         newmail = msg.as_string()
         mycmd.run_ok(["process-incoming"], """
             *processed*identity*ident1*

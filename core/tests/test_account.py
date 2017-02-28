@@ -70,7 +70,7 @@ def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
     ac1 = account_maker()
     ac2 = account_maker()
     msg = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Autocrypt=ac1.make_header(adr, headername=""))
     peerinfo = ac2.process_incoming(msg)
     assert peerinfo["to"] == adr
@@ -87,13 +87,13 @@ def test_account_parse_incoming_mails_replace(account_maker):
     ac3 = account_maker()
     adr = "alice@a.org"
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Autocrypt=ac2.make_header(adr, headername=""))
     peerinfo = ac1.process_incoming(msg1)
     ident2 = ac2.get_identity_from_emailadr([adr])
     assert peerinfo.keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(adr, headername=""))
     peerinfo2 = ac1.process_incoming(msg2)
     assert peerinfo2.keyhandle == ac3.get_identity().config.own_keyhandle
@@ -105,11 +105,11 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
     ac3 = account_maker()
     adr = "alice@a.org"
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(adr, headername=""),
         Date='Thu, 16 Feb 2017 15:00:00 -0000')
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Autocrypt=ac2.make_header(adr, headername=""),
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
     peerinfo = ac1.process_incoming(msg2)
@@ -118,7 +118,7 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
     ac1.process_incoming(msg1)
     assert id1.get_peerinfo(adr).keyhandle == ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"],
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
     peerinfo = ac1.process_incoming(msg3)
     assert peerinfo is None

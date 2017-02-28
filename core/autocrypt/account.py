@@ -129,7 +129,7 @@ class NoIdentityFound(AccountException):
         self.adrlist = adrlist
 
     def __str__(self):
-        return "No identities found matching any of: {}".format(" ".join(self.adrlist))
+        return "No identities found for: {}".format(" ".join(self.adrlist))
 
 
 class Account(object):
@@ -266,10 +266,11 @@ class Account(object):
         :param msg: instance of a standard email Message.
         :rtype: PeerInfo
         """
-        adrlist = mime.get_target_emailadr(msg)
-        ident = self.get_identity_from_emailadr(adrlist)
+        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+        assert delivto
+        ident = self.get_identity_from_emailadr([delivto])
         if ident is None:
-            raise NoIdentityFound(adrlist)
+            raise NoIdentityFound([delivto])
         From = mime.parse_email_addr(msg["From"])[1]
         old = ident.config.peers.get(From, {})
         d = mime.parse_one_ac_header_from_msg(msg)

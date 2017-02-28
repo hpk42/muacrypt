@@ -104,12 +104,14 @@ def verify_ac_dict(ac_dict):
     return l
 
 
-def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None):
+def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=False):
     msg = MIMEText('''autoresponse''')
     msg['From'] = From
     msg['To'] = ",".join(To)
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
+    if _dto:
+        msg["Delivered-To"] = To[0]
     if Autocrypt:
         msg["autocrypt"] = Autocrypt
     return msg
