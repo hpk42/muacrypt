@@ -125,6 +125,7 @@ class NotInitialized(AccountException):
 class NoIdentityFound(AccountException):
     def __init__(self, adrlist):
         super(NoIdentityFound, self).__init__(adrlist)
+        assert isinstance(adrlist, list)
         self.adrlist = adrlist
 
     def __str__(self):
@@ -245,7 +246,7 @@ class Account(object):
         """
         if not self.list_identity_names():
             raise NotInitialized("no identities configured")
-        ident = self.get_identity_from_emailadr(emailadr)
+        ident = self.get_identity_from_emailadr([emailadr])
         if ident is None:
             return ""
         else:

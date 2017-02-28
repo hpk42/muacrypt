@@ -150,6 +150,15 @@ class TestIdentityCommands:
             *Autocrypt*to=x@y.org*
         """)
 
+    def test_test_email(self, mycmd):
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["add-identity", "home", "--email-regex=(home|office)@example.org"])
+        mycmd.run_ok(["test-email", "home@example.org"])
+        mycmd.run_ok(["test-email", "office@example.org"])
+        mycmd.run_fail(["test-email", "xhome@example.org"], """
+            *No identities*xhome@example.org*
+        """)
+
 
 class TestProcessOutgoing:
     def test_simple(self, mycmd, gen_mail):
@@ -164,13 +173,17 @@ class TestProcessOutgoing:
         x2 = mime.parse_one_ac_header_from_string(found_header)
         assert x1 == x2
 
-    def test_not_matching_identity(self, mycmd, gen_mail):
+    def test_matching_identity(self, mycmd, gen_mail):
         mycmd.run_ok(["init", "--without-identity"])
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
         mail = gen_mail(From="x@y.org")
         mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
             *No identities*x@y.org*
         """)
+        mail = gen_mail(From="ident1@a.org")
+        out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
+        msg2 = mime.parse_message_from_string(out1)
+        assert "ident1@a.org" in msg2["Autocrypt"]
 
     def test_simple_dont_replace(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])

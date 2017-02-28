@@ -200,6 +200,21 @@ def del_identity(ctx, identity_name):
     _status(account)
 
 
+@mycommand("test-email")
+@click.argument("emailadr", type=str, required=True)
+@click.pass_context
+def test_email(ctx, emailadr):
+    """test which identity an email belongs to.
+
+    Fail if no identity matches.
+    """
+    account = get_account(ctx)
+    ident = account.get_identity_from_emailadr([emailadr])
+    if ident is None:
+        raise NoIdentityFound([emailadr])
+    click.echo(ident.config.name)
+
+
 def get_account(ctx):
     account = ctx.parent.account
     if not account.exists():
@@ -340,7 +355,8 @@ def _status(account):
         return
     for ident in account.list_identities():
         ic = ident.config
-        click.echo("identity: '{}' uuid {}".format(ic.name, ic.uuid))
+        click.echo("")
+        click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
         click.echo("  email_regex: {}".format(ic.email_regex))
         if ic.gpgmode == "own":
             click.echo("  gpgmode: {} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
@@ -375,6 +391,7 @@ autocrypt_main.add_command(del_identity)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
+autocrypt_main.add_command(test_email)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
