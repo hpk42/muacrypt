@@ -140,6 +140,25 @@ def test_process_incoming(mycmd, datadir):
     """)
 
 
+class TestIdentityHandling:
+    def test_add_list_del_identity(self, mycmd):
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["status"], """
+            *no identities configured*
+        """)
+        mycmd.run_ok(["add-identity", "home", "--email-regex=home@example.org"], """
+            *identity added*home*
+        """)
+        mycmd.run_ok(["status"], """
+            *identity*home*
+            *home@example.org*
+        """)
+        mycmd.run_ok(["del-identity", "home"])
+        mycmd.run_ok(["status"], """
+            *no identities configured*
+        """)
+
+
 class TestProcessOutgoing:
     def test_simple(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])

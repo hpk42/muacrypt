@@ -162,6 +162,9 @@ class TestIdentities:
         assert ident.bingpg.get_secret_keydata(ident.config.own_keyhandle)
         assert ident.config.peers == {}
         assert str(ident)
+        account.del_identity("office")
+        assert not account.list_identities()
+        assert not account.get_identity_from_emailadr(["office@example.org"])
 
     def test_add_existing_key(self, account_maker, datadir, gpgpath, monkeypatch):
         acc1 = account_maker()

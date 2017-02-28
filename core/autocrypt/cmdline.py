@@ -76,6 +76,8 @@ def autocrypt_main(context, basedir):
 @mycommand()
 @click.option("--replace", default=False, is_flag=True,
               help="delete autocrypt account directory before attempting init")
+@click.option("--without-identity", default=False, is_flag=True,
+              help="initializing without creating a default identity")
 @click.option("--use-existing-key", default=None, type=str,
               help="use specified secret key from system's gnupg keyring "
                    "and don't create own keyrings or gpghome dir")
@@ -83,7 +85,7 @@ def autocrypt_main(context, basedir):
               help="use specified gpg binary. if it is a simple name it "
                    "is looked up on demand through the system's PATH.")
 @click.pass_context
-def init(ctx, replace, use_existing_key, gpgbin):
+def init(ctx, replace, use_existing_key, gpgbin, without_identity):
     """init autocrypt account state.
 
     By default this command creates account state in a directory which
@@ -108,8 +110,64 @@ def init(ctx, replace, use_existing_key, gpgbin):
         os.mkdir(account.dir)
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
-    account.add_identity("default", keyhandle=use_existing_key, gpgbin=gpgbin,
-                         gpgmode="own" if not use_existing_key else "system")
+    if not without_identity:
+        account.add_identity("default", keyhandle=use_existing_key, gpgbin=gpgbin,
+                             gpgmode="own" if not use_existing_key else "system")
+    _status(account)
+
+
+@mycommand("add-identity")
+@click.argument("identity_name", type=str, required=True)
+@click.option("--use-existing-key", default=None, type=str,
+              help="use specified secret key which must be findable "
+                   "through the specified keyhandle (e.g. email, keyid, fingerprint)")
+@click.option("--use-system-keyring", default=False, is_flag=True,
+              help="use system keyring for all secret/public keys instead of storing "
+                   "keyring state inside our account identity directory.")
+@click.option("--gpgbin", default="gpg", type=str,
+              help="use specified gpg binary. if it is a simple name it "
+                   "is looked up on demand through the system's PATH.")
+@click.option("--email-regex", default=".*", type=str,
+              help="regex for matching all email addresses belonging to "
+                   "this identity.")
+@click.pass_context
+def add_identity(ctx, identity_name, use_system_keyring,
+                 use_existing_key, gpgbin, email_regex):
+    """add an identity to this account.
+
+    An identity requires an identity_name which is used to show, modify and delete it.
+
+    Of primary importance is the "email_regex" which you typically
+    set to a plain email address.   It is used when incoming or outgoing mails
+    need to be associated with this identity.
+
+    Instead of generating a key (the default operation) you may specify an
+    existing key with --use-existing-key=keyhandle where keyhandle may be
+    something for which gpg finds it with 'gpg --list-secret-keys keyhandle'.
+    Typically you will then also specify --use-system-keyring to make use of
+    your existing keys.  All incoming autocrypt keys will thus be stored in
+    the system key ring instead of an own keyring.
+    """
+    account = get_account(ctx)
+    ident = account.add_identity(
+        identity_name, keyhandle=use_existing_key, gpgbin=gpgbin,
+        gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
+    )
+    click.echo("identity added: {!r}".format(ident.config.name))
+    _status(account)
+
+
+@mycommand("del-identity")
+@click.argument("identity_name", type=str, required=True)
+@click.pass_context
+def del_identity(ctx, identity_name):
+    """delete an identity and all its state from this account.
+
+    Make sure you have a backup of your whole account directory first.
+    """
+    account = get_account(ctx)
+    account.del_identity(identity_name)
+    click.echo("identity deleted: {!r}".format(identity_name))
     _status(account)
 
 
@@ -242,6 +300,10 @@ def status(ctx):
 
 def _status(account):
     click.echo("account-dir: " + account.dir)
+    identities = account.list_identities()
+    if not identities:
+        out_red("no identities configured")
+        return
     for ident in account.list_identities():
         ic = ident.config
         click.echo("identity: '{}' uuid {}".format(ic.name, ic.uuid))
@@ -273,11 +335,13 @@ def _status(account):
 
 autocrypt_main.add_command(init)
 autocrypt_main.add_command(status)
-autocrypt_main.add_command(make_header)
+autocrypt_main.add_command(add_identity)
+autocrypt_main.add_command(del_identity)
 autocrypt_main.add_command(set_prefer_encrypt)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
+autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 

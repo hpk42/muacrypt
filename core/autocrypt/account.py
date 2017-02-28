@@ -172,6 +172,11 @@ class Account(object):
                      gpgbin=gpgbin, gpgmode=gpgmode)
         return ident
 
+    def del_identity(self, id_name):
+        ident = self.get_identity(id_name, check=False)
+        assert ident.exists()
+        ident.delete()
+
     def get_identity_from_emailadr(self, emailadr_list):
         for ident in self.list_identities():
             for emailadr in emailadr_list:
@@ -287,6 +292,9 @@ class Identity:
                                      .format(keyhandle, keyinfos))
             self.config.own_keyhandle = keyhandle
         assert self.config.exists()
+
+    def delete(self):
+        shutil.rmtree(self.dir)
 
     @cached_property
     def bingpg(self):
