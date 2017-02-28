@@ -55,23 +55,6 @@ def test_account_header_defaults(account_maker):
     assert d["type"] == "p"
 
 
-@pytest.mark.parametrize("pref", ["yes", "no", "notset"])
-def test_account_header_prefer_encrypt(account_maker, pref):
-    account = account_maker()
-    adr = "hello@xyz.org"
-    ident = account.get_identity()
-    with pytest.raises(ValueError):
-        ident.set_prefer_encrypt("random")
-    ident.set_prefer_encrypt(pref)
-    h = account.make_header(adr)
-    d = mime.parse_one_ac_header_from_string(h)
-    assert d["to"] == adr
-    key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
-    assert d["key"] == key
-    assert d["prefer-encrypt"] == pref
-    assert d["type"] == "p"
-
-
 def test_account_handling(tmpdir):
     tmpdir = tmpdir.strpath
     acc = Account(tmpdir)
@@ -191,3 +174,33 @@ class TestIdentities:
         assert ident2.config.name == "home"
         ident3 = account.get_identity_from_emailadr(["hqweome@example.org"])
         assert ident3 is None
+
+    def test_add_two_modify_one(self, account):
+        account.add_identity("office", email_regex="office@example.org")
+        account.add_identity("home", email_regex="home@example.org")
+
+        account.mod_identity("home", email_regex="newhome@example.org")
+        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        assert ident1.config.name == "office"
+        assert not account.get_identity_from_emailadr(["home@example.org"])
+        ident3 = account.get_identity_from_emailadr(["newhome@example.org"])
+        assert ident3.config.name == "home"
+
+    @pytest.mark.parametrize("pref", ["yes", "no", "notset"])
+    def test_account_set_prefer_encrypt_and_header(self, account_maker, pref):
+        account = account_maker()
+        adr = "hello@xyz.org"
+        ident = account.get_identity()
+        with pytest.raises(ValueError):
+            ident.modify(prefer_encrypt="random")
+        with pytest.raises(ValueError):
+            account.mod_identity(ident.config.name, prefer_encrypt="random")
+
+        account.mod_identity(ident.config.name, prefer_encrypt=pref)
+        h = account.make_header(adr)
+        d = mime.parse_one_ac_header_from_string(h)
+        assert d["to"] == adr
+        key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
+        assert d["key"] == key
+        assert d["prefer-encrypt"] == pref
+        assert d["type"] == "p"

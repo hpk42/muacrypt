@@ -44,8 +44,11 @@ class PersistentAttrMixin(object):
     #    except AttributeError:
     #        pass
 
+    def has_changed(self):
+        return self._dict != self._dict_old
+
     def _commit(self):
-        if self._dict != self._dict_old:
+        if self.has_changed():
             with open(self._path, "w") as f:
                 json.dump(self._dict, f)
             self._dict_old = deepcopy(self._dict)
@@ -152,6 +155,7 @@ class Account(object):
         return self.config.exists()
 
     def get_identity(self, id_name="default", check=True):
+        assert id_name.isalnum(), id_name
         ident = Identity(os.path.join(self._idpath, id_name))
         if check and not ident.exists():
             raise NotInitialized("identity {!r} not known".format(id_name))
@@ -171,6 +175,15 @@ class Account(object):
         ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle,
                      gpgbin=gpgbin, gpgmode=gpgmode)
         return ident
+
+    def mod_identity(self, id_name="default", email_regex=None,
+                     keyhandle=None, gpgbin=None, prefer_encrypt=None):
+        ident = self.get_identity(id_name)
+        changed = ident.modify(
+            email_regex=email_regex, keyhandle=keyhandle, gpgbin=gpgbin,
+            prefer_encrypt=prefer_encrypt,
+        )
+        return changed, ident
 
     def del_identity(self, id_name):
         ident = self.get_identity(id_name, check=False)
@@ -292,6 +305,16 @@ class Identity:
                                      .format(keyhandle, keyinfos))
             self.config.own_keyhandle = keyhandle
         assert self.config.exists()
+
+    def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):
+        with self.config.atomic_change():
+            if email_regex is not None:
+                self.config.email_regex = email_regex
+            if prefer_encrypt is not None:
+                self.config.prefer_encrypt = prefer_encrypt
+            # if gpgbin is not None:
+            #    self.gpgbin = gpgbin
+            return self.config.has_changed()
 
     def delete(self):
         shutil.rmtree(self.dir)

@@ -84,21 +84,6 @@ def test_init_and_make_header_with_envvar(cmd, tmpdir):
         test_init_and_make_header(cmd)
 
 
-def test_set_prefer_encrypt(mycmd):
-    mycmd.run_ok(["init"])
-    mycmd.run_ok(["set-prefer-encrypt"], """
-        *notset*
-    """)
-    mycmd.run_ok(["set-prefer-encrypt", "yes"])
-    mycmd.run_ok(["set-prefer-encrypt"], """
-        *yes*
-    """)
-    adr = "x@yz.org"
-    out3 = mycmd.run_ok(["make-header", adr])
-    d3 = mime.parse_one_ac_header_from_string(out3)
-    assert d3["prefer-encrypt"] == "yes"
-
-
 def test_exports_and_status(mycmd):
     mycmd.run_ok(["init"])
     out = mycmd.run_ok(["export-public-key"])
@@ -156,6 +141,16 @@ class TestIdentityHandling:
         mycmd.run_ok(["del-identity", "home"])
         mycmd.run_ok(["status"], """
             *no identities configured*
+        """)
+
+    def test_modify_identity_prefer_encrypt(self, mycmd):
+        mycmd.run_ok(["init"])
+        mycmd.run_ok(["status"], """
+            *identity*default*
+        """)
+        mycmd.run_ok(["mod-identity", "default", "--prefer-encrypt=yes"], """
+            *identity modified*default*
+            *prefer-encrypt*yes*
         """)
 
 

@@ -157,11 +157,46 @@ def add_identity(ctx, identity_name, use_system_keyring,
     _status(account)
 
 
+@mycommand("mod-identity")
+@click.argument("identity_name", type=str, required=True)
+@click.option("--use-existing-key", default=None, type=str,
+              help="use specified secret key which must be findable "
+                   "through the specified keyhandle (e.g. email, keyid, fingerprint)")
+@click.option("--gpgbin", default=None, type=str,
+              help="use specified gpg binary. if it is a simple name it "
+                   "is looked up on demand through the system's PATH. "
+                   "if it is None (the default) no change is made")
+@click.option("--email-regex", default=None, type=str,
+              help="regex for matching all email addresses belonging to "
+                   "this identity. If it None (the default) no change is made "
+                   "to the existing regex.")
+@click.option("--prefer-encrypt", default=None, type=click.Choice(["notset", "yes", "no"]),
+              help="modify prefer-encrypt setting, default is to not change it.")
+@click.pass_context
+def mod_identity(ctx, identity_name, use_existing_key, gpgbin, email_regex, prefer_encrypt):
+    """modify properties of an existing identity.
+
+    An identity requires an identity_name which is used to show, modify and delete it.
+
+    Any specified email_regex replaces the existing one.
+
+    Any specified key replaces the existing one.
+    """
+    account = get_account(ctx)
+    changed, ident = account.mod_identity(
+        identity_name, keyhandle=use_existing_key, gpgbin=gpgbin,
+        email_regex=email_regex, prefer_encrypt=prefer_encrypt,
+    )
+    s = " NOT " if not changed else " "
+    click.echo("identity{}modified: '{}'".format(s, ident.config.name))
+    _status(account)
+
+
 @mycommand("del-identity")
 @click.argument("identity_name", type=str, required=True)
 @click.pass_context
 def del_identity(ctx, identity_name):
-    """delete an identity and all its state from this account.
+    """delete an identity, its keys and all state.
 
     Make sure you have a backup of your whole account directory first.
     """
@@ -336,8 +371,8 @@ def _status(account):
 autocrypt_main.add_command(init)
 autocrypt_main.add_command(status)
 autocrypt_main.add_command(add_identity)
+autocrypt_main.add_command(mod_identity)
 autocrypt_main.add_command(del_identity)
-autocrypt_main.add_command(set_prefer_encrypt)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
