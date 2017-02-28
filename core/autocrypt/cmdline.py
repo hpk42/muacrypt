@@ -11,7 +11,7 @@ import sys
 import subprocess
 import six
 import click
-from .account import Account, NotInitialized
+from .account import Account, AccountException, NotInitialized, NoIdentityFound
 from .bingpg import find_executable
 from . import mime
 
@@ -47,9 +47,13 @@ class MyCommand(click.Command):
     def invoke(self, ctx):
         try:
             return super(MyCommand, self).invoke(ctx)
-        except NotInitialized as e:
-            out_red(str(e))
-            ctx.exit(1)
+        except AccountException as e:
+            abort(ctx, e)
+
+
+def abort(ctx, exc):
+    out_red(str(exc))
+    ctx.exit(1)
 
 
 class MyCommandUnknownOptions(MyCommand):
@@ -230,23 +234,22 @@ def set_prefer_encrypt(ctx, value):
 @mycommand("process-incoming")
 @click.pass_context
 def process_incoming(ctx):
-    """process incoming mail from stdin, parse and process
-    a possibly contained autocrypt header. """
+    """parse autocrypt headers from stdin mail. """
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     peerinfo = account.process_incoming(msg)
-    if peerinfo:
-        click.echo("processed mail, found: {}".format(peerinfo))
-    else:
-        click.echo("processed mail, found nothing")
+    click.echo("processed mail for identity '{}', found: {}".format(
+               peerinfo.identity.config.name, peerinfo))
 
 
 @mycommand("process-outgoing")
 @click.pass_context
 def process_outgoing(ctx):
-    """process mail from stdin by adding an Autocrypt
-    header and sending the resulting message to stdout by default.
-    If the mail from stdin contains an Autocrypt header we use it
+    """add autocrypt header for outgoing mail.
+
+    We process mail from stdin by adding an Autocrypt
+    header and send the resulting message to stdout.
+    If the mail from stdin contains an Autocrypt header we keep it
     for the outgoing message and do not add one.
     """
     account = get_account(ctx)
@@ -258,12 +261,15 @@ def process_outgoing(ctx):
 @click.argument("args", nargs=-1)
 @click.pass_context
 def sendmail(ctx, args):
-    """process mail from stdin by adding an Autocrypt
-    header and piping the resulting message to the "sendmail" program.
+    """as process-outgoing but submit to sendmail binary.
+
+    Processes mail from stdin by adding an Autocrypt
+    header and pipes the resulting message to the "sendmail" program.
     If the mail from stdin contains an Autocrypt header we use it
     for the outgoing message and do not add one.
 
-    Note that all arguments and unknown options are passed to sendmail.
+    Note that unknown options and all arguments are passed through to the
+    "sendmail" program.
     """
     assert args
     account = get_account(ctx)
@@ -287,7 +293,10 @@ def _prepare_stdin_message(account):
     msg = mime.parse_message_from_file(sys.stdin)
     _, adr = mime.parse_email_addr(msg["From"])
     if "Autocrypt" not in msg:
-        msg["Autocrypt"] = account.make_header(adr, headername="")
+        h = account.make_header(adr, headername="")
+        if not h:
+            raise NoIdentityFound([adr])
+        msg["Autocrypt"] = h
         log_info("Autocrypt header set for {!r}".format(adr))
     else:
         log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
@@ -318,7 +327,7 @@ def export_secret_key(ctx):
 @mycommand()
 @click.pass_context
 def status(ctx):
-    """print account state including those of peers. """
+    """print account and identity info. """
     account = get_account(ctx)
     _status(account)
 

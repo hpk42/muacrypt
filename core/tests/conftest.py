@@ -108,7 +108,7 @@ class ClickRunner:
         self._rootargs.insert(0, "--basedir")
         self._rootargs.insert(1, account_dir)
 
-    def run_ok(self, args, fnmatch_lines=None, input=None):
+    def run_ok(self, args, fnl=None, input=None):
         __tracebackhide__ = True
         argv = self._rootargs + args
         # we use our nextbackup helper to cache account creation
@@ -118,9 +118,9 @@ class ClickRunner:
         if res.exit_code != 0:
             print(res.output)
             raise Exception("cmd exited with %d: %s" % (res.exit_code, argv))
-        return self._perform_match(res, fnmatch_lines)
+        return self._perform_match(res, fnl)
 
-    def run_fail(self, args, input=None, code=None, fnmatch_lines=None):
+    def run_fail(self, args, fnl=None, input=None, code=None):
         __tracebackhide__ = True
         argv = self._rootargs + args
         res = self.runner.invoke(self._main, argv, catch_exceptions=False,
@@ -129,13 +129,13 @@ class ClickRunner:
             print (res.output)
             raise Exception("got exit code {!r}, expected {!r}, output: {}".format(
                 res.exit_code, code, res.output))
-        return self._perform_match(res, fnmatch_lines)
+        return self._perform_match(res, fnl)
 
-    def _perform_match(self, res, fnmatch_lines):
+    def _perform_match(self, res, fnl):
         __tracebackhide__ = True
-        if fnmatch_lines:
+        if fnl:
             lm = LineMatcher(res.output.splitlines())
-            lines = [x.strip() for x in fnmatch_lines.strip().splitlines()]
+            lines = [x.strip() for x in fnl.strip().splitlines()]
             try:
                 lm.fnmatch_lines(lines)
             except:
@@ -257,9 +257,9 @@ def gen_mail(request):
     nid = request.node.nodeid
     counter = itertools.count()
 
-    def do_gen_mail(body=None):
+    def do_gen_mail(From="a@a.org", body=None):
         msg = mime.gen_mail_msg(
-            From="a@a.org", To="b@b.org",
+            From=From, To="b@b.org",
             Subject="test mail {} [{}]".format(next(counter), nid),
         )
         if body is not None:

@@ -90,27 +90,24 @@ def check_ascii(out):
         out.decode("ascii")
 
 
-def test_process_incoming(mycmd, datadir):
-    mycmd.run_ok(["init"])
-    mail = datadir.read("rsa2048-simple.eml")
-    mycmd.run_ok(["process-incoming"], """
-        *processed mail*alice@testsuite.autocrypt.org*key*BAFC533CD993BD7F*
-    """, input=mail)
-    out1 = mycmd.run_ok(["export-public-key", "alice@testsuite.autocrypt.org"], """
-        *---BEGIN PGP*
-    """)
-    out2 = mycmd.run_ok(["export-public-key", "BAFC533CD993BD7F"], """
-        *---BEGIN PGP*
-    """)
-    assert out1 == out2
+class TestProcessIncoming:
+    def test_process_incoming(self, mycmd, datadir):
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["add-identity", "ident1", "--email-regex=some@example.org"])
+        mail = datadir.read("rsa2048-simple.eml")
+        mycmd.run_fail(["process-incoming"], """
+            *No identities found*bob@testsuite.autocrypt.org*
+        """, input=mail)
 
-    mycmd.run_ok(["status"], """
-        *---peers---*
-        *alice@testsuite.autocrypt.org*D993BD7F*1636 bytes*prefer-encrypt*
-    """)
+        msg = mime.parse_message_from_string(mail)
+        msg["to"] = "some@example.org"
+        newmail = msg.as_string()
+        mycmd.run_ok(["process-incoming"], """
+            *processed*identity*ident1*
+        """, input=newmail)
 
 
-class TestIdentityHandling:
+class TestIdentityCommands:
     def test_add_list_del_identity(self, mycmd):
         mycmd.run_ok(["init", "--without-identity"])
         mycmd.run_ok(["status"], """
@@ -166,6 +163,14 @@ class TestProcessOutgoing:
         x1 = mime.parse_one_ac_header_from_string(gen_header)
         x2 = mime.parse_one_ac_header_from_string(found_header)
         assert x1 == x2
+
+    def test_not_matching_identity(self, mycmd, gen_mail):
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
+        mail = gen_mail(From="x@y.org")
+        mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
+            *No identities*x@y.org*
+        """)
 
     def test_simple_dont_replace(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])

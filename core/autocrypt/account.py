@@ -109,8 +109,26 @@ class IdentityConfig(PersistentAttrMixin):
         return self.uuid
 
 
-class NotInitialized(Exception):
-    pass
+class AccountException(Exception):
+    """ an exception raised during method calls on an Account instance. """
+
+
+class NotInitialized(AccountException):
+    def __init__(self, msg):
+        super(NotInitialized, self).__init__(msg)
+        self.msg = msg
+
+    def __str__(self):
+        return "Account not initialized: {}".format(self.msg)
+
+
+class NoIdentityFound(AccountException):
+    def __init__(self, adrlist):
+        super(NoIdentityFound, self).__init__(adrlist)
+        self.adrlist = adrlist
+
+    def __str__(self):
+        return "No identities found matching any of: {}".format(" ".join(self.adrlist))
 
 
 class Account(object):
@@ -161,12 +179,14 @@ class Account(object):
             raise NotInitialized("identity {!r} not known".format(id_name))
         return ident
 
-    def list_identities(self):
+    def list_identity_names(self):
         try:
-            names = [x for x in os.listdir(self._idpath) if x[0] != "."]
+            return [x for x in os.listdir(self._idpath) if x[0] != "."]
         except OSError:
-            names = []
-        return [self.get_identity(x) for x in names]
+            return []
+
+    def list_identities(self):
+        return [self.get_identity(x) for x in self.list_identity_names()]
 
     def add_identity(self, id_name="default", email_regex=".*",
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
@@ -223,10 +243,10 @@ class Account(object):
         :rtype: unicode
         :returns: autocrypt header with prefix and value (or empty string)
         """
+        if not self.list_identity_names():
+            raise NotInitialized("no identities configured")
         ident = self.get_identity_from_emailadr(emailadr)
         if ident is None:
-            if not self.config.exists():
-                raise NotInitialized(self.dir)
             return ""
         else:
             assert ident.config.own_keyhandle
@@ -248,8 +268,7 @@ class Account(object):
         adrlist = mime.get_target_emailadr(msg)
         ident = self.get_identity_from_emailadr(adrlist)
         if ident is None:
-            # no matching identity
-            return
+            raise NoIdentityFound(adrlist)
         From = mime.parse_email_addr(msg["From"])[1]
         old = ident.config.peers.get(From, {})
         d = mime.parse_one_ac_header_from_msg(msg)
@@ -281,7 +300,8 @@ class Identity:
         return "Identity[{}]".format(self.config)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
-        os.makedirs(self.dir)
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
         with self.config.atomic_change():
             self.config.uuid = uuid.uuid4().hex
             self.config.name = name
@@ -329,7 +349,7 @@ class Identity:
         else:
             gpghome = -1
         if gpghome == -1 or not self.config.gpgbin:
-            raise self.NotInitialized(
+            raise NotInitialized(
                 "Account directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
 
