@@ -48,21 +48,6 @@ def test_init(mycmd):
     """)
 
 
-def test_init_existing_key_native_gpg(mycmd, monkeypatch, bingpg, gpgpath):
-    adr = "x@y.org"
-    keyhandle = bingpg.gen_secret_key(adr)
-    monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
-    mycmd.run_ok(["init", "--use-existing-key", adr, "--gpgbin=%s" % gpgpath], """
-            *account*initialized*
-            *gpgmode*system*
-            *gpgbin*{}*
-            *own-keyhandle*{}*
-    """.format(gpgpath, keyhandle))
-    mycmd.run_ok(["make-header", adr], """
-        *Autocrypt*to=x@y.org*
-    """)
-
-
 def test_init_and_make_header(mycmd):
     mycmd.run_fail(["make-header", "xyz"], """
         *Account*not initialized*
@@ -151,6 +136,21 @@ class TestIdentityHandling:
         mycmd.run_ok(["mod-identity", "default", "--prefer-encrypt=yes"], """
             *identity modified*default*
             *prefer-encrypt*yes*
+        """)
+
+    def test_init_existing_key_native_gpg(self, mycmd, monkeypatch, bingpg, gpgpath):
+        adr = "x@y.org"
+        keyhandle = bingpg.gen_secret_key(adr)
+        monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["add-identity", "home", "--use-existing-key", adr,
+                      "--gpgbin=%s" % gpgpath, "--use-system-keyring"], """
+                *gpgmode*system*
+                *gpgbin*{}*
+                *own-keyhandle*{}*
+        """.format(gpgpath, keyhandle))
+        mycmd.run_ok(["make-header", adr], """
+            *Autocrypt*to=x@y.org*
         """)
 
 

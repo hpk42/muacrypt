@@ -78,24 +78,15 @@ def autocrypt_main(context, basedir):
               help="delete autocrypt account directory before attempting init")
 @click.option("--without-identity", default=False, is_flag=True,
               help="initializing without creating a default identity")
-@click.option("--use-existing-key", default=None, type=str,
-              help="use specified secret key from system's gnupg keyring "
-                   "and don't create own keyrings or gpghome dir")
-@click.option("--gpgbin", default="gpg", type=str,
-              help="use specified gpg binary. if it is a simple name it "
-                   "is looked up on demand through the system's PATH.")
 @click.pass_context
-def init(ctx, replace, use_existing_key, gpgbin, without_identity):
+def init(ctx, replace, without_identity):
     """init autocrypt account state.
 
-    By default this command creates account state in a directory which
-    contains an own key ring in which it will create a new secret key to
-    be used for this account.
-
-    If you specify "--use-existing-key <keyhandle>" this account will rather
-    use the specified secret key and the system's gpg keyrings.  All incoming
-    autocrypt keys will thus be stored in the system key ring intead of
-    an own keyring.
+    By default this command creates account state in a directory with
+    a default "catch-all" identity which matches all email addresses
+    and uses default settings.  If you want to have more fine-grained
+    control (which gpg binary to use, which existing key to use, if to
+    use an existing system key ring ...) specify "--without-identity".
     """
     account = ctx.parent.account
     if account.exists():
@@ -111,8 +102,7 @@ def init(ctx, replace, use_existing_key, gpgbin, without_identity):
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
     if not without_identity:
-        account.add_identity("default", keyhandle=use_existing_key, gpgbin=gpgbin,
-                             gpgmode="own" if not use_existing_key else "system")
+        account.add_identity("default")
     _status(account)
 
 
