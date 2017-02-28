@@ -16,12 +16,21 @@ def make_ac_header_value(emailadr, keydata, prefer_encrypt="notset", keytype="p"
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
         key = key.decode("ascii")
-    l = ["to=" + emailadr, "key=" + key]
+    l = ["to=" + emailadr]
     if prefer_encrypt != "notset":
-        l.insert(1, "prefer-encrypt=" + prefer_encrypt)
+        l.append("prefer-encrypt=" + prefer_encrypt)
     if keytype != "p":
-        l.insert(1, "type=" + keytype)
+        l.append("type=" + keytype)
+    l.append("key=\n" + indented_split(key))
     return "; ".join(l)
+
+
+def indented_split(value, maxlen=78, indent="  "):
+    assert "\n" not in value
+    l = []
+    for i in range(0, len(value), maxlen):
+        l.append(indent + value[i:i + maxlen] + "\n")
+    return "".join(l).rstrip()
 
 
 def get_target_emailadr(msg):

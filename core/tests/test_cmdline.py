@@ -78,8 +78,8 @@ def test_exports_and_status(mycmd):
     out = mycmd.run_ok(["status"], """
         account-dir:*
         *identity*default*uuid*
-        *own-keyhandle:*
         *prefer-encrypt: notset*
+        *own-keyhandle:*
     """)
 
 

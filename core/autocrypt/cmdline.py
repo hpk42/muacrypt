@@ -367,9 +367,19 @@ def _status(account):
                        ic.gpgbin, find_executable(ic.gpgbin)))
         else:
             click.echo("  gpgbin: {}".format(ic.gpgbin))
-        click.echo("  own-keyhandle: " + ic.own_keyhandle)
+
         click.echo("  prefer-encrypt: " + ic.prefer_encrypt)
 
+        # print info on key including uids
+        keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
+        uids = set()
+        for k in keyinfos:
+            uids.update(k.uids)
+        click.echo("  own-keyhandle: {}".format(ic.own_keyhandle))
+        for uid in uids:
+            click.echo("           -uid: {}".format(uid))
+
+        # print info on peers
         peers = ic.peers
         if peers:
             click.echo("  ----peers-----")

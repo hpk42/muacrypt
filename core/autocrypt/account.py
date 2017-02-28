@@ -207,8 +207,7 @@ class Account(object):
         return changed, ident
 
     def del_identity(self, id_name):
-        ident = self.get_identity(id_name, check=False)
-        assert ident.exists()
+        ident = self.get_identity(id_name)
         ident.delete()
 
     def get_identity_from_emailadr(self, emailadr_list):
@@ -366,19 +365,8 @@ class Identity:
         if state:
             return PeerInfo(self, state)
 
-    def set_prefer_encrypt(self, value):
-        """ set prefer-encrypt setting to be used when generating a
-        header with make_header.
-
-        :param value: one of "yes", "no", "notset"
-        """
-        with self.config.atomic_change():
-            self.config.prefer_encrypt = value
-
     def exists(self):
-        """ return True if the account directory exists and has been properly
-        initialized (through an earlier call to init()).
-        """
+        """ return True if the identity exists. """
         return self.config.exists()
 
     def export_public_key(self, keyhandle=None):
