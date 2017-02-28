@@ -122,7 +122,7 @@ def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=F
     if _dto:
         msg["Delivered-To"] = To[0]
     if Autocrypt:
-        msg["autocrypt"] = Autocrypt
+        msg["Autocrypt"] = Autocrypt
     return msg
 
 

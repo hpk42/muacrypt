@@ -382,7 +382,7 @@ class Identity:
 
 
 class PeerInfo:
-    """ Read only Information coming from the Parsed Autocrypt header of a previous
+    """ Read-Only info coming from the Parsed Autocrypt header of a previous
     incoming Mail from a peer. """
     def __init__(self, identity, d):
         self._dict = dic = d.copy()

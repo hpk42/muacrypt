@@ -253,8 +253,15 @@ def process_incoming(ctx):
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     peerinfo = account.process_incoming(msg)
-    click.echo("processed mail for identity '{}', found: {}".format(
-               peerinfo.identity.config.name, peerinfo))
+    if peerinfo is not None:
+        click.echo("processed mail for identity '{}', found: {}".format(
+                   peerinfo.identity.config.name, peerinfo))
+    else:
+        # XXX account.process_incoming() should return the identity
+        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+        ident = account.get_identity_from_emailadr([delivto])
+        click.echo("processed mail for identity '{}', no Autocrypt header found.".format(
+                   ident.config.name))
 
 
 @mycommand("process-outgoing")

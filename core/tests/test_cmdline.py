@@ -106,6 +106,14 @@ class TestProcessIncoming:
             *processed*identity*ident1*
         """, input=newmail)
 
+    def test_process_incoming_no_autocrypt(self, mycmd, datadir):
+        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["add-identity", "ident1", "--email-regex=b@b.org"])
+        msg = mime.gen_mail_msg(From="Alice <a@a.org>", To=["b@b.org"], _dto=True)
+        mycmd.run_ok(["process-incoming"], """
+            *processed*ident1*no*Autocrypt*header*
+        """, input=msg.as_string())
+
 
 class TestIdentityCommands:
     def test_add_list_del_identity(self, mycmd):
