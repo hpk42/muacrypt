@@ -223,7 +223,8 @@ export-public-key subcommand
     print public key of own or peer account.
   
   Options:
-    -h, --help  Show this message and exit.
+    --id identity  perform lookup through this identity
+    -h, --help     Show this message and exit.
 
 .. _`export-secret-key`:
 
@@ -237,5 +238,6 @@ export-secret-key subcommand
     print secret key of own autocrypt account.
   
   Options:
-    -h, --help  Show this message and exit.
+    --id identity  perform lookup through this identity
+    -h, --help     Show this message and exit.
 

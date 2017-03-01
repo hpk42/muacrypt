@@ -11,7 +11,7 @@ import sys
 import subprocess
 import six
 import click
-from .account import Account, AccountException, NotInitialized, NoIdentityFound
+from .account import Account, AccountException, NotInitialized, IdentityNotFound
 from .bingpg import find_executable
 from . import mime
 
@@ -211,7 +211,7 @@ def test_email(ctx, emailadr):
     account = get_account(ctx)
     ident = account.get_identity_from_emailadr([emailadr])
     if ident is None:
-        raise NoIdentityFound([emailadr])
+        raise IdentityNotFound([emailadr])
     click.echo(ident.config.name)
 
 
@@ -317,7 +317,7 @@ def _prepare_stdin_message(account):
     if "Autocrypt" not in msg:
         h = account.make_header(adr, headername="")
         if not h:
-            raise NoIdentityFound([adr])
+            raise IdentityNotFound("no identity associated with {}".format([adr]))
         msg["Autocrypt"] = h
         log_info("Autocrypt header set for {!r}".format(adr))
     else:
@@ -325,25 +325,32 @@ def _prepare_stdin_message(account):
     return msg, adr
 
 
+id_option = click.option(
+    "--id", default="default", metavar="identity",
+    help="perform lookup through this identity")
+
+
 @mycommand("export-public-key")
+@id_option
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
-def export_public_key(ctx, keyhandle_or_email):
+def export_public_key(ctx, id, keyhandle_or_email):
     """print public key of own or peer account."""
     account = get_account(ctx)
-    kh = keyhandle_or_email
-    if kh is not None:
-        if "@" in kh:
-            kh = account.get_identity().get_peerinfo(kh).keyhandle
-    click.echo(account.get_identity().export_public_key(keyhandle=kh))
+    ident = account.get_identity(id)
+    data = ident.export_public_key(keyhandle_or_email)
+    click.echo(data)
 
 
 @mycommand("export-secret-key")
+@id_option
 @click.pass_context
-def export_secret_key(ctx):
+def export_secret_key(ctx, id):
     """print secret key of own autocrypt account. """
     account = get_account(ctx)
-    click.echo(account.get_identity().export_secret_key())
+    ident = account.get_identity(id)
+    data = ident.export_secret_key()
+    click.echo(data)
 
 
 @mycommand()

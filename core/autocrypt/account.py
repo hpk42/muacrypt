@@ -122,14 +122,13 @@ class NotInitialized(AccountException):
         return "Account not initialized: {}".format(self.msg)
 
 
-class NoIdentityFound(AccountException):
-    def __init__(self, adrlist):
-        super(NoIdentityFound, self).__init__(adrlist)
-        assert isinstance(adrlist, list)
-        self.adrlist = adrlist
+class IdentityNotFound(AccountException):
+    def __init__(self, msg):
+        super(IdentityNotFound, self).__init__(msg)
+        self.msg = msg
 
     def __str__(self):
-        return "No identities found for: {}".format(" ".join(self.adrlist))
+        return "IdentityNotFound: {}".format(self.msg)
 
 
 class Account(object):
@@ -177,7 +176,7 @@ class Account(object):
         assert id_name.isalnum(), id_name
         ident = Identity(os.path.join(self._idpath, id_name))
         if check and not ident.exists():
-            raise NotInitialized("identity {!r} not known".format(id_name))
+            raise IdentityNotFound("identity {!r} not known".format(id_name))
         return ident
 
     def list_identity_names(self):
@@ -297,7 +296,7 @@ class Account(object):
         assert delivto
         ident = self.get_identity_from_emailadr([delivto])
         if ident is None:
-            raise NoIdentityFound([delivto])
+            raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
         old = ident.config.peers.get(From, {})
         d = mime.parse_one_ac_header_from_msg(msg)
@@ -415,9 +414,10 @@ class Identity:
     def export_public_key(self, keyhandle=None):
         """ return armored public key of this account or the one
         indicated by the key handle. """
-        if keyhandle is None:
-            keyhandle = self.config.own_keyhandle
-        return self.bingpg.get_public_keydata(keyhandle, armor=True)
+        kh = keyhandle
+        if kh is None:
+            kh = self.config.own_keyhandle
+        return self.bingpg.get_public_keydata(kh, armor=True)
 
     def export_secret_key(self):
         """ return armored public key for this account. """

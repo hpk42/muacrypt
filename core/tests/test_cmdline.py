@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 import os
+import re
 import six
 import pytest
 from autocrypt import mime
@@ -69,7 +70,7 @@ def test_init_and_make_header_with_envvar(cmd, tmpdir):
         test_init_and_make_header(cmd)
 
 
-def test_exports_and_status(mycmd):
+def test_exports_and_status_plain(mycmd):
     mycmd.run_ok(["init"])
     out = mycmd.run_ok(["export-public-key"])
     check_ascii(out)
@@ -96,15 +97,20 @@ class TestProcessIncoming:
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=some@example.org"])
         mail = datadir.read("rsa2048-simple.eml")
         mycmd.run_fail(["process-incoming"], """
-            *No identities found*bob@testsuite.autocrypt.org*
+            *IdentityNotFound*bob@testsuite.autocrypt.org*
         """, input=mail)
 
         msg = mime.parse_message_from_string(mail)
         msg.replace_header("Delivered-To", "some@example.org")
         newmail = msg.as_string()
-        mycmd.run_ok(["process-incoming"], """
+        out = mycmd.run_ok(["process-incoming"], """
             *processed*identity*ident1*
         """, input=newmail)
+
+        # now export the public key
+        m = re.search(r'key (\w+) ', out)
+        keyhandle, = m.groups()
+        mycmd.run_ok(["export-public-key", "--id=ident1", keyhandle])
 
     def test_process_incoming_no_autocrypt(self, mycmd, datadir):
         mycmd.run_ok(["init", "--no-identity"])
@@ -164,7 +170,7 @@ class TestIdentityCommands:
         mycmd.run_ok(["test-email", "home@example.org"])
         mycmd.run_ok(["test-email", "office@example.org"])
         mycmd.run_fail(["test-email", "xhome@example.org"], """
-            *No identities*xhome@example.org*
+            *IdentityNotFound*xhome@example.org*
         """)
 
 
@@ -186,7 +192,7 @@ class TestProcessOutgoing:
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
         mail = gen_mail(From="x@y.org")
         mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
-            *No identities*x@y.org*
+            *IdentityNotFound*x@y.org*
         """)
         mail = gen_mail(From="ident1@a.org")
         out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
