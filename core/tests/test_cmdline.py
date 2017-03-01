@@ -92,7 +92,7 @@ def check_ascii(out):
 
 class TestProcessIncoming:
     def test_process_incoming(self, mycmd, datadir):
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=some@example.org"])
         mail = datadir.read("rsa2048-simple.eml")
         mycmd.run_fail(["process-incoming"], """
@@ -107,7 +107,7 @@ class TestProcessIncoming:
         """, input=newmail)
 
     def test_process_incoming_no_autocrypt(self, mycmd, datadir):
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=b@b.org"])
         msg = mime.gen_mail_msg(From="Alice <a@a.org>", To=["b@b.org"], _dto=True)
         mycmd.run_ok(["process-incoming"], """
@@ -117,7 +117,7 @@ class TestProcessIncoming:
 
 class TestIdentityCommands:
     def test_add_list_del_identity(self, mycmd):
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["status"], """
             *no identities configured*
         """)
@@ -147,7 +147,7 @@ class TestIdentityCommands:
         adr = "x@y.org"
         keyhandle = bingpg.gen_secret_key(adr)
         monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "home", "--use-existing-key", adr,
                       "--gpgbin=%s" % gpgpath, "--use-system-keyring"], """
                 *gpgmode*system*
@@ -159,7 +159,7 @@ class TestIdentityCommands:
         """)
 
     def test_test_email(self, mycmd):
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "home", "--email-regex=(home|office)@example.org"])
         mycmd.run_ok(["test-email", "home@example.org"])
         mycmd.run_ok(["test-email", "office@example.org"])
@@ -182,7 +182,7 @@ class TestProcessOutgoing:
         assert x1 == x2
 
     def test_matching_identity(self, mycmd, gen_mail):
-        mycmd.run_ok(["init", "--without-identity"])
+        mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
         mail = gen_mail(From="x@y.org")
         mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""

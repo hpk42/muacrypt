@@ -191,6 +191,17 @@ class Account(object):
 
     def add_identity(self, id_name="default", email_regex=".*",
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
+        """ add a named identity to this account.
+
+        :param id_name: name of this identity
+        :param email_regex: regular expression which matches all email addresses
+                            belonging to this identity.
+        :param keyhandle: key fingerprint or uid to use for this identity.
+        :param gpgbin: basename of or full path to gpg binary
+        :param gpgmode: "own" (default) keeps all key state inside the identity
+                        directory under the account.  "system" will store keys
+                        in the user's system gnupg keyring.
+        """
         ident = self.get_identity(id_name, check=False)
         assert not ident.exists()
         ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle,
@@ -199,6 +210,21 @@ class Account(object):
 
     def mod_identity(self, id_name="default", email_regex=None,
                      keyhandle=None, gpgbin=None, prefer_encrypt=None):
+        """ modify a named identity.
+
+        All arguments are optional: if they are not specified the underlying
+        identity setting remains unchanged.
+
+        :param id_name: name of this identity
+        :param email_regex: regular expression which matches all email addresses
+                            belonging to this identity.
+        :param keyhandle: key fingerprint or uid to use for this identity.
+        :param gpgbin: basename of or full path to gpg binary
+        :param gpgmode: "own" keeps all key state inside the identity
+                        directory under the account.  "system" will store keys
+                        in the user's system gnupg keyring.
+        :returns: Identity instance
+        """
         ident = self.get_identity(id_name)
         changed = ident.modify(
             email_regex=email_regex, keyhandle=keyhandle, gpgbin=gpgbin,
@@ -207,10 +233,12 @@ class Account(object):
         return changed, ident
 
     def del_identity(self, id_name):
+        """ fully remove an identity. """
         ident = self.get_identity(id_name)
         ident.delete()
 
     def get_identity_from_emailadr(self, emailadr_list):
+        """ get identity for a given email address list. """
         for ident in self.list_identities():
             for emailadr in emailadr_list:
                 if re.match(ident.config.email_regex, emailadr):
@@ -293,6 +321,8 @@ class Account(object):
 
 
 class Identity:
+    """ An Identity manages all Autocrypt settings and keys for a peer and stores
+    it in a directory. Call create() for initializing settings."""
     def __init__(self, dir):
         self.dir = dir
         self.config = IdentityConfig(os.path.join(self.dir, "config.json"))
@@ -301,6 +331,19 @@ class Identity:
         return "Identity[{}]".format(self.config)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
+        """ create all settings, keyrings etc for this identity.
+
+        :param name: name of this identity
+        :param email_regex: regular expression which matches all email addresses
+                            belonging to this identity.
+        :param keyhandle: key fingerprint or uid to use for this identity. If it is
+                          None we generate a fresh Autocrypt compliant key.
+        :param gpgbin: basename of or full path to gpg binary
+        :param gpgmode: "own" keeps all key state inside the identity
+                        directory under the account.  "system" will store keys
+                        in the user's system GnuPG keyring.
+        """
+        assert gpgmode in ("own", "system")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
         with self.config.atomic_change():
@@ -382,8 +425,11 @@ class Identity:
 
 
 class PeerInfo:
-    """ Read-Only info coming from the Parsed Autocrypt header of a previous
-    incoming Mail from a peer. """
+    """ Read-Only info coming from the Parsed Autocrypt header from
+    an incoming Mail from a peer. In addition to the Autocrypt-specified
+    attributes ("to", "key", type", ...) there also is a "Date" and "keyhandle"
+    attribute derived from the incoming message.
+    """
     def __init__(self, identity, d):
         self._dict = dic = d.copy()
         self.identity = identity

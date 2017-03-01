@@ -65,7 +65,7 @@ clean:
 
 .PHONY: html
 html: 
-	python with_venv.py ${BUILDDIR}/_venv $(SPHINXBUILD) -E -W \
+	python3 with_venv.py ${BUILDDIR}/_venv $(SPHINXBUILD) -E -W \
 						-b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
@@ -239,6 +239,9 @@ dummy:
 	$(SPHINXBUILD) -b dummy $(ALLSPHINXOPTS) $(BUILDDIR)/dummy
 	@echo
 	@echo "Build finished. Dummy builder generates no files."
+
+regen-cmdref:
+	python with_venv.py $(BUILDDIR)/_venv python gen_command_reference.py  >cmdref.inc
 
 regen:
 	python with_tmphome.py regendoc --update cmdline.rst

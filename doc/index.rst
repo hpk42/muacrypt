@@ -4,7 +4,7 @@ Autocrypt Python Reference tool and implementation
 
 .. note::
 
-    The autocrypt reference tool is as much in development
+    The py-autocrypt tool is as much in development
     as the spec itself.  Until we have a 1.0 release
     everything is subject to change.
 

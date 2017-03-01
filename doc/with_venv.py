@@ -11,12 +11,10 @@ if __name__ == "__main__":
     venvdir = sys.argv[1]
     bindir = os.path.join(venvdir, "bin")
     assert venvdir
+    os.environ["PATH"] = bindir + os.pathsep + os.environ["PATH"]
     if not os.path.exists(venvdir):
-        subprocess.check_call(["virtualenv", venvdir])
-
-        # poor people's virtualenv activate
-        os.environ["PATH"] = bindir + os.pathsep + os.environ["PATH"]
-
+        subprocess.check_call(["virtualenv", "-p", sys.executable, venvdir])
         subprocess.check_call(["pip", "install", "-e", "../core"])
 
+    # poor people's virtualenv activate
     sys.exit(subprocess.call(sys.argv[2:]))

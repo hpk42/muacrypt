@@ -80,17 +80,17 @@ def autocrypt_main(context, basedir):
 @mycommand()
 @click.option("--replace", default=False, is_flag=True,
               help="delete autocrypt account directory before attempting init")
-@click.option("--without-identity", default=False, is_flag=True,
+@click.option("--no-identity", default=False, is_flag=True,
               help="initializing without creating a default identity")
 @click.pass_context
-def init(ctx, replace, without_identity):
+def init(ctx, replace, no_identity):
     """init autocrypt account state.
 
     By default this command creates account state in a directory with
     a default "catch-all" identity which matches all email addresses
     and uses default settings.  If you want to have more fine-grained
     control (which gpg binary to use, which existing key to use, if to
-    use an existing system key ring ...) specify "--without-identity".
+    use an existing system key ring ...) specify "--no-identity".
     """
     account = ctx.parent.account
     if account.exists():
@@ -105,7 +105,7 @@ def init(ctx, replace, without_identity):
         os.mkdir(account.dir)
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
-    if not without_identity:
+    if not no_identity:
         account.add_identity("default")
     _status(account)
 
@@ -147,8 +147,8 @@ def add_identity(ctx, identity_name, use_system_keyring,
         identity_name, keyhandle=use_existing_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
-    click.echo("identity added: {!r}".format(ident.config.name))
-    _status(account)
+    click.echo("identity added: '{}'".format(ident.config.name))
+    _status_identity(ident)
 
 
 @mycommand("mod-identity")
@@ -183,7 +183,7 @@ def mod_identity(ctx, identity_name, use_existing_key, gpgbin, email_regex, pref
     )
     s = " NOT " if not changed else " "
     click.echo("identity{}modified: '{}'".format(s, ident.config.name))
-    _status(account)
+    _status_identity(ident)
 
 
 @mycommand("del-identity")
@@ -361,43 +361,47 @@ def _status(account):
         out_red("no identities configured")
         return
     for ident in account.list_identities():
-        ic = ident.config
-        click.echo("")
-        click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
-        click.echo("  email_regex: {}".format(ic.email_regex))
-        if ic.gpgmode == "own":
-            click.echo("  gpgmode: {} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
-        else:
-            click.echo("  gpgmode: {}".format(ic.gpgmode))
-        if os.sep not in ic.gpgbin:
-            click.echo("  gpgbin: {} [currently resolves to: {}]".format(
-                       ic.gpgbin, find_executable(ic.gpgbin)))
-        else:
-            click.echo("  gpgbin: {}".format(ic.gpgbin))
+        _status_identity(ident)
 
-        click.echo("  prefer-encrypt: " + ic.prefer_encrypt)
 
-        # print info on key including uids
-        keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
-        uids = set()
-        for k in keyinfos:
-            uids.update(k.uids)
-        click.echo("  own-keyhandle: {}".format(ic.own_keyhandle))
-        for uid in uids:
-            click.echo("           -uid: {}".format(uid))
+def _status_identity(ident):
+    ic = ident.config
+    click.echo("")
+    click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
+    click.echo("  email_regex: {}".format(ic.email_regex))
+    if ic.gpgmode == "own":
+        click.echo("  gpgmode: {} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
+    else:
+        click.echo("  gpgmode: {}".format(ic.gpgmode))
+    if os.sep not in ic.gpgbin:
+        click.echo("  gpgbin: {} [currently resolves to: {}]".format(
+                   ic.gpgbin, find_executable(ic.gpgbin)))
+    else:
+        click.echo("  gpgbin: {}".format(ic.gpgbin))
 
-        # print info on peers
-        peers = ic.peers
-        if peers:
-            click.echo("  ----peers-----")
-            for name, ac_dict in peers.items():
-                d = ac_dict.copy()
-                click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
-                           to=d.pop("to"), keyhandle=d.pop("*keyhandle"),
-                           bytes=len(d.pop("key")),
-                           attrs="; ".join(["%s=%s" % x for x in d.items()])))
-        else:
-            click.echo("  ---- no peers registered -----")
+    click.echo("  prefer-encrypt: " + ic.prefer_encrypt)
+
+    # print info on key including uids
+    keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
+    uids = set()
+    for k in keyinfos:
+        uids.update(k.uids)
+    click.echo("  own-keyhandle: {}".format(ic.own_keyhandle))
+    for uid in uids:
+        click.echo("           -uid: {}".format(uid))
+
+    # print info on peers
+    peers = ic.peers
+    if peers:
+        click.echo("  ----peers-----")
+        for name, ac_dict in peers.items():
+            d = ac_dict.copy()
+            click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
+                       to=d.pop("to"), keyhandle=d.pop("*keyhandle"),
+                       bytes=len(d.pop("key")),
+                       attrs="; ".join(["%s=%s" % x for x in d.items()])))
+    else:
+        click.echo("  ---- no peers registered -----")
 
 
 autocrypt_main.add_command(init)
