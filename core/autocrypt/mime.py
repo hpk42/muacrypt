@@ -7,7 +7,7 @@ from __future__ import unicode_literals, print_function
 import email.parser
 import base64
 from email.mime.text import MIMEText
-from email.utils import formatdate
+from email.utils import formatdate, make_msgid
 import six
 
 
@@ -113,8 +113,13 @@ def verify_ac_dict(ac_dict):
     return l
 
 
-def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=False):
-    msg = MIMEText('''autoresponse''')
+def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=False,
+                 MessageID=None, body='Autoresponse'):
+    assert isinstance(To, (list, tuple))
+    if MessageID is None:
+        MessageID = make_msgid()
+    msg = MIMEText(body)
+    msg['Message-ID'] = MessageID
     msg['From'] = From
     msg['To'] = ",".join(To)
     msg['Subject'] = Subject

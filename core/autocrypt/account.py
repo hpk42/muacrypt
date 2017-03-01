@@ -236,12 +236,15 @@ class Account(object):
         ident = self.get_identity(id_name)
         ident.delete()
 
-    def get_identity_from_emailadr(self, emailadr_list):
+    def get_identity_from_emailadr(self, emailadr_list, raising=False):
         """ get identity for a given email address list. """
+        assert isinstance(emailadr_list, (list, tuple)), repr(emailadr_list)
         for ident in self.list_identities():
             for emailadr in emailadr_list:
                 if re.match(ident.config.email_regex, emailadr):
                     return ident
+        if raising:
+            raise IdentityNotFound(emailadr_list)
 
     def remove(self):
         """ remove the account directory and reset this account configuration
@@ -277,11 +280,7 @@ class Account(object):
             return ""
         else:
             assert ident.config.own_keyhandle
-            return headername + mime.make_ac_header_value(
-                emailadr=emailadr,
-                keydata=ident.bingpg.get_public_keydata(ident.config.own_keyhandle),
-                prefer_encrypt=ident.config.prefer_encrypt,
-            )
+            return ident.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg):
         """ process incoming mail message and store information
@@ -301,7 +300,7 @@ class Account(object):
         old = ident.config.peers.get(From, {})
         d = mime.parse_one_ac_header_from_msg(msg)
         date = msg.get("Date")
-        if d:
+        if d and "to" in d:
             if d["to"] == From:
                 if parsedate(date) >= parsedate(old.get("*date", date)):
                     d["*date"] = date
@@ -310,7 +309,6 @@ class Account(object):
                     d["*keyhandle"] = keyhandle
                     with ident.config.atomic_change():
                         ident.config.peers[From] = d
-                        print("added to peers len={}".format(len(ident.config.peers)))
                     return PeerInfo(ident, d)
         elif old:
             # we had an autocrypt header and now forget about it
@@ -395,6 +393,13 @@ class Identity:
             raise NotInitialized(
                 "Account directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
+
+    def make_ac_header(self, emailadr, headername="Autocrypt: "):
+        return headername + mime.make_ac_header_value(
+            emailadr=emailadr,
+            keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
+            prefer_encrypt=self.config.prefer_encrypt,
+        )
 
     def get_peerinfo(self, emailadr):
         """ get peerinfo object for a given email address.

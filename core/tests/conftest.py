@@ -118,7 +118,7 @@ class ClickRunner:
         if res.exit_code != 0:
             print(res.output)
             raise Exception("cmd exited with %d: %s" % (res.exit_code, argv))
-        return self._perform_match(res, fnl)
+        return _perform_match(res.output, fnl)
 
     def run_fail(self, args, fnl=None, input=None, code=None):
         __tracebackhide__ = True
@@ -129,19 +129,25 @@ class ClickRunner:
             print (res.output)
             raise Exception("got exit code {!r}, expected {!r}, output: {}".format(
                 res.exit_code, code, res.output))
-        return self._perform_match(res, fnl)
+        return _perform_match(res.output, fnl)
 
-    def _perform_match(self, res, fnl):
-        __tracebackhide__ = True
-        if fnl:
-            lm = LineMatcher(res.output.splitlines())
-            lines = [x.strip() for x in fnl.strip().splitlines()]
-            try:
-                lm.fnmatch_lines(lines)
-            except:
-                print(res.output)
-                raise
-        return res.output
+
+def _perform_match(output, fnl):
+    __tracebackhide__ = True
+    if fnl:
+        lm = LineMatcher(output.splitlines())
+        lines = [x.strip() for x in fnl.strip().splitlines()]
+        try:
+            lm.fnmatch_lines(lines)
+        except:
+            print(output)
+            raise
+    return output
+
+
+@pytest.fixture
+def linematch():
+    return _perform_match
 
 
 @pytest.fixture
@@ -149,6 +155,12 @@ def cmd():
     """ invoke a command line subcommand. """
     from autocrypt.cmdline import autocrypt_main
     return ClickRunner(autocrypt_main)
+
+
+@pytest.fixture
+def mycmd(cmd, tmpdir, request):
+    cmd.set_basedir(tmpdir.mkdir("account").strpath)
+    return cmd
 
 
 @pytest.fixture()
@@ -259,7 +271,7 @@ def gen_mail(request):
 
     def do_gen_mail(From="a@a.org", body=None):
         msg = mime.gen_mail_msg(
-            From=From, To="b@b.org",
+            From=From, To=["b@b.org"],
             Subject="test mail {} [{}]".format(next(counter), nid),
         )
         if body is not None:

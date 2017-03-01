@@ -11,57 +11,14 @@ import sys
 import subprocess
 import six
 import click
-from .account import Account, AccountException, NotInitialized, IdentityNotFound
+from .cmdline_utils import (
+    get_account, MyGroup, MyCommandUnknownOptions,
+    out_red, log_info, mycommand,
+)
+from .account import Account, IdentityNotFound
 from .bingpg import find_executable
 from . import mime
-
-
-def out_red(msg):
-    click.secho(msg, fg="red")
-
-
-def log_info(string):
-    """log information to stderr. """
-    # we can't log to stderr because the tests do currently
-    # not separate err and out for now, so our debugging output
-    # intermingles
-    # with open("/tmp/log", "a") as f:
-    #    print(string, file=f)
-    #    # click.echo("[info] " + string, err=True)
-
-
-class MyGroup(click.Group):
-    """ small click group to enforce order of subcommands in help. """
-    def add_command(self, cmd):
-        self.__dict__.setdefault("_cmdlist", [])
-        self._cmdlist.append(cmd.name)
-        return super(MyGroup, self).add_command(cmd)
-
-    def list_commands(self, ctx):
-        commands = super(MyGroup, self).list_commands(ctx)
-        assert sorted(commands) == sorted(self._cmdlist)
-        return self._cmdlist
-
-
-class MyCommand(click.Command):
-    def invoke(self, ctx):
-        try:
-            return super(MyCommand, self).invoke(ctx)
-        except AccountException as e:
-            abort(ctx, e)
-
-
-def abort(ctx, exc):
-    out_red(str(exc))
-    ctx.exit(1)
-
-
-class MyCommandUnknownOptions(MyCommand):
-    ignore_unknown_options = True
-
-
-def mycommand(*args):
-    return click.command(*args, cls=MyCommand)
+from .bot import bot_reply
 
 
 @click.command(cls=MyGroup, context_settings=dict(help_option_names=["-h", "--help"]))
@@ -214,17 +171,8 @@ def test_email(ctx, emailadr):
     Fail if no identity matches.
     """
     account = get_account(ctx)
-    ident = account.get_identity_from_emailadr([emailadr])
-    if ident is None:
-        raise IdentityNotFound([emailadr])
+    ident = account.get_identity_from_emailadr([emailadr], raising=True)
     click.echo(ident.config.name)
-
-
-def get_account(ctx):
-    account = ctx.parent.account
-    if not account.exists():
-        raise NotInitialized(account.dir)
-    return account
 
 
 @mycommand("make-header")
@@ -380,27 +328,31 @@ def _status_identity(ident):
     ic = ident.config
     click.echo("")
     click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
-    click.echo("  email_regex: {}".format(ic.email_regex))
-    if ic.gpgmode == "own":
-        click.echo("  gpgmode: {} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
-    else:
-        click.echo("  gpgmode: {}".format(ic.gpgmode))
-    if os.sep not in ic.gpgbin:
-        click.echo("  gpgbin: {} [currently resolves to: {}]".format(
-                   ic.gpgbin, find_executable(ic.gpgbin)))
-    else:
-        click.echo("  gpgbin: {}".format(ic.gpgbin))
 
-    click.echo("  prefer-encrypt: " + ic.prefer_encrypt)
+    def kecho(name, value):
+        click.echo("  {:16s} {}".format(name + ":", value))
+
+    kecho("email_regex", ic.email_regex)
+    if ic.gpgmode == "own":
+        kecho("gpgmode", "{} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
+    else:
+        kecho("gpgmode", ic.gpgmode)
+    if os.sep not in ic.gpgbin:
+        kecho("gpgbin", "{} [currently resolves to: {}]".format(
+              ic.gpgbin, find_executable(ic.gpgbin)))
+    else:
+        kecho("gpgbin", ic.gpgbin)
+
+    kecho("prefer-encrypt", ic.prefer_encrypt)
 
     # print info on key including uids
     keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
     uids = set()
     for k in keyinfos:
         uids.update(k.uids)
-    click.echo("  own-keyhandle: {}".format(ic.own_keyhandle))
+    kecho("own-keyhandle", ic.own_keyhandle)
     for uid in uids:
-        click.echo("           -uid: {}".format(uid))
+        kecho("^^ uid", uid)
 
     # print info on peers
     peers = ic.peers
@@ -428,10 +380,4 @@ autocrypt_main.add_command(test_email)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
-
-
-# @click.command()
-# @click.pass_obj
-# def bot(ctx):
-#     """Bot invocation and account generation commands. """
-#     assert 0, obj.account_dir
+autocrypt_main.add_command(bot_reply)

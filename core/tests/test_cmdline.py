@@ -2,19 +2,7 @@ from __future__ import print_function, unicode_literals
 import os
 import re
 import six
-import pytest
 from autocrypt import mime
-
-
-@pytest.fixture
-def account_dir(tmpdir):
-    return tmpdir.join("account").strpath
-
-
-@pytest.fixture
-def mycmd(cmd, tmpdir, request):
-    cmd.set_basedir(tmpdir.mkdir("account").strpath)
-    return cmd
 
 
 def test_help(cmd):
@@ -79,7 +67,7 @@ def test_exports_and_status_plain(mycmd):
     out = mycmd.run_ok(["status"], """
         account-dir:*
         *identity*default*uuid*
-        *prefer-encrypt: notset*
+        *prefer-encrypt*notset*
         *own-keyhandle:*
     """)
 

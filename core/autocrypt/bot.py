@@ -5,67 +5,97 @@
 simple bot functionality to work answering for bot@autocrypt.org
 """
 
-import os
 import sys
-import logging
+import traceback
 from . import mime
-from .bingpg import BinGPG
-from email.mime.text import MIMEText
-import smtplib
-
-
-MY_ADR = "bot@autocrypt.org"
-KEY_ID = "9305817E"
-ikey = """\
- mQENBFhVGUgBCACtkVZIUlZIvGmjPVYnOfI2UlXS5kapT9bgfTCgq3JcFbwdZJH3ka3Xoq+Bgmzc
- dKSwY9Y4N9TqfDYkacuagRvziYQH8rTSKKeRMmdfC/GJgakAZbvcwHqbT3P3QDCi6l3RIyvoRv6U
- Si2HrS9OR2s4AoToHtTbF3C13fcRs71ffxBfu6IYWKxZyjGqM/S0hUTSLbO0GuktCuw2TlJxOo39
- +2dlLMGMMXp0Vz9IQ1Ul7pul3TG2QOaDONBjnBopBQ4WLwQf7NVaKRLBx7F21mwCgoJmNmgs/iLv
- rIi509G8PXzYQOcTTLG7AtE9+prcEWh3XhaUEXYjpR7lfhLsE8bxABEBAAG0IWF1dG9jcnlwdCBi
- b3QgPGJvdEBhdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWFUZSAIbAwYLCQgHAwIGFQgCCQoLBBYC
- AwECHgECF4AACgkQv17Dg5MFgX4OFggAjcVSQenriYU+uE/PEVuLojF8CdqwA1vBeiUpK9fCYtHd
- FW9g9diebhtTPUG4eU3Z7A0OiRbV7OsuQDlttHlgoQIRMiH+dAjcQxDxObLLcngoXi0XZRgIuZ6z
- WhSNgPQxpKvz8IcDHgoL8hdC5YXcvZ0B3rOjQkF+3qFmU9zDkAWYMkxt9Gt1fW9wS8JwGKCZBQH3
- pGwtznzHBI6rM0LnpqEmA1WgvUWWIFdRXOA1J4HnCa5CeBV09iXV69qU/4pvtuh5V8eIqGsxHNky
- Pg+FyeafMLjNJNvGSZzCkG6ec4R3s6rtsmLMAW61detDxrNCYk4oNLnTmWqEdowpOpwJhLkBDQRY
- VRlIAQgA9sRsP3K4gZEcIbkgymPh4Mw5t2RmpCVMx5yNriA4IUhUOjcHq1ZNDJ1ZtN25eUvyE2iD
- QY9xE9QkxeNODpQC7qAWjsi6nPQu+7ALmKSZKHZhUUsDWX0Rjx+VN1cMgOcMBIIA5hWBBJL0jJOs
- 3zIHYUHPHKgWQH34FU7/8tm0R5uvn6LYQhGzKhVXXkkI3JrhE+8G3HXKj4k8E1n7Ja9w4o5LXvCF
- 7L5lnw1CiuGpaKmzjk1bKhj1d/Wr3G0z510WoWC6m2mCm/l7ncXWYMTd/VUoCzdKXpBR9SEcFhFi
- 8HO1fGvdxmt6A6G8rLb9UYDO45+oMIpl44KtkHj3t4BLcQARAQABiQEfBBgBAgAJBQJYVRlIAhsM
- AAoJEL9ew4OTBYF+a4IIAI3VUou7Ml6NejlQ7A+eYFEcSIUYkkDPUJc4a4hc2Uvy4Spn6wDV7KqN
- iSae0//8q8jm8LFCAuFq2Gt0hd8YOVD+g6x6+Mim2RJPeQM3EYTeYJcKV3so/TGAJY6xQ7kTYT5n
- ofkXOYG6HE2IGN7sRy1gKhIEVss0T9RoaVyKBCv9PSAcXq+NWRVvvoUhvP17/D3otnnX9fcYmTHx
- Y7WcrgeM31V6ZixkBeU1XoFohMcm4NdhB/zzpqxttc1LUamlXMrle/7QaY3pRRki+n3u4IFFO3bW
- jsvC6lHj97g8jmrFQpdFBl8VgHeIJfSl3b5d8K8JnA1Sfo4OxD5/zR3RPM0=
-"""
-AUTOCRYPT_HEADER = "to=bot@autocrypt.org; key=\n" + ikey
-
-
-def generate_reply(gpg, fp):
-    msg = mime.parse_message_from_file(fp)
-    logging.info("got mail: %s", msg.as_string())
-
-    reply_msg = MIMEText('''Autoresponse''')
-    reply_msg['Subject'] = "Re: " + msg["Subject"]
-    reply_msg['From'] = MY_ADR
-    reply_msg['To'] = msg["From"]
-    reply_msg["Autocrypt"] = AUTOCRYPT_HEADER
-
-    return reply_msg
+from .cmdline_utils import (
+    get_account, mycommand, click, trunc_string
+)
 
 
 def send_reply(host, port, msg):
+    import smtplib
     smtp = smtplib.SMTP(host, port)
-    logging.info("sending reply: %s", msg.as_string())
-    return smtp.sendmail(MY_ADR, msg["To"], msg.as_string())
+    return smtp.sendmail(msg["From"], msg["To"], msg.as_string())
 
 
-def main():
-    gpg = BinGPG(os.path.expanduser("~/keyring"))
-    reply_msg = generate_reply(gpg, sys.stdin)
-    return send_reply('localhost', 25, reply_msg)
+@mycommand("bot-reply")
+@click.option("--smtp", default=None, metavar="host,port",
+              help="host and port where the reply should be "
+                   "instead of to stdout.")
+@click.pass_context
+def bot_reply(ctx, smtp):
+    """reply to stdin mail as a bot.
+
+    This command will generate a reply message and send it to stdout by default.
+    The reply message contains an Autocrypt header and details of what
+    was found and understood from the bot and it's autocrypt account code
+    in the stdin message.
+    """
+    account = get_account(ctx)
+    msg = mime.parse_message_from_file(sys.stdin)
+    _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+    From = msg["From"]
+
+    maxheadershow = 60
+
+    log = SimpleLog()
+
+    log("* Got your mail, here are some headers i saw or didn't see from you:")
+    log()
+    for hn in ("Message-ID Delivered-To From To Subject "
+               "Date DKIM-Signature Autocrypt").split():
+        if hn in msg:
+            value = trunc_string(msg.get(hn).replace("\n", "\\n"), maxheadershow)
+            log("  {:15s} {}".format(hn + ":", value))
+        else:
+            log("  {:15s} NOTFOUND".format(hn))
+
+    log()
+    log("* now i am going to process your mail through py-autocrypt")
+    try:
+        ident = account.get_identity_from_emailadr([delivto])
+        peerinfo = account.process_incoming(msg)
+        if peerinfo is not None:
+            log("\nprocessed incoming mail for identity '{}', found:\n{}".format(
+                ident.config.name, peerinfo))
+        else:
+            log("\nprocessed incoming mail for identity '{}', "
+                "no Autocrypt header found.".format(ident.config.name))
+
+        log("\n")
+        log("have a nice day, {}".format(delivto))
+        log("")
+        log("P.S.: my current key {} is in the Autocrypt header of this reply."
+            .format(ident.config.own_keyhandle))
+
+    except Exception:
+        log(traceback.format_exc())
+
+    reply_msg = mime.gen_mail_msg(
+        From=delivto, To=[From],
+        Subject="Re: " + msg["Subject"],
+        Autocrypt=account.make_header(delivto, headername=""),
+        body=str(log)
+    )
+    if smtp:
+        host, port = smtp.split(",")
+        send_reply(host, int(port), reply_msg)
+        click.echo("send reply through smtp: {}".format(smtp))
+    else:
+        click.echo(reply_msg.as_string())
 
 
-if __name__ == "__main__":
-    main()
+class SimpleLog:
+    def __init__(self):
+        self.logs = []
+
+    def __call__(self, msg=""):
+        lines = msg.splitlines()
+        if not lines:
+            lines = [""]
+        self.logs.append(lines[0])
+        self.logs.extend([("  " + line) for line in lines[1:]])
+
+    def __str__(self):
+        return "\n".join(self.logs)

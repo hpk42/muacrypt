@@ -65,6 +65,16 @@ def test_account_handling(tmpdir):
     assert not acc.exists()
 
 
+def test_account_parse_incoming_mail_broken_ac_header(account_maker):
+    adr = "a@a.org"
+    ac2 = account_maker()
+    msg = mime.gen_mail_msg(
+        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
+        Autocrypt="Autocrypt: to=123; key=12312k3")
+    peerinfo = ac2.process_incoming(msg)
+    assert not peerinfo
+
+
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
     adr = "a@a.org"
     ac1 = account_maker()
