@@ -154,7 +154,7 @@ class TestIdentityCommands:
         keyhandle = bingpg.gen_secret_key(adr)
         monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
         mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "home", "--use-existing-key", adr,
+        mycmd.run_ok(["add-identity", "home", "--use-key", adr,
                       "--gpgbin=%s" % gpgpath, "--use-system-keyring"], """
                 *gpgmode*system*
                 *gpgbin*{}*

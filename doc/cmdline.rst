@@ -194,7 +194,7 @@ make sure no default identity is generated::
 
 and then we add a default identity tied to the key we want to use from the system keyring::
 
-    $ autocrypt add-identity default --use-system-keyring --use-existing-key test@autocrypt.org
+    $ autocrypt add-identity default --use-system-keyring --use-key test@autocrypt.org
     identity added: 'default'
 
     identity: 'default' uuid 4f72b7c6522d4584afbf21910883d399

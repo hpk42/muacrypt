@@ -57,24 +57,24 @@ add-identity subcommand
     be associated with this identity.
   
     Instead of generating a key (the default operation) you may specify an
-    existing key with --use-existing-key=keyhandle where keyhandle may be
-    something for which gpg finds it with 'gpg --list-secret-keys keyhandle'.
-    Typically you will then also specify --use-system-keyring to make use of
-    your existing keys.  All incoming autocrypt keys will thus be stored in
-    the system key ring instead of an own keyring.
+    existing key with --use-key=keyhandle where keyhandle may be something for
+    which gpg finds it with 'gpg --list-secret-keys keyhandle'. Typically you
+    will then also specify --use-system-keyring to make use of your existing
+    keys.  All incoming autocrypt keys will thus be stored in the system key
+    ring instead of an own keyring.
   
   Options:
-    --use-existing-key TEXT  use specified secret key which must be findable
-                             through the specified keyhandle (e.g. email, keyid,
-                             fingerprint)
-    --use-system-keyring     use system keyring for all secret/public keys
-                             instead of storing keyring state inside our account
-                             identity directory.
-    --gpgbin TEXT            use specified gpg binary. if it is a simple name it
-                             is looked up on demand through the system's PATH.
-    --email-regex TEXT       regex for matching all email addresses belonging to
-                             this identity.
-    -h, --help               Show this message and exit.
+    --use-key KEYHANDLE   use specified secret key which must be findable
+                          through the specified keyhandle (e.g. email, keyid,
+                          fingerprint)
+    --use-system-keyring  use system keyring for all secret/public keys instead
+                          of storing keyring state inside our account identity
+                          directory.
+    --gpgbin FILENAME     use specified gpg filename. If it is a simple name it
+                          is looked up on demand through the system's PATH.
+    --email-regex TEXT    regex for matching all email addresses belonging to
+                          this identity.
+    -h, --help            Show this message and exit.
 
 .. _`mod-identity`:
 
@@ -87,25 +87,19 @@ mod-identity subcommand
   
     modify properties of an existing identity.
   
-    An identity requires an identity_name which is used to show, modify and
-    delete it.
+    An identity requires an identity_name.
   
-    Any specified email_regex replaces the existing one.
-  
-    Any specified key replaces the existing one.
+    Any specified option replaces the existing one.
   
   Options:
-    --use-existing-key TEXT         use specified secret key which must be
+    --use-key KEYHANDLE             use specified secret key which must be
                                     findable through the specified keyhandle
                                     (e.g. email, keyid, fingerprint)
-    --gpgbin TEXT                   use specified gpg binary. if it is a simple
-                                    name it is looked up on demand through the
-                                    system's PATH. if it is None (the default)
-                                    no change is made
+    --gpgbin FILENAME               use specified gpg filename. If it is a
+                                    simple name it is looked up on demand
+                                    through the system's PATH.
     --email-regex TEXT              regex for matching all email addresses
-                                    belonging to this identity. If it None (the
-                                    default) no change is made to the existing
-                                    regex.
+                                    belonging to this identity.
     --prefer-encrypt                
                                     modify prefer-encrypt setting, default is to
                                     not change it.

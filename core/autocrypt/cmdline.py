@@ -110,23 +110,39 @@ def init(ctx, replace, no_identity):
     _status(account)
 
 
+option_use_key = click.option(
+    "--use-key", default=None, type=str, metavar="KEYHANDLE", help= # NOQA
+    "use specified secret key which must be findable "
+    "through the specified keyhandle (e.g. email, keyid, fingerprint)")
+
+option_use_system_keyring = click.option(
+    "--use-system-keyring", default=False, is_flag=True, help= # NOQA
+    "use system keyring for all secret/public keys instead of storing "
+    "keyring state inside our account identity directory.")
+
+option_gpgbin = click.option(
+    "--gpgbin", default="gpg", type=str, metavar="FILENAME", help= # NOQA
+    "use specified gpg filename. If it is a simple name it "
+    "is looked up on demand through the system's PATH.")
+
+option_email_regex = click.option(
+    "--email-regex", default=".*", type=str, help= # NOQA
+    "regex for matching all email addresses belonging to this identity.")
+
+option_prefer_encrypt = click.option(
+    "--prefer-encrypt", default=None, type=click.Choice(["notset", "yes", "no"]),
+    help="modify prefer-encrypt setting, default is to not change it.")
+
+
 @mycommand("add-identity")
 @click.argument("identity_name", type=str, required=True)
-@click.option("--use-existing-key", default=None, type=str,
-              help="use specified secret key which must be findable "
-                   "through the specified keyhandle (e.g. email, keyid, fingerprint)")
-@click.option("--use-system-keyring", default=False, is_flag=True,
-              help="use system keyring for all secret/public keys instead of storing "
-                   "keyring state inside our account identity directory.")
-@click.option("--gpgbin", default="gpg", type=str,
-              help="use specified gpg binary. if it is a simple name it "
-                   "is looked up on demand through the system's PATH.")
-@click.option("--email-regex", default=".*", type=str,
-              help="regex for matching all email addresses belonging to "
-                   "this identity.")
+@option_use_key
+@option_use_system_keyring
+@option_gpgbin
+@option_email_regex
 @click.pass_context
 def add_identity(ctx, identity_name, use_system_keyring,
-                 use_existing_key, gpgbin, email_regex):
+                 use_key, gpgbin, email_regex):
     """add an identity to this account.
 
     An identity requires an identity_name which is used to show, modify and delete it.
@@ -136,7 +152,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
     need to be associated with this identity.
 
     Instead of generating a key (the default operation) you may specify an
-    existing key with --use-existing-key=keyhandle where keyhandle may be
+    existing key with --use-key=keyhandle where keyhandle may be
     something for which gpg finds it with 'gpg --list-secret-keys keyhandle'.
     Typically you will then also specify --use-system-keyring to make use of
     your existing keys.  All incoming autocrypt keys will thus be stored in
@@ -144,7 +160,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
     """
     account = get_account(ctx)
     ident = account.add_identity(
-        identity_name, keyhandle=use_existing_key, gpgbin=gpgbin,
+        identity_name, keyhandle=use_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
     click.echo("identity added: '{}'".format(ident.config.name))
@@ -153,32 +169,21 @@ def add_identity(ctx, identity_name, use_system_keyring,
 
 @mycommand("mod-identity")
 @click.argument("identity_name", type=str, required=True)
-@click.option("--use-existing-key", default=None, type=str,
-              help="use specified secret key which must be findable "
-                   "through the specified keyhandle (e.g. email, keyid, fingerprint)")
-@click.option("--gpgbin", default=None, type=str,
-              help="use specified gpg binary. if it is a simple name it "
-                   "is looked up on demand through the system's PATH. "
-                   "if it is None (the default) no change is made")
-@click.option("--email-regex", default=None, type=str,
-              help="regex for matching all email addresses belonging to "
-                   "this identity. If it None (the default) no change is made "
-                   "to the existing regex.")
-@click.option("--prefer-encrypt", default=None, type=click.Choice(["notset", "yes", "no"]),
-              help="modify prefer-encrypt setting, default is to not change it.")
+@option_use_key
+@option_gpgbin
+@option_email_regex
+@option_prefer_encrypt
 @click.pass_context
-def mod_identity(ctx, identity_name, use_existing_key, gpgbin, email_regex, prefer_encrypt):
+def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encrypt):
     """modify properties of an existing identity.
 
-    An identity requires an identity_name which is used to show, modify and delete it.
+    An identity requires an identity_name.
 
-    Any specified email_regex replaces the existing one.
-
-    Any specified key replaces the existing one.
+    Any specified option replaces the existing one.
     """
     account = get_account(ctx)
     changed, ident = account.mod_identity(
-        identity_name, keyhandle=use_existing_key, gpgbin=gpgbin,
+        identity_name, keyhandle=use_key, gpgbin=gpgbin,
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
