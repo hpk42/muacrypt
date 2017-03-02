@@ -282,7 +282,7 @@ class Account(object):
             assert ident.config.own_keyhandle
             return ident.make_ac_header(emailadr, headername=headername)
 
-    def process_incoming(self, msg):
+    def process_incoming(self, msg, delivto=None):
         """ process incoming mail message and store information
         from any Autocrypt header for the From/Autocrypt peer
         which created the message.
@@ -291,8 +291,9 @@ class Account(object):
         :param msg: instance of a standard email Message.
         :rtype: PeerInfo
         """
-        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        assert delivto
+        if delivto is None:
+            _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+            assert delivto
         ident = self.get_identity_from_emailadr([delivto])
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))

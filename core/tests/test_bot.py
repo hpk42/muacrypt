@@ -23,6 +23,22 @@ def bcmd(mycmd):
 
 
 class TestBot:
+    def test_reply_no_delivto(self, bcmd, ac_sender):
+        send_adr = ac_sender.adr
+        msg = mime.gen_mail_msg(
+            From=send_adr, To=[bcmd.bot_adr],
+            Subject="hello")
+
+        out = bcmd.run_ok(["bot-reply", "--fallback-delivto", bcmd.bot_adr], """
+            *processed*identity*default*
+        """, input=msg.as_string())
+
+        reply_msg = mime.parse_message_from_string(out)
+        assert reply_msg["Subject"] == "Re: " + msg["Subject"]
+        assert reply_msg["From"] == bcmd.bot_adr
+        assert reply_msg["To"] == msg["From"]
+        assert reply_msg["Autocrypt"]
+
     def test_reply_with_autocrypt(self, bcmd, ac_sender):
         send_adr = ac_sender.adr
         msg = mime.gen_mail_msg(

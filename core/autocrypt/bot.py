@@ -23,8 +23,11 @@ def send_reply(host, port, msg):
 @click.option("--smtp", default=None, metavar="host,port",
               help="host and port where the reply should be "
                    "instead of to stdout.")
+@click.option("--fallback-delivto", default=None,
+              help="assume delivery to the specified email address if "
+                   "no delivered-to header is found.")
 @click.pass_context
-def bot_reply(ctx, smtp):
+def bot_reply(ctx, smtp, fallback_delivto):
     """reply to stdin mail as a bot.
 
     This command will generate a reply message and send it to stdout by default.
@@ -34,8 +37,13 @@ def bot_reply(ctx, smtp):
     """
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
     From = msg["From"]
+
+    _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+    if not delivto and fallback_delivto:
+        _, delivto = mime.parse_email_addr(fallback_delivto)
+    if not delivto:
+        raise ValueError("could not determine my own delivered-to address")
 
     maxheadershow = 60
 
@@ -55,7 +63,7 @@ def bot_reply(ctx, smtp):
     log("* now i am going to process your mail through py-autocrypt")
     try:
         ident = account.get_identity_from_emailadr([delivto])
-        peerinfo = account.process_incoming(msg)
+        peerinfo = account.process_incoming(msg, delivto=delivto)
         if peerinfo is not None:
             log("\nprocessed incoming mail for identity '{}', found:\n{}".format(
                 ident.config.name, peerinfo))
@@ -75,6 +83,7 @@ def bot_reply(ctx, smtp):
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],
         Subject="Re: " + msg["Subject"],
+        _extra={"In-Reply-To": msg["Message-ID"]},
         Autocrypt=account.make_header(delivto, headername=""),
         body=str(log)
     )

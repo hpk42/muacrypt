@@ -113,8 +113,8 @@ def verify_ac_dict(ac_dict):
     return l
 
 
-def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=False,
-                 MessageID=None, body='Autoresponse'):
+def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
+                 Date=None, _dto=False, MessageID=None, body='Autoresponse'):
     assert isinstance(To, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
@@ -124,6 +124,9 @@ def gen_mail_msg(From, To, Autocrypt=None, Subject="testmail", Date=None, _dto=F
     msg['To'] = ",".join(To)
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
+    if _extra:
+        for name, value in _extra.items():
+            msg.add_header(name, value)
     if _dto:
         msg["Delivered-To"] = To[0]
     if Autocrypt:
