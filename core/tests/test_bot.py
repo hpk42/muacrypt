@@ -84,6 +84,7 @@ class TestBot:
         Autocrypt = None if not with_ac else ac_sender.ac_headerval
         msg = mime.gen_mail_msg(
             From=ac_sender.adr, To=[bcmd.bot_adr],
+            MessageID=mime.make_msgid("5" * 50),  # long MessageID
             Autocrypt=Autocrypt, Subject="hello", _dto=True)
 
         bcmd.run_ok(["bot-reply", "--smtp={},{}".format(host, port)],
@@ -93,12 +94,13 @@ class TestBot:
         msg2 = smtpserver.outbox[0]
         assert msg2["To"] == msg["From"]
         assert msg2["From"] == msg["To"]
+        assert msg2["In-Reply-To"] == msg["Message-ID"]
         assert msg["Subject"] in msg2["Subject"]
         body = str(msg2.get_payload())
         linematch(body, """
             *Got your mail*
             *Message-ID*{}*
-        """.format(msg["Message-ID"]))
+        """.format(msg["Message-ID"][:20]))
         if with_ac:
             linematch(body, """
                 *processed incoming*found:*
