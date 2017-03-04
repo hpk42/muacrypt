@@ -4,6 +4,7 @@ from __future__ import unicode_literals, print_function
 
 import pytest
 from autocrypt import mime
+from autocrypt.bot import SimpleLog
 
 
 @pytest.fixture(params=["sender@example.org"])
@@ -20,6 +21,53 @@ def bcmd(mycmd):
     mycmd.run_ok(["init"])
     mycmd.bot_adr = "bot@autocrypt.org"
     return mycmd
+
+
+class TestSimpleLog:
+    def test_basic(self):
+        l = SimpleLog()
+        l("hello")
+        l("world")
+        assert str(l) == "hello\nworld"
+
+    def test_section(self):
+        l = SimpleLog()
+        with l.s("title"):
+            l("hello")
+            l("world")
+        l("back")
+        lines = str(l).splitlines()
+        assert "title" in lines[0]
+        assert not lines[1].strip()
+        assert "  hello" == lines[2]
+        assert "  world" == lines[3]
+        assert not lines[4].strip()
+        assert lines[5] == "back"
+        with l.s("title2"):
+            l("line2")
+        l("back")
+        lines = str(l).splitlines()
+        assert not lines[6].strip()
+        assert "title2" in lines[7]
+        assert not lines[8].strip()
+        assert lines[9] == "  " + "line2"
+        assert not lines[10].strip()
+        assert lines[11] == "back"
+
+    def test_section_failing(self):
+        l = SimpleLog()
+        with l.s("some"):
+            raise ValueError()
+        lines = str(l).splitlines()
+        assert "some" in lines[0]
+        assert "Traceback" in lines[2]
+
+    def test_section_failing_raising(self):
+        l = SimpleLog()
+        with pytest.raises(ValueError):
+            with l.s("some", raising=True):
+                raise ValueError()
+        assert "some" in str(l)
 
 
 class TestBot:
@@ -60,6 +108,7 @@ class TestBot:
         assert ac_dict["key"]
         body = str(reply_msg.get_payload())
         assert "no Autocrypt header" not in body
+        print(body)
 
     def test_reply_no_autocrypt(self, bcmd):
         adr = "somebody@example.org"

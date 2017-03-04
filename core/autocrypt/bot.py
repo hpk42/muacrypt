@@ -4,9 +4,12 @@
 """
 simple bot functionality to work answering for bot@autocrypt.org
 """
+from __future__ import print_function
 
 import sys
+import six
 import traceback
+import contextlib
 from . import mime
 from .cmdline_utils import (
     get_account, mycommand, click, trunc_string
@@ -39,53 +42,51 @@ def bot_reply(ctx, smtp, fallback_delivto):
     msg = mime.parse_message_from_file(sys.stdin)
     From = msg["From"]
 
-    _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-    if not delivto and fallback_delivto:
-        _, delivto = mime.parse_email_addr(fallback_delivto)
-    if not delivto:
-        raise ValueError("could not determine my own delivered-to address")
+    log = SimpleLog()
+    with log.s("reading headers", raising=True):
+        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
+        if not delivto and fallback_delivto:
+            _, delivto = mime.parse_email_addr(fallback_delivto)
+        if not delivto:
+            raise ValueError("could not determine my own delivered-to address")
+        log("determined my own Delivered-To: " + delivto)
 
     maxheadershow = 60
 
-    log = SimpleLog()
+    with log.s("Got your mail, here is what i found in headers:"):
+        for hn in ("Message-ID Delivered-To From To Subject "
+                   "Date DKIM-Signature Autocrypt").split():
+            if hn in msg:
+                value = trunc_string(msg.get(hn).replace("\n", "\\n"), maxheadershow)
+                log("{:15s} {}".format(hn + ":", value))
+            else:
+                log("{:15s} NOTFOUND".format(hn))
 
-    log("* Got your mail, here are some headers i saw or didn't see from you:")
-    log()
-    for hn in ("Message-ID Delivered-To From To Subject "
-               "Date DKIM-Signature Autocrypt").split():
-        if hn in msg:
-            value = trunc_string(msg.get(hn).replace("\n", "\\n"), maxheadershow)
-            log("  {:15s} {}".format(hn + ":", value))
-        else:
-            log("  {:15s} NOTFOUND".format(hn))
+    # with log.s("And this is the mime structure i saw:"):
+    #    log(mime.render_mime_structure(msg))
 
-    log()
-    log("* now i am going to process your mail through py-autocrypt")
-    try:
+    with log.s("processing your mail through py-autocrypt:"):
         ident = account.get_identity_from_emailadr([delivto])
         peerinfo = account.process_incoming(msg, delivto=delivto)
         if peerinfo is not None:
-            log("\nprocessed incoming mail for identity '{}', found:\n{}".format(
+            log("processed incoming mail for identity '{}', found:\n{}".format(
                 ident.config.name, peerinfo))
         else:
-            log("\nprocessed incoming mail for identity '{}', "
+            log("processed incoming mail for identity '{}', "
                 "no Autocrypt header found.".format(ident.config.name))
 
-        log("\n")
-        log("have a nice day, {}".format(delivto))
-        log("")
-        log("P.S.: my current key {} is in the Autocrypt header of this reply."
-            .format(ident.config.own_keyhandle))
-
-    except Exception:
-        log(traceback.format_exc())
+    log("\n")
+    log("have a nice day, {}".format(delivto))
+    log("")
+    log("P.S.: my current key {} is in the Autocrypt header of this reply."
+        .format(ident.config.own_keyhandle))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
         Autocrypt=account.make_header(delivto, headername=""),
-        body=str(log)
+        body=six.text_type(log)
     )
     if smtp:
         host, port = smtp.split(",")
@@ -98,13 +99,38 @@ def bot_reply(ctx, smtp, fallback_delivto):
 class SimpleLog:
     def __init__(self):
         self.logs = []
+        self._indent = 0
+
+    @property
+    def indent(self):
+        return "  " * self._indent
 
     def __call__(self, msg=""):
         lines = msg.splitlines()
         if not lines:
             lines = [""]
-        self.logs.append(lines[0])
-        self.logs.extend([("  " + line) for line in lines[1:]])
+        self.logs.append(self.indent + lines[0])
+        self.logs.extend([(self.indent + line) for line in lines[1:]])
+
+    @contextlib.contextmanager
+    def s(self, title, raising=False):
+        # one extra empty line before a section
+        if self.logs:
+            self("")
+        self(title)
+        self()
+        self._indent += 1
+        try:
+            try:
+                yield
+            finally:
+                self._indent -= 1
+        except:
+            if raising:
+                raise
+            self(traceback.format_exc())
+        # one extra empty line after a section
+        self("")
 
     def __str__(self):
         return "\n".join(self.logs)
