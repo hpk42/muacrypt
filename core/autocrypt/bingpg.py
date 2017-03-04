@@ -286,8 +286,7 @@ class BinGPG(object):
 
     def get_public_keydata(self, keyhandle, armor=False, b64=False):
         args = ["-a"] if armor else []
-        args.extend(self._nopassphrase +
-                    ["--export-options=export-minimal", "--export", str(keyhandle)])
+        args.extend(["--export-options=export-minimal", "--export", str(keyhandle)])
         out = self._gpg_out(args, strict=True, encoding=None)
         return out if not b64 else b64encode_u(out)
 

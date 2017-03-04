@@ -254,6 +254,9 @@ def sendmail(ctx, args):
     input = msg.as_string()
     log_info("piping to: {}".format(" ".join(args)))
     sendmail = find_executable("sendmail")
+    if not sendmail:
+        sendmail = "/usr/sbin/sendmail"
+
     args.insert(0, sendmail)
     popen = subprocess.Popen(args, stdin=subprocess.PIPE)
     popen.communicate(input=input)
