@@ -118,7 +118,17 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
     assert isinstance(To, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
-    msg = MIMEText(body)
+
+    # prefer plain ascii mails to keep mail files directly readable
+    # without base64-decoding etc.
+    charset = None
+    assert isinstance(body, six.text_type)
+    try:
+        msg = body.encode("ascii")
+    except UnicodeEncodeError:
+        charset = "utf-8"
+    msg = MIMEText(body, _charset=charset)
+
     msg['Message-ID'] = MessageID
     msg['From'] = From
     msg['To'] = ",".join(To)
@@ -159,8 +169,9 @@ def decrypt_message(msg, bingpg):
 def render_mime_structure(msg, prefix='└'):
     '''msg should be an email.message.Message object'''
     stream = six.StringIO()
+    mcset = str(msg.get_charset())
     fname = '' if msg.get_filename() is None else ' [' + msg.get_filename() + ']'
-    cset = '' if msg.get_charset() is None else ' (' + msg.get_charset() + ')'
+    cset = '' if mcset is None else ' ({})'.format(mcset)
     disp = msg.get_params(None, header='Content-Disposition')
     if (disp is None):
         disposition = ''

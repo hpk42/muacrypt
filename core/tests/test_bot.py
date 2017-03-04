@@ -2,6 +2,7 @@
 # vim:ts=4:sw=4:expandtab
 from __future__ import unicode_literals, print_function
 
+import six
 import pytest
 from autocrypt import mime
 from autocrypt.bot import SimpleLog
@@ -21,6 +22,15 @@ def bcmd(mycmd):
     mycmd.run_ok(["init"])
     mycmd.bot_adr = "bot@autocrypt.org"
     return mycmd
+
+
+def decode_body(msg):
+    assert msg.get_content_type() == "text/plain", msg.get_content_type()
+    x = msg.get_payload(decode=True)
+    cset = msg.get_content_charset()
+    s = x.decode(cset if cset else "ascii")
+    assert isinstance(s, six.text_type)
+    return s
 
 
 class TestSimpleLog:
@@ -71,34 +81,37 @@ class TestSimpleLog:
 
 
 class TestBot:
-    def test_reply_no_delivto(self, bcmd, ac_sender):
+    def test_reply_no_delivto(self, bcmd, ac_sender, linematch):
         send_adr = ac_sender.adr
         msg = mime.gen_mail_msg(
             From=send_adr, To=[bcmd.bot_adr],
             Subject="hello")
 
-        out = bcmd.run_ok(["bot-reply", "--fallback-delivto", bcmd.bot_adr], """
-            *processed*identity*default*
-        """, input=msg.as_string())
+        out = bcmd.run_ok(["bot-reply", "--fallback-delivto", bcmd.bot_adr],
+                          input=msg.as_string())
 
         reply_msg = mime.parse_message_from_string(out)
+        linematch(decode_body(reply_msg), """
+            *processed*identity*default*
+        """)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["From"] == bcmd.bot_adr
         assert reply_msg["To"] == msg["From"]
         assert reply_msg["Autocrypt"]
 
-    def test_reply_with_autocrypt(self, bcmd, ac_sender):
+    def test_reply_with_autocrypt(self, bcmd, ac_sender, linematch):
         send_adr = ac_sender.adr
         msg = mime.gen_mail_msg(
             From=send_adr, To=[bcmd.bot_adr],
             Autocrypt=ac_sender.ac_headerval,
             Subject="hello", _dto=True)
 
-        out = bcmd.run_ok(["bot-reply"], """
-            *processed*identity*default*
-        """, input=msg.as_string())
+        out = bcmd.run_ok(["bot-reply"], input=msg.as_string())
 
         reply_msg = mime.parse_message_from_string(out)
+        linematch(decode_body(reply_msg), """
+            *processed*identity*default*
+        """)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["From"] == bcmd.bot_adr
         assert reply_msg["To"] == msg["From"]
@@ -106,7 +119,7 @@ class TestBot:
         ac_dict = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
         assert ac_dict["to"] == bcmd.bot_adr
         assert ac_dict["key"]
-        body = str(reply_msg.get_payload())
+        body = decode_body(reply_msg)
         assert "no Autocrypt header" not in body
         print(body)
 
@@ -116,14 +129,11 @@ class TestBot:
             From=adr, To=[bcmd.bot_adr],
             Autocrypt=None, Subject="hello", _dto=True)
 
-        out = bcmd.run_ok(["bot-reply"], """
-            *processed*identity*default*
-        """, input=msg.as_string())
-
+        out = bcmd.run_ok(["bot-reply"], input=msg.as_string())
         reply_msg = mime.parse_message_from_string(out)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["Autocrypt"]
-        body = str(reply_msg.get_payload())
+        body = decode_body(reply_msg)
         print(body)
         assert "no autocrypt header" in body.lower()
 
@@ -145,7 +155,7 @@ class TestBot:
         assert msg2["From"] == msg["To"]
         assert msg2["In-Reply-To"] == msg["Message-ID"]
         assert msg["Subject"] in msg2["Subject"]
-        body = str(msg2.get_payload())
+        body = decode_body(msg2)
         linematch(body, """
             *Got your mail*
             *Message-ID*{}*

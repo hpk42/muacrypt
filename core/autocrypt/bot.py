@@ -62,8 +62,8 @@ def bot_reply(ctx, smtp, fallback_delivto):
             else:
                 log("{:15s} NOTFOUND".format(hn))
 
-    # with log.s("And this is the mime structure i saw:"):
-    #    log(mime.render_mime_structure(msg))
+    with log.s("And this is the mime structure i saw:"):
+        log(mime.render_mime_structure(msg))
 
     with log.s("processing your mail through py-autocrypt:"):
         ident = account.get_identity_from_emailadr([delivto])
@@ -103,12 +103,12 @@ class SimpleLog:
 
     @property
     def indent(self):
-        return "  " * self._indent
+        return u"  " * self._indent
 
     def __call__(self, msg=""):
         lines = msg.splitlines()
         if not lines:
-            lines = [""]
+            lines = [u""]
         self.logs.append(self.indent + lines[0])
         self.logs.extend([(self.indent + line) for line in lines[1:]])
 
