@@ -5,7 +5,7 @@ def main():
     with open(os.path.join("autocrypt", "__init__.py")) as f:
         for line in f:
             if "__version__" in line.strip():
-                version = line.split("=", 1)[1].strip()
+                version = line.split("=", 1)[1].strip().strip('"')
                 break
 
     setup(

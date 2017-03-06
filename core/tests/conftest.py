@@ -20,6 +20,12 @@ def pytest_addoption(parser):
     parser.addoption("--with-gpg2", action="store_true",
                      help="run tests also with gpg2")
 
+@pytest.fixture
+def tmpdir(tmpdir_factory, request):
+    base = str(hash(request.node.nodeid))[:3]
+    bn = tmpdir_factory.mktemp(base)
+    return bn
+
 
 @pytest.fixture(params=["gpg1", "gpg2"], scope="module")
 def gpgpath(request):
@@ -244,15 +250,13 @@ def account(account_maker):
 
 
 @pytest.fixture
-def account_maker(tmpdir_factory, gpgpath):
+def account_maker(tmpdir, gpgpath):
     """ return a function which creates a new Autocrypt account, by default initialized.
     pass init=False to the function to avoid initizialtion.
     """
     # we have to be careful to not generate too long paths
     # because gpg-2.1.11 chokes while trying to start gpg-agent
     count = itertools.count()
-    tmpdir = tmpdir_factory.mktemp("test")
-
     def maker(init=True, addid=True):
         basedir = tmpdir.mkdir("a%d" % next(count)).strpath
         ac = Account(basedir)
