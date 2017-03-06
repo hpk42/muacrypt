@@ -250,7 +250,7 @@ class Account(object):
         """ remove the account directory and reset this account configuration
         to empty.  You need to add identities to reinitialize.
         """
-        shutil.rmtree(self.dir)
+        shutil.rmtree(self.dir, ignore_errors=True)
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
