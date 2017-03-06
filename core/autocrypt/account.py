@@ -379,7 +379,7 @@ class Identity:
             return self.config.has_changed()
 
     def delete(self):
-        shutil.rmtree(self.dir)
+        shutil.rmtree(self.dir, ignore_errors=True)
 
     @cached_property
     def bingpg(self):
