@@ -9,6 +9,7 @@ which help to persist config and peer state.
 
 from __future__ import unicode_literals
 
+import logging
 import os
 import re
 import json
@@ -16,11 +17,13 @@ import shutil
 import six
 import uuid
 from copy import deepcopy
-from .bingpg import cached_property, BinGPG
 from contextlib import contextmanager
 from base64 import b64decode
-from . import mime
 from email.utils import parsedate
+from .crypto import cached_property, Crypto
+from . import mime
+
+logger = logging.getLogger(__name__)
 
 
 class PersistentAttrMixin(object):
@@ -38,11 +41,11 @@ class PersistentAttrMixin(object):
         self._dict_old = deepcopy(d)
         return d
 
-    # def _reload(self):
-    #    try:
-    #        self._property_cache.pop("_dict")
-    #    except AttributeError:
-    #        pass
+    def _reload(self):
+        try:
+            self._property_cache.pop("_dict")
+        except AttributeError:
+            pass
 
     def has_changed(self):
         return self._dict != self._dict_old
@@ -94,9 +97,11 @@ class IdentityConfig(PersistentAttrMixin):
     uuid = persistent_property("uuid", six.text_type)
     name = persistent_property("name", six.text_type)
     email_regex = persistent_property("email_regex", six.text_type)
-    gpgmode = persistent_property("gpgmode", six.text_type, ["system", "own"])
-    gpgbin = persistent_property("gpgbin", six.text_type)
     own_keyhandle = persistent_property("own_keyhandle", six.text_type)
+    # TODO: these attributes are not saved so far, 
+    # but if saved, there is no need to save keys in files.
+    own_key = persistent_property("own_key", six.text_type)
+    own_public_key = persistent_property("own_public_key", six.text_type)
     prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
                                          ["yes", "no", "notset"])
     peers = persistent_property("peers", dict)
@@ -150,14 +155,6 @@ class Account(object):
         :param dir:
              directory in which autocrypt will store all state
              including a gpg-managed keyring.
-        :type gpgpath: unicode
-        :param gpgpath:
-            If the path contains path separators and points
-            to an existing file we use it directly.
-            If it contains no path separators, we lookup
-            the path to the binary under the system's PATH.
-            If we can not determine an eventual binary
-            we raise ValueError.
         """
         self.dir = dir
         self.config = AccountConfig(os.path.join(self.dir, "config.json"))
@@ -189,26 +186,21 @@ class Account(object):
         return [self.get_identity(x) for x in self.list_identity_names()]
 
     def add_identity(self, id_name="default", email_regex=".*",
-                     keyhandle=None, gpgbin="gpg", gpgmode="own"):
+                     keyhandle=None):
         """ add a named identity to this account.
 
         :param id_name: name of this identity
         :param email_regex: regular expression which matches all email addresses
                             belonging to this identity.
         :param keyhandle: key fingerprint or uid to use for this identity.
-        :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" (default) keeps all key state inside the identity
-                        directory under the account.  "system" will store keys
-                        in the user's system gnupg keyring.
         """
         ident = self.get_identity(id_name, check=False)
         assert not ident.exists()
-        ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle,
-                     gpgbin=gpgbin, gpgmode=gpgmode)
+        ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle)
         return ident
 
     def mod_identity(self, id_name="default", email_regex=None,
-                     keyhandle=None, gpgbin=None, prefer_encrypt=None):
+                     keyhandle=None, own_key=None, prefer_encrypt=None):
         """ modify a named identity.
 
         All arguments are optional: if they are not specified the underlying
@@ -218,15 +210,11 @@ class Account(object):
         :param email_regex: regular expression which matches all email addresses
                             belonging to this identity.
         :param keyhandle: key fingerprint or uid to use for this identity.
-        :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" keeps all key state inside the identity
-                        directory under the account.  "system" will store keys
-                        in the user's system gnupg keyring.
         :returns: Identity instance
         """
         ident = self.get_identity(id_name)
         changed = ident.modify(
-            email_regex=email_regex, keyhandle=keyhandle, gpgbin=gpgbin,
+            email_regex=email_regex, keyhandle=keyhandle,
             prefer_encrypt=prefer_encrypt,
         )
         return changed, ident
@@ -276,10 +264,12 @@ class Account(object):
         if not self.list_identity_names():
             raise NotInitialized("no identities configured")
         ident = self.get_identity_from_emailadr([emailadr])
+        logger.debug("ident %s", ident)
         if ident is None:
             return ""
         else:
             assert ident.config.own_keyhandle
+            logger.debug("ident.config.own_keyhandle %s", ident.config.own_keyhandle)
             return ident.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg, delivto=None):
@@ -295,18 +285,33 @@ class Account(object):
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
             assert delivto
         ident = self.get_identity_from_emailadr([delivto])
+        logger.debug('ident %s', ident)
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
+        logger.debug('From %s', From)
         old = ident.config.peers.get(From, {})
+        logger.debug('old %s', old)
+        logger.debug('msg is still %s', msg)
         d = mime.parse_one_ac_header_from_msg(msg)
+        logger.debug('d %s', d)
         date = msg.get("Date")
         if d and "to" in d:
+            logger.debug('d and to in d')
             if d["to"] == From:
+                logger.debug('to == from')
                 if parsedate(date) >= parsedate(old.get("*date", date)):
+                    logger.debug('date>=old date')
                     d["*date"] = date
                     keydata = b64decode(d["key"])
-                    keyhandle = ident.bingpg.import_keydata(keydata)
+                    logger.debug('type(d[key]) %s', type(d["key"]))
+                    logger.debug('type(keydata) %s', type(keydata))
+                    keyhandle = ident.crypto.import_keydata(keydata)
+                    logger.debug('imported key with keyhandle %s', keyhandle)
+                    pgpykey = ident.crypto.get_publickey_from_kh(keyhandle)
+                    ident.crypto.export_key(pgpykey)
+                    logger.debug('exported key')
+                    ident.crypto.publicpgpykeys.append(pgpykey)
                     d["*keyhandle"] = keyhandle
                     with ident.config.atomic_change():
                         ident.config.peers[From] = d
@@ -328,7 +333,7 @@ class Identity:
     def __repr__(self):
         return "Identity[{}]".format(self.config)
 
-    def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
+    def create(self, name, email_regex, keyhandle=None, own_key=None):
         """ create all settings, keyrings etc for this identity.
 
         :param name: name of this identity
@@ -336,12 +341,7 @@ class Identity:
                             belonging to this identity.
         :param keyhandle: key fingerprint or uid to use for this identity. If it is
                           None we generate a fresh Autocrypt compliant key.
-        :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" keeps all key state inside the identity
-                        directory under the account.  "system" will store keys
-                        in the user's system GnuPG keyring.
         """
-        assert gpgmode in ("own", "system")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
         with self.config.atomic_change():
@@ -349,14 +349,15 @@ class Identity:
             self.config.name = name
             self.config.email_regex = email_regex
             self.config.prefer_encrypt = "notset"
-            self.config.gpgbin = gpgbin
-            self.config.gpgmode = gpgmode
             self.config.peers = {}
+            logger.debug('self.crypto %s', self.crypto)
             if keyhandle is None:
                 emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
-                keyhandle = self.bingpg.gen_secret_key(emailadr)
+                logger.debug('emailadr %s', emailadr)
+                keyhandle = self.crypto.gen_secret_key(emailadr)
             else:
-                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
+                keyinfos = self.crypto.list_secret_keyinfos(keyhandle)
+                logger.debug('keyinfos %s', keyinfos)
                 for k in keyinfos:
                     is_in_uids = any(keyhandle in uid for uid in k.uids)
                     if is_in_uids or k.match(keyhandle):
@@ -366,39 +367,32 @@ class Identity:
                     raise ValueError("could not find secret key for {!r}, found {!r}"
                                      .format(keyhandle, keyinfos))
             self.config.own_keyhandle = keyhandle
+            logger.debug('keyhandle %s', keyhandle)
+            self.config.own_key = self.crypto.get_secret_keydata(armor=True)
+            self.config.own_public_key = self.crypto.get_public_keydata(armor=True)
+
         assert self.config.exists()
 
-    def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):
+    def modify(self, email_regex=None, keyhandle=None, prefer_encrypt=None):
         with self.config.atomic_change():
             if email_regex is not None:
                 self.config.email_regex = email_regex
             if prefer_encrypt is not None:
                 self.config.prefer_encrypt = prefer_encrypt
-            # if gpgbin is not None:
-            #    self.gpgbin = gpgbin
             return self.config.has_changed()
 
     def delete(self):
         shutil.rmtree(self.dir, ignore_errors=True)
 
     @cached_property
-    def bingpg(self):
-        gpgmode = self.config.gpgmode
-        if gpgmode == "own":
-            gpghome = os.path.join(self.dir, "gpghome")
-        elif gpgmode == "system":
-            gpghome = None
-        else:
-            gpghome = -1
-        if gpghome == -1 or not self.config.gpgbin:
-            raise NotInitialized(
-                "Account directory {!r} not initialized".format(self.dir))
-        return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
+    def crypto(self):
+        gpghome = os.path.join(self.dir, "pgpyhome")
+        return Crypto(homedir=gpghome)
 
     def make_ac_header(self, emailadr, headername="Autocrypt: "):
         return headername + mime.make_ac_header_value(
             emailadr=emailadr,
-            keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
+            keydata=self.crypto.get_public_keydata(self.config.own_keyhandle),
             prefer_encrypt=self.config.prefer_encrypt,
         )
 
@@ -423,11 +417,12 @@ class Identity:
         kh = keyhandle
         if kh is None:
             kh = self.config.own_keyhandle
-        return self.bingpg.get_public_keydata(kh, armor=True)
+        return self.crypto.get_public_keydata(kh, armor=True)
 
     def export_secret_key(self):
         """ return armored public key for this account. """
-        return self.bingpg.get_secret_keydata(self.config.own_keyhandle, armor=True)
+        return self.crypto.get_secret_keydata(
+            self.config.own_keyhandle, armor=True)
 
 
 class PeerInfo:

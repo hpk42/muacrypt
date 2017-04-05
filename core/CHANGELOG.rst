@@ -7,3 +7,7 @@
   but you can glimpse from the tests how to use
   it.
 
+0.3.2
+-------
+
+- acpgy: core based version using PGPy library

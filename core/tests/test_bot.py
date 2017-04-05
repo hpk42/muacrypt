@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 from __future__ import unicode_literals, print_function
-
+import logging
 import six
 import pytest
+
 from autocrypt import mime
 from autocrypt.bot import SimpleLog
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(params=["sender@example.org"])
@@ -87,8 +90,8 @@ class TestBot:
             From=send_adr, To=[bcmd.bot_adr],
             Subject="hello")
 
-        out = bcmd.run_ok(["bot-reply", "--fallback-delivto", bcmd.bot_adr],
-                          input=msg.as_string())
+        out = bcmd.run_ok(["bot-reply", "--fallback-delivto",
+                           bcmd.bot_adr], input=msg.as_string())
 
         reply_msg = mime.parse_message_from_string(out)
         linematch(decode_body(reply_msg), """
@@ -138,12 +141,14 @@ class TestBot:
         assert "no autocrypt header" in body.lower()
 
     @pytest.mark.parametrize("with_ac", [True, False])
-    def test_send_reply(self, smtpserver, bcmd, ac_sender, with_ac, linematch):
+    def test_send_reply(self, smtpserver, bcmd, ac_sender, with_ac,
+                        linematch):
         host, port = smtpserver.addr[:2]
+        logger.debug('host %s, port %s', host, port)
         Autocrypt = None if not with_ac else ac_sender.ac_headerval
         msg = mime.gen_mail_msg(
             From=ac_sender.adr, To=[bcmd.bot_adr],
-            MessageID=mime.make_msgid("5" * 50),  # long MessageID
+            MessageID=mime.make_msgid("5" * 50), # long MessageID
             Autocrypt=Autocrypt, Subject="hello", _dto=True)
 
         bcmd.run_ok(["bot-reply", "--smtp={},{}".format(host, port)],
@@ -167,4 +172,4 @@ class TestBot:
             """.format(
                 senderadr=ac_sender.adr,
                 senderkeyhandle=ac_sender.config.own_keyhandle,
-            ))
+           ))

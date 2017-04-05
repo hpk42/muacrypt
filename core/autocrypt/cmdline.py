@@ -6,6 +6,7 @@
 
 from __future__ import print_function
 
+import logging
 import os
 import sys
 import subprocess
@@ -16,10 +17,14 @@ from .cmdline_utils import (
     out_red, log_info, mycommand,
 )
 from .account import Account, IdentityNotFound
-from .bingpg import find_executable
+from .utils import find_executable
 from . import mime
 from .bot import bot_reply
 
+FORMAT = "%(levelname)s: %(filename)s:%(lineno)s -"\
+         "%(funcName)s - %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @click.command(cls=MyGroup, context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--basedir", type=click.Path(),
@@ -72,15 +77,6 @@ option_use_key = click.option(
     "use specified secret key which must be findable "
     "through the specified keyhandle (e.g. email, keyid, fingerprint)")
 
-option_use_system_keyring = click.option(
-    "--use-system-keyring", default=False, is_flag=True, help= # NOQA
-    "use system keyring for all secret/public keys instead of storing "
-    "keyring state inside our account identity directory.")
-
-option_gpgbin = click.option(
-    "--gpgbin", default="gpg", type=str, metavar="FILENAME", help= # NOQA
-    "use specified gpg filename. If it is a simple name it "
-    "is looked up on demand through the system's PATH.")
 
 option_email_regex = click.option(
     "--email-regex", default=".*", type=str, help= # NOQA
@@ -94,12 +90,10 @@ option_prefer_encrypt = click.option(
 @mycommand("add-identity")
 @click.argument("identity_name", type=str, required=True)
 @option_use_key
-@option_use_system_keyring
-@option_gpgbin
 @option_email_regex
 @click.pass_context
-def add_identity(ctx, identity_name, use_system_keyring,
-                 use_key, gpgbin, email_regex):
+def add_identity(ctx, identity_name,
+                 use_key, email_regex):
     """add an identity to this account.
 
     An identity requires an identity_name which is used to show, modify and delete it.
@@ -117,8 +111,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
     """
     account = get_account(ctx)
     ident = account.add_identity(
-        identity_name, keyhandle=use_key, gpgbin=gpgbin,
-        gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
+        identity_name, keyhandle=use_key, email_regex=email_regex
     )
     click.echo("identity added: '{}'".format(ident.config.name))
     _status_identity(ident)
@@ -127,11 +120,10 @@ def add_identity(ctx, identity_name, use_system_keyring,
 @mycommand("mod-identity")
 @click.argument("identity_name", type=str, required=True)
 @option_use_key
-@option_gpgbin
 @option_email_regex
 @option_prefer_encrypt
 @click.pass_context
-def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encrypt):
+def mod_identity(ctx, identity_name, use_key, email_regex, prefer_encrypt):
     """modify properties of an existing identity.
 
     An identity requires an identity_name.
@@ -140,7 +132,7 @@ def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encryp
     """
     account = get_account(ctx)
     changed, ident = account.mod_identity(
-        identity_name, keyhandle=use_key, gpgbin=gpgbin,
+        identity_name, keyhandle=use_key,
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
@@ -246,6 +238,7 @@ def sendmail(ctx, args):
     Note that unknown options and all arguments are passed through to the
     "sendmail" program.
     """
+    logger.info('args %s', args)
     assert args
     account = get_account(ctx)
     args = list(args)
@@ -336,20 +329,11 @@ def _status_identity(ident):
         click.echo("  {:16s} {}".format(name + ":", value))
 
     kecho("email_regex", ic.email_regex)
-    if ic.gpgmode == "own":
-        kecho("gpgmode", "{} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
-    else:
-        kecho("gpgmode", ic.gpgmode)
-    if os.sep not in ic.gpgbin:
-        kecho("gpgbin", "{} [currently resolves to: {}]".format(
-              ic.gpgbin, find_executable(ic.gpgbin)))
-    else:
-        kecho("gpgbin", ic.gpgbin)
 
     kecho("prefer-encrypt", ic.prefer_encrypt)
 
     # print info on key including uids
-    keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
+    keyinfos = ident.crypto.list_public_keyinfos(ic.own_keyhandle)
     uids = set()
     for k in keyinfos:
         uids.update(k.uids)

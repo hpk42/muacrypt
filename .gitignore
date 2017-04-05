@@ -1,9 +1,11 @@
 *.pyc
 __pycache__
-autocrypt.egg-info
+*.egg-info
 doc/_build
 .cache
 *.swp
 .tox
 build
 dist
+*/.coverage
+*/htmlcov/
