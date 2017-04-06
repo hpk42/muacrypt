@@ -1,3 +1,5 @@
+**NOTE: this is an adapted version using PGPy.
+This documentation needs to be updated.**
 
 Autocrypt command line and library Python code
 ==============================================

@@ -1,0 +1,16 @@
+[run]
+branch = True
+source = acpgpy
+parallel = True
+
+[paths]
+source =
+    acpgpy
+   .tox/*/lib/python*/site-packages/acpgpy
+   .tox/*/lib/site-packages/acpgpy
+   .tox/pypy*/site-packages/acpgpy
+
+[report]
+omit =
+ */python?.?/*
+ *__init__*

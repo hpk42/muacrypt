@@ -2,10 +2,16 @@
 # vim:ts=4:sw=4:expandtab
 
 from __future__ import unicode_literals
-import os
 import pytest
+import logging
+
 from autocrypt.account import IdentityConfig, Account, NotInitialized
 from autocrypt import mime
+
+FORMAT = "%(levelname)s: %(filename)s:%(lineno)s -"\
+         "%(funcName)s - %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 def test_identity_config(tmpdir):
@@ -39,17 +45,23 @@ def test_identity_config(tmpdir):
 
 
 def test_account_header_defaults(account_maker):
-    account = account_maker(init=False)
-    adr = "hello@xyz.org"
+    alice_ac = account_maker(init=False)
+    logger.debug('alice_ac.list_identity_names %s',
+                 alice_ac.list_identity_names())
+    bob_adr = "bob@xyz.org"
     with pytest.raises(NotInitialized):
-        account.make_header(adr)
-    account.init()
-    ident = account.add_identity()
-    assert ident.config.gpgmode == "own"
-    h = account.make_header(adr)
+        alice_ac.make_header(bob_adr)
+    alice_ac.init()
+    logger.debug('alice_ac.list_identity_names %s',
+                 alice_ac.list_identity_names())
+    alice_ident = alice_ac.add_identity()
+    logger.debug('alice_ac.list_identity_names %s',
+                 alice_ac.list_identity_names())
+    h = alice_ac.make_header(bob_adr)
     d = mime.parse_one_ac_header_from_string(h)
-    assert d["to"] == adr
-    key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
+    assert d["to"] == bob_adr
+    key = alice_ident.crypto.get_public_keydata(
+            alice_ident.config.own_keyhandle, b64=True)
     assert d["key"] == key
     assert d["prefer-encrypt"] == "notset"
     assert d["type"] == "p"
@@ -66,78 +78,96 @@ def test_account_handling(tmpdir):
 
 
 def test_account_parse_incoming_mail_broken_ac_header(account_maker):
-    adr = "a@a.org"
-    ac2 = account_maker()
+    alice_adr = "a@a.org"
+    alice_ac = account_maker()
     msg = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
         Autocrypt="Autocrypt: to=123; key=12312k3")
-    peerinfo = ac2.process_incoming(msg)
+    peerinfo = alice_ac.process_incoming(msg)
     assert not peerinfo
 
 
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
-    adr = "a@a.org"
-    ac1 = account_maker()
-    ac2 = account_maker()
+    alice_adr = "a@a.org"
+    # create bob account
+    bob_ac = account_maker()
+    logger.debug('bob_ac %s', bob_ac)
+    # create alice account
+    alice_ac = account_maker()
+    logger.debug('alice_ac %s', alice_ac)
+    # alice generate mail for bob
     msg = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac1.make_header(adr, headername=""))
-    peerinfo = ac2.process_incoming(msg)
-    assert peerinfo["to"] == adr
-    ident2 = ac2.get_identity()
-    ident1 = ac1.get_identity()
-    enc = ident2.bingpg.encrypt(data=b"123", recipients=[peerinfo.keyhandle])
-    data, descr_info = ident1.bingpg.decrypt(enc)
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
+        Autocrypt=alice_ac.make_header(alice_adr, headername=""))
+    logger.debug('alice_ac generated msg for bob')
+    # bob process mail from alice
+    peerinfo = bob_ac.process_incoming(msg)
+    logger.debug("bob_ac processed incoming msg %s", peerinfo)
+    # the new bob's peer is alice
+    assert peerinfo["to"] == alice_adr
+    alice_ident = alice_ac.get_identity()
+    logger.debug('alice_ident %s', alice_ident)
+    bob_ident = bob_ac.get_identity()
+    logger.debug('bob_ident %s', bob_ident)
+    # bob encrypt message for alice
+    enc = bob_ident.crypto.encrypt(data=b"123",
+                                   recipients=[peerinfo.keyhandle])
+    # alice decrypt message from bob
+    data, descr_info = alice_ident.crypto.decrypt(str(enc))
     assert data == b"123"
 
 
 def test_account_parse_incoming_mails_replace(account_maker):
-    ac1 = account_maker()
-    ac2 = account_maker()
+    bob_ac = account_maker()
+    alice_ac = account_maker()
     ac3 = account_maker()
-    adr = "alice@a.org"
+    alice_adr = "alice@a.org"
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(adr, headername=""))
-    peerinfo = ac1.process_incoming(msg1)
-    ident2 = ac2.get_identity_from_emailadr([adr])
-    assert peerinfo.keyhandle == ident2.config.own_keyhandle
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
+        Autocrypt=alice_ac.make_header(alice_adr, headername=""))
+    peerinfo = bob_ac.process_incoming(msg1)
+    alice_ident = alice_ac.get_identity_from_emailadr([alice_adr])
+    assert peerinfo.keyhandle == alice_ident.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(adr, headername=""))
-    peerinfo2 = ac1.process_incoming(msg2)
-    assert peerinfo2.keyhandle == ac3.get_identity().config.own_keyhandle
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac3.make_header(alice_adr, headername=""))
+    peerinfo2 = bob_ac.process_incoming(msg2)
+    assert peerinfo2.keyhandle == \
+        ac3.get_identity().config.own_keyhandle
 
 
 def test_account_parse_incoming_mails_replace_by_date(account_maker):
-    ac1 = account_maker()
-    ac2 = account_maker()
+    bob_ac = account_maker()
+    alice_ac = account_maker()
     ac3 = account_maker()
-    adr = "alice@a.org"
+    alice_adr = "alice@a.org"
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(adr, headername=""),
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac3.make_header(alice_adr, headername=""),
         Date='Thu, 16 Feb 2017 15:00:00 -0000')
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(adr, headername=""),
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
+        Autocrypt=alice_ac.make_header(alice_adr, headername=""),
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
-    peerinfo = ac1.process_incoming(msg2)
+    peerinfo = bob_ac.process_incoming(msg2)
     id1 = peerinfo.identity
-    assert id1.get_peerinfo(adr).keyhandle == ac3.get_identity().config.own_keyhandle
-    ac1.process_incoming(msg1)
-    assert id1.get_peerinfo(adr).keyhandle == ac3.get_identity().config.own_keyhandle
+    assert id1.get_peerinfo(alice_adr).keyhandle == \
+        ac3.get_identity().config.own_keyhandle
+    bob_ac.process_incoming(msg1)
+    assert id1.get_peerinfo(alice_adr).keyhandle == \
+        ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
+        From="Alice <%s>" % alice_adr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
-    peerinfo = ac1.process_incoming(msg3)
+    peerinfo = bob_ac.process_incoming(msg3)
     assert peerinfo is None
-    assert ac1.get_identity().get_peerinfo(adr) is None
+    assert bob_ac.get_identity().get_peerinfo(alice_adr) is None
 
 
 def test_account_export_public_key(account, datadir):
     account.add_identity()
-    msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
+    msg = mime.parse_message_from_file(
+            datadir.open("rsa2048-simple.eml"))
     peerinfo = account.process_incoming(msg)
     assert account.get_identity().export_public_key(peerinfo.keyhandle)
 
@@ -146,43 +176,63 @@ class TestIdentities:
     def test_add_one_and_check_defaults(self, account):
         regex = "(office|work)@example.org"
         account.add_identity("office", regex)
-        ident = account.get_identity_from_emailadr(["office@example.org"])
+        logger.debug('added identity office to account %s', account)
+        ident = account.get_identity_from_emailadr(
+                    ["office@example.org"])
+        logger.debug('got ident from mail %s', ident)
         assert ident.config.prefer_encrypt == "notset"
         assert ident.config.email_regex == regex
         assert ident.config.uuid
         assert ident.config.own_keyhandle
-        assert ident.bingpg.get_public_keydata(ident.config.own_keyhandle)
-        assert ident.bingpg.get_secret_keydata(ident.config.own_keyhandle)
+        assert ident.crypto.get_public_keydata(
+                    ident.config.own_keyhandle)
+        assert ident.crypto.get_secret_keydata(
+                    ident.config.own_keyhandle)
         assert ident.config.peers == {}
         assert str(ident)
         account.del_identity("office")
         assert not account.list_identities()
-        assert not account.get_identity_from_emailadr(["office@example.org"])
+        assert not account.get_identity_from_emailadr(
+                    ["office@example.org"])
 
-    def test_add_existing_key(self, account_maker, datadir, gpgpath, monkeypatch):
-        acc1 = account_maker()
-        ident1 = acc1.get_identity()
-        monkeypatch.setenv("GNUPGHOME", ident1.bingpg.homedir)
-        acc2 = account_maker(init=False)
-        gpgbin = os.path.basename(gpgpath)
-        acc2.init()
-        ident2 = acc2.add_identity(
-            "default", email_regex=".*",
-            gpgmode="system", gpgbin=gpgbin,
-            keyhandle=ident1.config.own_keyhandle)
-        assert ident2.config.gpgmode == "system"
-        assert ident2.config.gpgbin == gpgbin
-        assert ident2.config.own_keyhandle == ident1.config.own_keyhandle
+    def test_add_existing_key(self, account_maker, datadir):
+        bob_ac = account_maker()
+        logger.debug('created bob account %s', bob_ac)
+        # logger.debug('bob_ac crypto %s', bob_ac.crypto)
+        bob_ident = bob_ac.get_identity()
+        logger.debug('created bob identity %s', bob_ident)
+        logger.debug('bob_ident crypto %s', bob_ident.crypto)
+        alice_ac = account_maker(init=False)
+        logger.debug('created alice account without init %s', alice_ac)
+        alice_ac.init()
+        logger.debug('init alice_ac %s', alice_ac)
+        # logger.debug('alice crypto %s', alice_ac.crypto)
+        # # FIXME: alice can not have access to bob's private key
+        # # to be correct it should add a key that is also in her "keyring"
+        # # with private key
+        # keyhandle = alice_ac.crypto.gen_secret_key()
+        # alice_ident.crypto.publicpgpykeys = bob_ident.crypto.publicpgpykeys
+        # alice_ident.crypto.secretpgpykeys = bob_ident.crypto.secretpgpykeys
+        # alice_ident.crypto.export_keys()
+        # alice_ident = alice_ac.add_identity(
+        #     "default", email_regex=".*",
+        #     keyhandle=bob_ident.config.own_keyhandle)
+        # assert alice_ident.config.own_keyhandle == bob_ident.config.own_keyhandle
 
     def test_add_two(self, account):
-        account.add_identity("office", email_regex="office@example.org")
-        account.add_identity("home", email_regex="home@example.org")
+        account.add_identity("office",
+                             email_regex="office@example.org")
+        account.add_identity("home",
+                             email_regex="home@example.org")
 
-        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        ident1 = account.get_identity_from_emailadr(
+                    ["office@example.org"])
         assert ident1.config.name == "office"
-        ident2 = account.get_identity_from_emailadr(["home@example.org"])
+        ident2 = account.get_identity_from_emailadr(
+                    ["home@example.org"])
         assert ident2.config.name == "home"
-        ident3 = account.get_identity_from_emailadr(["hqweome@example.org"])
+        ident3 = account.get_identity_from_emailadr(
+                    ["hqweome@example.org"])
         assert ident3 is None
 
     def test_add_two_modify_one(self, account):
@@ -190,27 +240,33 @@ class TestIdentities:
         account.add_identity("home", email_regex="home@example.org")
 
         account.mod_identity("home", email_regex="newhome@example.org")
-        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        ident1 = account.get_identity_from_emailadr(
+                    ["office@example.org"])
         assert ident1.config.name == "office"
-        assert not account.get_identity_from_emailadr(["home@example.org"])
-        ident3 = account.get_identity_from_emailadr(["newhome@example.org"])
+        assert not account.get_identity_from_emailadr(
+                    ["home@example.org"])
+        ident3 = account.get_identity_from_emailadr(
+                    ["newhome@example.org"])
         assert ident3.config.name == "home"
 
     @pytest.mark.parametrize("pref", ["yes", "no", "notset"])
-    def test_account_set_prefer_encrypt_and_header(self, account_maker, pref):
-        account = account_maker()
-        adr = "hello@xyz.org"
-        ident = account.get_identity()
+    def test_account_set_prefer_encrypt_and_header(self, account_maker,
+                                                   pref):
+        bob_ac = account_maker()
+        bob_adr = "hello@xyz.org"
+        bob_ident = bob_ac.get_identity()
         with pytest.raises(ValueError):
-            ident.modify(prefer_encrypt="random")
+            bob_ident.modify(prefer_encrypt="random")
         with pytest.raises(ValueError):
-            account.mod_identity(ident.config.name, prefer_encrypt="random")
+            bob_ac.mod_identity(bob_ident.config.name,
+                                prefer_encrypt="random")
 
-        account.mod_identity(ident.config.name, prefer_encrypt=pref)
-        h = account.make_header(adr)
+        bob_ac.mod_identity(bob_ident.config.name, prefer_encrypt=pref)
+        h = bob_ac.make_header(bob_adr)
         d = mime.parse_one_ac_header_from_string(h)
-        assert d["to"] == adr
-        key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
+        assert d["to"] == bob_adr
+        key = bob_ident.crypto.get_public_keydata(
+                bob_ident.config.own_keyhandle, b64=True)
         assert d["key"] == key
         assert d["prefer-encrypt"] == pref
         assert d["type"] == "p"
