@@ -254,6 +254,8 @@ def sendmail(ctx, args):
     msg, emailadr = account.process_outgoing(msg)
 
     input = msg.as_string()
+    #with open("/tmp/mail", "w") as f:
+    #    f.write(input)
     log_info("piping to: {}".format(" ".join(args)))
     sendmail = find_executable("sendmail")
     if not sendmail:
