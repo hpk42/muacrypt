@@ -11,6 +11,18 @@ from email.utils import formatdate, make_msgid
 import six
 
 
+def encode_binary_keydata(keydata):
+    assert isinstance(keydata, bytes)
+    key = base64.b64encode(keydata)
+    if isinstance(key, bytes):
+        key = key.decode("ascii")
+    return key
+
+
+def decode_keydata(ascii_keydata):
+    return base64.b64decode(ascii_keydata)
+
+
 def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="1"):
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
