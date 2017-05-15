@@ -317,6 +317,27 @@ class Account(object):
             with ident.config.atomic_change():
                 ident.config.peers[From] = {}
 
+    def process_outgoing(self, msg):
+        """ process outgoing mail message and add Autocrypt
+        header if it doesn't already exist.
+
+        :type msg: email.message.Message
+        :param msg: instance of a standard email Message.
+        :rtype: PeerInfo
+        """
+        from .cmdline_utils import log_info
+        _, adr = mime.parse_email_addr(msg["From"])
+        if "Autocrypt" not in msg:
+            h = self.make_header(adr, headername="")
+            if not h:
+                log_info("no identity associated with {}".format(adr))
+            else:
+                msg["Autocrypt"] = h
+                log_info("Autocrypt header set for {!r}".format(adr))
+        else:
+            log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
+        return msg, adr
+
 
 class Identity:
     """ An Identity manages all Autocrypt settings and keys for a peer and stores

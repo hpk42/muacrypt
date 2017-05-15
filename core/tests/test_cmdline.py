@@ -179,9 +179,12 @@ class TestProcessOutgoing:
         mycmd.run_ok(["init", "--no-identity"])
         mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
         mail = gen_mail(From="x@y.org")
-        mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
-            *IdentityNotFound*x@y.org*
-        """)
+        # mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
+        #     *IdentityNotFound*x@y.org*
+        # """)
+        out0 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
+        assert "Autocrypt" not in out0
+
         mail = gen_mail(From="ident1@a.org")
         out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
         msg2 = mime.parse_message_from_string(out1)
@@ -213,6 +216,21 @@ class TestProcessOutgoing:
         assert "-f" in call.args
         out_msg = mime.parse_message_from_string(call.input)
         assert "Autocrypt" in out_msg, out_msg.as_string()
+
+    def test_sendmail_no_identity(self, mycmd, gen_mail, popen_mock):
+        mycmd.run_ok(["init"])
+        mycmd.run_ok(["mod-identity", "default", "--email-regex", "123123"])
+        mail = gen_mail().as_string()
+        pargs = ["-oi", "b@b.org"]
+        mycmd.run_ok(["sendmail", "-f", "--"] + pargs, input=mail)
+        assert len(popen_mock.calls) == 1
+        call = popen_mock.pop_next_call()
+        for x in pargs:
+            assert x in call.args
+        # make sure unknown option is passed to pipe
+        assert "-f" in call.args
+        out_msg = mime.parse_message_from_string(call.input)
+        assert "Autocrypt" not in out_msg, out_msg.as_string()
 
     def test_sendmail_fails(self, mycmd, gen_mail, popen_mock):
         mycmd.run_ok(["init"])

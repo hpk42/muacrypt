@@ -92,9 +92,9 @@ for an email address::
     $ autocrypt make-header x@example.org
 
 You can process and integrate peer's Autocrypt
-keys by specifying an email message filename::
+keys by piping an email message into the ``process-incoming`` subcommand::
 
-    $ autocrypt process-incoming EMAIL_MESSAGE_FILE
+    $ autocrypt process-incoming <EMAIL_MESSAGE_FILE
 
 At any point you can show the status of your autocrypt
 account::
