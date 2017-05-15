@@ -15,7 +15,7 @@ from .cmdline_utils import (
     get_account, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
-from .account import Account, IdentityNotFound
+from .account import Account  # , IdentityNotFound
 from .bingpg import find_executable
 from . import mime
 from .bot import bot_reply
@@ -228,7 +228,8 @@ def process_outgoing(ctx):
     for the outgoing message and do not add one.
     """
     account = get_account(ctx)
-    msg, emailadr = _prepare_stdin_message(account)
+    msg = mime.parse_message_from_file(sys.stdin)
+    msg, emailadr = account.process_outgoing(msg)
     click.echo(msg.as_string())
 
 
@@ -249,7 +250,8 @@ def sendmail(ctx, args):
     assert args
     account = get_account(ctx)
     args = list(args)
-    msg, emailadr = _prepare_stdin_message(account)
+    msg = mime.parse_message_from_file(sys.stdin)
+    msg, emailadr = account.process_outgoing(msg)
 
     input = msg.as_string()
     log_info("piping to: {}".format(" ".join(args)))
@@ -265,20 +267,6 @@ def sendmail(ctx, args):
         out_red("sendmail return {!r} exitcode, path: {}".format(
                 ret, sendmail))
         ctx.exit(ret)
-
-
-def _prepare_stdin_message(account):
-    msg = mime.parse_message_from_file(sys.stdin)
-    _, adr = mime.parse_email_addr(msg["From"])
-    if "Autocrypt" not in msg:
-        h = account.make_header(adr, headername="")
-        if not h:
-            raise IdentityNotFound("no identity associated with {}".format([adr]))
-        msg["Autocrypt"] = h
-        log_info("Autocrypt header set for {!r}".format(adr))
-    else:
-        log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
-    return msg, adr
 
 
 id_option = click.option(
