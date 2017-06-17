@@ -134,7 +134,7 @@ class PGPyCrypto(object):
             fd.write(key_bytes(key))
         return keypath
 
-    def _gen_skey_usage_all(self, emailadr='alice@testsuite.autocrypt.org'):
+    def _gen_skey_usage_all(self, emailadr):
         skey = PGPKey.new(SKEY_ALG, KEY_SIZE)
         # NOTE: pgpy implements separate attributes for name and e-mail
         # address. Name is mandatory.
