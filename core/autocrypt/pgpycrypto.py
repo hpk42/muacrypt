@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
-"""Crypto implements the OpenPGP operations needed for Autocrypt.
+"""PGPyCrypto implements the OpenPGP operations needed for Autocrypt.
 The API is the same as in bingpg.py.
 """
 
@@ -59,7 +59,7 @@ def key_bytes(pgpykey):
     return keybytes
 
 
-class Crypto(object):
+class PGPyCrypto(object):
     """OpenPGP operations for Autocrypt using PGPy.
 
     PGPy does not currently support file system keyring, therefore
@@ -69,8 +69,8 @@ class Crypto(object):
          * instead of storing the keys in files, they could be stored
            in the autocrypt config.json file.
          * it probably would be better to create an abstract class
-           as interface from which both BinGPG and Crypto inherit
-           and then implement specific methods for BinGPG and Crypto.
+           as interface from which both BinGPG and PGPyCrypto inherit
+           and then implement specific methods for BinGPG and PGPyCrypto.
 
     .. note::
          * methods not shared with BinGPG API are named as private.
@@ -79,7 +79,7 @@ class Crypto(object):
     """
 
     def __init__(self, homedir=None, gpgpath="gpg"):
-        """Init Crypto class.
+        """Init PGPyCrypto class.
 
         :param homedir: home dir
         :type key: str
@@ -93,7 +93,7 @@ class Crypto(object):
         self._ensure_init()
 
     def __str__(self):
-        return "Crypto(homedir={homedir!r})".format(
+        return "PGPyCrypto(homedir={homedir!r})".format(
             homedir=self.pgpydir)
 
     def _ensure_init(self):
