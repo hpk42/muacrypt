@@ -52,7 +52,7 @@ class TestCrypto:
         # priv_keydata = pgpycrypto.get_secret_keydata(keyhandle=keyhandle,
         #                                          armor=armor)
         public_keydata = pgpycrypto.get_public_keydata(keyhandle=keyhandle,
-                                                   armor=armor)
+                                                       armor=armor)
         keyhandle2 = pgpycrypto.import_keydata(public_keydata)
         assert keyhandle2 == keyhandle
 
