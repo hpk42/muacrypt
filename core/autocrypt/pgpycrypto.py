@@ -138,11 +138,11 @@ class PGPyCrypto(object):
         skey = PGPKey.new(SKEY_ALG, KEY_SIZE)
         # NOTE: pgpy implements separate attributes for name and e-mail
         # address. Name is mandatory.
-        # Here e-mail address is used for the attribute name .
+        # Here e-mail address is used for the attribute name,
+        # so that the uid is 'e-mail adress'.
         # If name attribute would be set to empty string
         # and email to the e-mail address, the uid would be
-        # ' <e-mail address>', for instance:
-        # " <alice@testsuite.autocrypt.org>" - which we do not want.
+        # ' <e-mail address>', which we do not want.
         uid = PGPUID.new(emailadr)
         skey.add_uid(uid, usage=SKEY_USAGE_ALL, **SKEY_ARGS)
         return skey
@@ -150,14 +150,14 @@ class PGPyCrypto(object):
     def _gen_ssubkey(self):
         # NOTE: the uid for the subkeys can be obtained with .parent,
         # but, unlike keys generated with gpg, it's not printed when imported
-        # in gpg keyring and run --fingerprint
-        # in case of adding uid to the subkey, it raises are currently some
+        # in gpg keyring and run --fingerprint.
+        # in case of adding uid to the subkey, it raises currently some
         # exceptions depending on which are the arguments used, which are not
         # clear from the documentation.
         ssubkey = PGPKey.new(SKEY_ALG, KEY_SIZE)
         return ssubkey
 
-    def _gen_skey_with_subkey(self, emailadr='alice@testsuite.autocrypt.org'):
+    def _gen_skey_with_subkey(self, emailadr):
         # NOTE: skey should be generated with usage sign, but otherwise
         # encryption does not work currently.
         skey = self._gen_skey_usage_all(emailadr)
@@ -165,7 +165,7 @@ class PGPyCrypto(object):
         skey.add_subkey(ssubkey, usage=SKEY_USAGE_ENC)
         return skey
 
-    def gen_secret_key(self, emailadr='alice@testsuite.autocrypt.org'):
+    def gen_secret_key(self, emailadr):
         """Generate PGPKey object.
 
         :param emailadr: e-mail address
