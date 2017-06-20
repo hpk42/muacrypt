@@ -11,6 +11,7 @@ from _pytest.pytester import LineMatcher
 from autocrypt.bingpg import find_executable, BinGPG
 from autocrypt import mime
 from autocrypt.account import Account
+from autocrypt.pgpycrypto import PGPyCrypto
 
 
 def pytest_addoption(parser):
@@ -94,6 +95,21 @@ def bingpg_maker(request, tmpdir, gpgpath):
 
 
 @pytest.fixture
+def crypto_maker(request, tmpdir):
+    """Return a function which creates initialized PGPyCrypto instances."""
+    counter = itertools.count()
+
+    def maker(native=False):
+        if native:
+            pgpycrypto = PGPyCrypto()
+        else:
+            p = tmpdir.join("pgpycrypto%d" % next(counter))
+            pgpycrypto = PGPyCrypto(p.strpath)
+        return pgpycrypto
+    return maker
+
+
+@pytest.fixture
 def bingpg(bingpg_maker):
     """ return an initialized bingpg instance. """
     return bingpg_maker()
@@ -103,6 +119,12 @@ def bingpg(bingpg_maker):
 def bingpg2(bingpg_maker):
     """ return an initialized bingpg instance different from the first. """
     return bingpg_maker()
+
+
+@pytest.fixture
+def pgpycrypto(crypto_maker):
+    """Return an initialized pgpycrypto instance."""
+    return crypto_maker()
 
 
 class ClickRunner:
