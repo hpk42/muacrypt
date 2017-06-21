@@ -22,7 +22,8 @@ To use the code and run tests you need to have installed:
 - something to speed up gpg key creation, e.g.
   by installing "rng-tools" on debian.
 
-- python2.7 and python3.5 if you can.
+- python2.7 and python3.5 including headers
+  ("python2.7-dev" and "python3.5-dev" on debian).
   If python3.5 is not present tests for it
   will be skipped.
 

@@ -11,7 +11,6 @@ from _pytest.pytester import LineMatcher
 from autocrypt.bingpg import find_executable, BinGPG
 from autocrypt import mime
 from autocrypt.account import Account
-from autocrypt.pgpycrypto import PGPyCrypto
 
 
 def pytest_addoption(parser):
@@ -100,6 +99,7 @@ def crypto_maker(request, tmpdir):
     counter = itertools.count()
 
     def maker(native=False):
+        from autocrypt.pgpycrypto import PGPyCrypto
         if native:
             pgpycrypto = PGPyCrypto()
         else:
