@@ -13,6 +13,7 @@ Autocrypt Python API Reference
 .. autosummary::
 
    autocrypt.account
+   autocrypt.bot
    autocrypt.mime
    autocrypt.bingpg
    autocrypt.pgpycrypto
@@ -21,6 +22,12 @@ account module
 --------------
 
 .. automodule:: autocrypt.account
+    :members:
+
+bot module
+_---------
+
+.. automodule:: autocrypt.bot
     :members:
 
 mime module
