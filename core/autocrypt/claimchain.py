@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# vim:ts=4:sw=4:expandtab
 """
 Basic ClaimChain implementation.
 
@@ -106,19 +108,15 @@ class Block:
             yield current
             current = current.parent
 
-    def list_blocks(self):
-        return list(self)
-
-    def num_blocks(self):
-        return len(self.list_blocks)
-
     def contains_cid(self, cid):
         for x in self:
             if x.cid == cid:
                 return True
 
-    def get_first_block(self):
-        return self.list_blocks()[-1]
+    def get_last_parent(self):
+        for current in self:
+            pass
+        return current
 
 
 class HeadTracker:
@@ -200,7 +198,7 @@ class ClaimChain:
 
     def get_genesis_block(self):
         head = self.get_head_block()
-        block = head.get_first_block()
+        block = head.get_last_parent()
         assert block.type == "genesis"
         return block
 

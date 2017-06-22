@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# vim:ts=4:sw=4:expandtab
+
 from __future__ import unicode_literals, print_function
 
 import itertools
@@ -61,7 +64,7 @@ class TestBlockService:
         args2 = [42, 43]
         block1 = bs.store_block("hello", args1)
         block2 = bs.store_block("hello", args2, parent=block1.cid)
-        block = block2.get_first_block()
+        block = block2.get_last_parent()
         assert block == block1
         assert block.timestamp <= time.time()
         assert block.parent is None
@@ -107,6 +110,6 @@ class TestClaimChain:
         cc1.add_oob_verify(email=cc2.ident, cid=cc2.get_head_block().cid)
         assert cc1.num_blocks() == 2
         cc2_genesis_cid = cc2.get_genesis_block().cid
-        assert cc1.is_oob_verified_block(cc2_genesis_cid)
         assert not cc1.is_oob_verified_block(cc2_genesis_cid[:-1])
+        assert cc1.is_oob_verified_block(cc2_genesis_cid)
         cc1.dump()
