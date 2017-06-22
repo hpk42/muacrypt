@@ -117,8 +117,8 @@ class TestBot:
         assert reply_msg["To"] == msg["From"]
         assert reply_msg["Autocrypt"]
         ac_dict = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
-        assert ac_dict["to"] == bcmd.bot_adr
-        assert ac_dict["key"]
+        assert ac_dict["addr"] == bcmd.bot_adr
+        assert ac_dict["keydata"]
         body = decode_body(reply_msg)
         assert "no Autocrypt header" not in body
         print(body)

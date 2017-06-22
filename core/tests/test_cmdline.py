@@ -47,7 +47,7 @@ def test_init_and_make_header(mycmd):
     d = mime.parse_one_ac_header_from_string(out)
     assert "prefer-encrypt" not in out
     assert "type" not in out
-    assert d["to"] == adr
+    assert d["addr"] == adr
     out2 = mycmd.run_ok(["make-header", adr])
     assert out == out2
 
@@ -67,7 +67,7 @@ def test_exports_and_status_plain(mycmd):
     out = mycmd.run_ok(["status"], """
         account-dir:*
         *identity*default*uuid*
-        *prefer-encrypt*notset*
+        *prefer-encrypt*nopreference*
         *own-keyhandle:*
     """)
 
@@ -99,6 +99,7 @@ class TestProcessIncoming:
         m = re.search(r'key (\w+) ', out)
         keyhandle, = m.groups()
         mycmd.run_ok(["export-public-key", "--id=ident1", keyhandle])
+        mycmd.run_ok(["status"])
 
     def test_process_incoming_no_autocrypt(self, mycmd, datadir):
         mycmd.run_ok(["init", "--no-identity"])
@@ -132,9 +133,9 @@ class TestIdentityCommands:
         mycmd.run_ok(["status"], """
             *identity*default*
         """)
-        mycmd.run_ok(["mod-identity", "default", "--prefer-encrypt=yes"], """
+        mycmd.run_ok(["mod-identity", "default", "--prefer-encrypt=mutual"], """
             *identity modified*default*
-            *prefer-encrypt*yes*
+            *prefer-encrypt*mutual*
         """)
 
     def test_init_existing_key_native_gpg(self, mycmd, monkeypatch, bingpg, gpgpath):
@@ -149,7 +150,7 @@ class TestIdentityCommands:
                 *own-keyhandle*{}*
         """.format(gpgpath, keyhandle))
         mycmd.run_ok(["make-header", adr], """
-            *Autocrypt*to=x@y.org*
+            *Autocrypt*addr=x@y.org*
         """)
 
     def test_test_email(self, mycmd):

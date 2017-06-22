@@ -1,7 +1,7 @@
 From: Alice <alice@testsuite.autocrypt.org>
 To: Bob <bob@testsuite.autocrypt.org>
 Subject: a 25519 test
-Autocrypt: to=alice@testsuite.autocrypt.org; key=
+Autocrypt: addr=alice@testsuite.autocrypt.org; keydata=
  mDMEWFUX7RYJKwYBBAHaRw8BAQdACHq6FkRGsHqBMsNpD7d+Q2jtxVwTO+Y4NhBaQyHaMj+0HWFs
  aWNlQHRlc3RzdWl0ZS5hdXRvY3J5cHQub3JniJAEExYIADgWIQQmqmdR/XZoxC+kkkr8dE2p/nPD
  1AUCWFUX7QIbAwULCQgHAgYVCAkKCwIEFgIDAQIeAQIXgAAKCRD8dE2p/nPD1EqOAP0WUDKwko00

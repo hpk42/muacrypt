@@ -11,17 +11,17 @@ from email.utils import formatdate, make_msgid
 import six
 
 
-def make_ac_header_value(emailadr, keydata, prefer_encrypt="notset", keytype="p"):
+def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="1"):
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
         key = key.decode("ascii")
-    l = ["to=" + emailadr]
-    if prefer_encrypt != "notset":
+    l = ["addr=" + addr]
+    if prefer_encrypt != "nopreference":
         l.append("prefer-encrypt=" + prefer_encrypt)
-    if keytype != "p":
+    if keytype != "1":
         l.append("type=" + keytype)
-    l.append("key=\n" + indented_split(key))
+    l.append("keydata=\n" + indented_split(key))
     return "; ".join(l)
 
 
@@ -81,11 +81,11 @@ def parse_ac_headervalue(value):
     from the specified autocrypt header value.  Unspecified
     default values for prefer-encrypt and the key type are filled in."""
     parts = value.split(";")
-    result_dict = {"prefer-encrypt": "notset", "type": "p"}
+    result_dict = {"prefer-encrypt": "nopreference", "type": "1"}
     for x in parts:
         kv = x.split("=", 1)
         name, value = [x.strip() for x in kv]
-        if name == "key":
+        if name == "keydata":
             value = "".join(value.split())
         result_dict[name] = value
     return result_dict
@@ -97,17 +97,17 @@ def verify_ac_dict(ac_dict):
     """
     l = []
     for name in ac_dict:
-        if name not in ("key", "to", "type", "prefer-encrypt") and name[0] != "_":
+        if name not in ("keydata", "addr", "type", "prefer-encrypt") and name[0] != "_":
             l.append("unknown critical attr '{}'".format(name))
-    # keydata_base64 = "".join(ac_dict["key"])
+    # keydata_base64 = "".join(ac_dict["keydata"])
     # base64.b64decode(keydata_base64)
     if "type" not in ac_dict:
         l.append("type missing")
-    if "key" not in ac_dict:
-        l.append("key missing")
-    if ac_dict["type"] != "p":
+    if "keydata" not in ac_dict:
+        l.append("keydata missing")
+    if ac_dict["type"] != "1":
         l.append("unknown key type '%s'" % (ac_dict["type"], ))
-    if ac_dict["prefer-encrypt"] not in ("notset", "yes", "no"):
+    if ac_dict["prefer-encrypt"] not in ("nopreference", "mutual"):
         l.append("unknown prefer-encrypt setting '%s'" %
                  (ac_dict["prefer-encrypt"]))
     return l
