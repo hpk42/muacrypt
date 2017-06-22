@@ -453,8 +453,8 @@ class Identity:
 class PeerInfo:
     """ Read-Only info coming from the Parsed Autocrypt header from
     an incoming Mail from a peer. In addition to the Autocrypt-specified
-    attributes ("addr", "key", type", ...) there also is a "Date" and "keyhandle"
-    attribute derived from the incoming message.
+    attributes ("addr", "keydata", type", ...) there also are internal
+    "*Date" and "*keyhandle" attributes derived from the incoming message.
     """
     def __init__(self, identity, d):
         self._dict = dic = d.copy()
