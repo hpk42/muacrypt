@@ -210,7 +210,7 @@ class ClaimChain:
 
     def is_oob_verified_block(self, cid):
         for block in self.iter_blocks(type="oob_verify"):
-            email, cid = block.args
+            email, _ = block.args
             head_block = self.get_head_block(ident=email)
             if head_block.contains_cid(cid):
                 return True

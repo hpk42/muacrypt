@@ -108,4 +108,5 @@ class TestClaimChain:
         assert cc1.num_blocks() == 2
         cc2_genesis_cid = cc2.get_genesis_block().cid
         assert cc1.is_oob_verified_block(cc2_genesis_cid)
+        assert not cc1.is_oob_verified_block(cc2_genesis_cid[:-1])
         cc1.dump()
