@@ -452,9 +452,9 @@ class Identity:
 
 class PeerInfo:
     """ Read-Only info coming from the Parsed Autocrypt header from
-    an incoming Mail from a peer. In addition to the Autocrypt-specified
-    attributes ("addr", "keydata", type", ...) there also are internal
-    "*Date" and "*keyhandle" attributes derived from the incoming message.
+    an incoming Mail from a peer. In addition to the public Autocrypt
+    attributes (``addr``, ``keydata``, ``type``, ...) we process also py-autocrypt
+    internal ``*date`` and ``*keyhandle`` attributes.
     """
     def __init__(self, identity, d):
         self._dict = dic = d.copy()
@@ -470,11 +470,13 @@ class PeerInfo:
 
     def __str__(self):
         d = self._dict.copy()
-        return "{to}: key {keyhandle} [{bytes:d} bytes] {attrs} from date={date}".format(
-               to=d.pop("addr"), keyhandle=self.keyhandle,
-               bytes=len(d.pop("keydata")),
-               date=self.date,
-               attrs="; ".join(["%s=%s" % x for x in d.items()]))
+        return \
+            "{addr}: key {keyhandle} [{bytes:d} bytes] " \
+            "{attrs} from date={date}".format(
+                addr=d.pop("addr"), keyhandle=self.keyhandle,
+                bytes=len(d.pop("keydata")),
+                date=self.date,
+                attrs="; ".join(["%s=%s" % x for x in d.items()]))
 
 
 class IdentityInfo:
