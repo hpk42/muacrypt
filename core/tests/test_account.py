@@ -40,19 +40,19 @@ def test_identity_config(tmpdir):
 
 def test_account_header_defaults(account_maker):
     account = account_maker(init=False)
-    adr = "hello@xyz.org"
+    addr = "hello@xyz.org"
     with pytest.raises(NotInitialized):
-        account.make_header(adr)
+        account.make_header(addr)
     account.init()
     ident = account.add_identity()
     assert ident.config.gpgmode == "own"
-    h = account.make_header(adr)
+    h = account.make_header(addr)
     d = mime.parse_one_ac_header_from_string(h)
-    assert d["to"] == adr
+    assert d["addr"] == addr
     key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
-    assert d["key"] == key
-    assert d["prefer-encrypt"] == "notset"
-    assert d["type"] == "p"
+    assert d["keydata"] == key
+    assert d["prefer-encrypt"] == "nopreference"
+    assert d["type"] == "1"
 
 
 def test_account_handling(tmpdir):
@@ -66,24 +66,24 @@ def test_account_handling(tmpdir):
 
 
 def test_account_parse_incoming_mail_broken_ac_header(account_maker):
-    adr = "a@a.org"
+    addr = "a@a.org"
     ac2 = account_maker()
     msg = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt="Autocrypt: to=123; key=12312k3")
     peerinfo = ac2.process_incoming(msg)
     assert not peerinfo
 
 
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
-    adr = "a@a.org"
+    addr = "a@a.org"
     ac1 = account_maker()
     ac2 = account_maker()
     msg = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac1.make_header(adr, headername=""))
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac1.make_header(addr, headername=""))
     peerinfo = ac2.process_incoming(msg)
-    assert peerinfo["to"] == adr
+    assert peerinfo["addr"] == addr
     ident2 = ac2.get_identity()
     ident1 = ac1.get_identity()
     enc = ident2.bingpg.encrypt(data=b"123", recipients=[peerinfo.keyhandle])
@@ -95,16 +95,16 @@ def test_account_parse_incoming_mails_replace(account_maker):
     ac1 = account_maker()
     ac2 = account_maker()
     ac3 = account_maker()
-    adr = "alice@a.org"
+    addr = "alice@a.org"
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(adr, headername=""))
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac2.make_header(addr, headername=""))
     peerinfo = ac1.process_incoming(msg1)
-    ident2 = ac2.get_identity_from_emailadr([adr])
+    ident2 = ac2.get_identity_from_emailadr([addr])
     assert peerinfo.keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(adr, headername=""))
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac3.make_header(addr, headername=""))
     peerinfo2 = ac1.process_incoming(msg2)
     assert peerinfo2.keyhandle == ac3.get_identity().config.own_keyhandle
 
@@ -113,26 +113,26 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
     ac1 = account_maker()
     ac2 = account_maker()
     ac3 = account_maker()
-    adr = "alice@a.org"
+    addr = "alice@a.org"
     msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(adr, headername=""),
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac3.make_header(addr, headername=""),
         Date='Thu, 16 Feb 2017 15:00:00 -0000')
     msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(adr, headername=""),
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Autocrypt=ac2.make_header(addr, headername=""),
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
     peerinfo = ac1.process_incoming(msg2)
     id1 = peerinfo.identity
-    assert id1.get_peerinfo(adr).keyhandle == ac3.get_identity().config.own_keyhandle
+    assert id1.get_peerinfo(addr).keyhandle == ac3.get_identity().config.own_keyhandle
     ac1.process_incoming(msg1)
-    assert id1.get_peerinfo(adr).keyhandle == ac3.get_identity().config.own_keyhandle
+    assert id1.get_peerinfo(addr).keyhandle == ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
-        From="Alice <%s>" % adr, To=["b@b.org"], _dto=True,
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
     peerinfo = ac1.process_incoming(msg3)
     assert peerinfo is None
-    assert ac1.get_identity().get_peerinfo(adr) is None
+    assert ac1.get_identity().get_peerinfo(addr) is None
 
 
 def test_account_export_public_key(account, datadir):
@@ -147,7 +147,7 @@ class TestIdentities:
         regex = "(office|work)@example.org"
         account.add_identity("office", regex)
         ident = account.get_identity_from_emailadr(["office@example.org"])
-        assert ident.config.prefer_encrypt == "notset"
+        assert ident.config.prefer_encrypt == "nopreference"
         assert ident.config.email_regex == regex
         assert ident.config.uuid
         assert ident.config.own_keyhandle
@@ -196,10 +196,10 @@ class TestIdentities:
         ident3 = account.get_identity_from_emailadr(["newhome@example.org"])
         assert ident3.config.name == "home"
 
-    @pytest.mark.parametrize("pref", ["yes", "no", "notset"])
+    @pytest.mark.parametrize("pref", ["mutual", "nopreference"])
     def test_account_set_prefer_encrypt_and_header(self, account_maker, pref):
         account = account_maker()
-        adr = "hello@xyz.org"
+        addr = "hello@xyz.org"
         ident = account.get_identity()
         with pytest.raises(ValueError):
             ident.modify(prefer_encrypt="random")
@@ -207,10 +207,10 @@ class TestIdentities:
             account.mod_identity(ident.config.name, prefer_encrypt="random")
 
         account.mod_identity(ident.config.name, prefer_encrypt=pref)
-        h = account.make_header(adr)
+        h = account.make_header(addr)
         d = mime.parse_one_ac_header_from_string(h)
-        assert d["to"] == adr
+        assert d["addr"] == addr
         key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
-        assert d["key"] == key
+        assert d["keydata"] == key
         assert d["prefer-encrypt"] == pref
-        assert d["type"] == "p"
+        assert d["type"] == "1"

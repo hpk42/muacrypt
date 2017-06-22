@@ -4,6 +4,9 @@
 - change "sendmail" and "process-outoing" commands to not add autocrypt
   headers if no identity can be determined for a mail.
 
+- adapt Autocrypt header attribute names, parsing and processing to
+  new Level 1 spec
+
 
 0.3
 ---

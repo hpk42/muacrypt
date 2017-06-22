@@ -87,7 +87,7 @@ option_email_regex = click.option(
     "regex for matching all email addresses belonging to this identity.")
 
 option_prefer_encrypt = click.option(
-    "--prefer-encrypt", default=None, type=click.Choice(["notset", "yes", "no"]),
+    "--prefer-encrypt", default=None, type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
 
@@ -352,8 +352,8 @@ def _status_identity(ident):
         for name, ac_dict in peers.items():
             d = ac_dict.copy()
             click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
-                       to=d.pop("to"), keyhandle=d.pop("*keyhandle"),
-                       bytes=len(d.pop("key")),
+                       to=d.pop("addr"), keyhandle=d.pop("*keyhandle"),
+                       bytes=len(d.pop("keydata")),
                        attrs="; ".join(["%s=%s" % x for x in d.items()])))
     else:
         click.echo("  ---- no peers registered -----")

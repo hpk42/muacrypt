@@ -98,7 +98,7 @@ class IdentityConfig(PersistentAttrMixin):
     gpgbin = persistent_property("gpgbin", six.text_type)
     own_keyhandle = persistent_property("own_keyhandle", six.text_type)
     prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
-                                         ["yes", "no", "notset"])
+                                         ["nopreference", "mutual"])
     peers = persistent_property("peers", dict)
 
     def __repr__(self):
@@ -259,11 +259,10 @@ class Account(object):
 
         :type emailadr: unicode
         :param emailadr:
-            pure email address which we use as the "to" attribute
+            pure email address which we use as the "addr" attribute
             in the generated Autocrypt header.  An account may generate
             and send mail from multiple aliases and we advertise
             the same key across those aliases.
-            (XXX discuss whether "to" is all that useful for level-0 autocrypt.)
 
         :type headername: unicode
         :param headername:
@@ -301,11 +300,11 @@ class Account(object):
         old = ident.config.peers.get(From, {})
         d = mime.parse_one_ac_header_from_msg(msg)
         date = msg.get("Date")
-        if d and "to" in d:
-            if d["to"] == From:
+        if d and "addr" in d:
+            if d["addr"] == From:
                 if parsedate(date) >= parsedate(old.get("*date", date)):
                     d["*date"] = date
-                    keydata = b64decode(d["key"])
+                    keydata = b64decode(d["keydata"])
                     keyhandle = ident.bingpg.import_keydata(keydata)
                     d["*keyhandle"] = keyhandle
                     with ident.config.atomic_change():
@@ -326,17 +325,17 @@ class Account(object):
         :rtype: PeerInfo
         """
         from .cmdline_utils import log_info
-        _, adr = mime.parse_email_addr(msg["From"])
+        _, addr = mime.parse_email_addr(msg["From"])
         if "Autocrypt" not in msg:
-            h = self.make_header(adr, headername="")
+            h = self.make_header(addr, headername="")
             if not h:
-                log_info("no identity associated with {}".format(adr))
+                log_info("no identity associated with {}".format(addr))
             else:
                 msg["Autocrypt"] = h
-                log_info("Autocrypt header set for {!r}".format(adr))
+                log_info("Autocrypt header set for {!r}".format(addr))
         else:
             log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
-        return msg, adr
+        return msg, addr
 
 
 class Identity:
@@ -369,7 +368,7 @@ class Identity:
             self.config.uuid = uuid.uuid4().hex
             self.config.name = name
             self.config.email_regex = email_regex
-            self.config.prefer_encrypt = "notset"
+            self.config.prefer_encrypt = "nopreference"
             self.config.gpgbin = gpgbin
             self.config.gpgmode = gpgmode
             self.config.peers = {}
@@ -418,7 +417,7 @@ class Identity:
 
     def make_ac_header(self, emailadr, headername="Autocrypt: "):
         return headername + mime.make_ac_header_value(
-            emailadr=emailadr,
+            addr=emailadr,
             keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
             prefer_encrypt=self.config.prefer_encrypt,
         )
@@ -454,7 +453,7 @@ class Identity:
 class PeerInfo:
     """ Read-Only info coming from the Parsed Autocrypt header from
     an incoming Mail from a peer. In addition to the Autocrypt-specified
-    attributes ("to", "key", type", ...) there also is a "Date" and "keyhandle"
+    attributes ("addr", "key", type", ...) there also is a "Date" and "keyhandle"
     attribute derived from the incoming message.
     """
     def __init__(self, identity, d):
@@ -472,8 +471,8 @@ class PeerInfo:
     def __str__(self):
         d = self._dict.copy()
         return "{to}: key {keyhandle} [{bytes:d} bytes] {attrs} from date={date}".format(
-               to=d.pop("to"), keyhandle=self.keyhandle,
-               bytes=len(d.pop("key")),
+               to=d.pop("addr"), keyhandle=self.keyhandle,
+               bytes=len(d.pop("keydata")),
                date=self.date,
                attrs="; ".join(["%s=%s" % x for x in d.items()]))
 
