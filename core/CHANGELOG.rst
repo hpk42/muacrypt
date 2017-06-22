@@ -1,4 +1,4 @@
-0.8.dev
+0.7.0
 -------
 
 - adapt Autocrypt header attribute names, parsing and processing to

@@ -44,6 +44,7 @@ After :ref:`installation` let's see what sub commands we have::
       make-header        print autocrypt header for an emailadr.
       export-public-key  print public key of own or peer account.
       export-secret-key  print secret key of own autocrypt account.
+      bot-reply          reply to stdin mail as a bot.
 
 For getting started we only need a few commands, first of all we will initialize
 our Autocrypt account.  By default Autocrypt only creates and modifies files and state
@@ -53,13 +54,13 @@ in its own directory::
     account directory initialized: /tmp/home/.config/autocrypt
     account-dir: /tmp/home/.config/autocrypt
 
-    identity: 'default' uuid 36638a7257a04605aeec21ae0469f3f5
-      email_regex: .*
-      gpgmode: own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: notset
-      own-keyhandle: 943CAD804AFE02A9
-               -uid:  <36638a7257a04605aeec21ae0469f3f5@uuid.autocrypt.org>
+    identity: 'default' uuid 64ee038effa649f8a82c22e4d2ec15a4
+      email_regex:     .*
+      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  nopreference
+      own-keyhandle:   D67E0166618D4146
+      ^^ uid:           <64ee038effa649f8a82c22e4d2ec15a4@uuid.autocrypt.org>
       ---- no peers registered -----
 
 This created a default identity: a new secret key and a UUID and a few settings.
@@ -72,13 +73,13 @@ Let's check out account info again with the ``status`` subcommand::
     $ autocrypt status
     account-dir: /tmp/home/.config/autocrypt
 
-    identity: 'default' uuid 36638a7257a04605aeec21ae0469f3f5
-      email_regex: .*
-      gpgmode: own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: notset
-      own-keyhandle: 943CAD804AFE02A9
-               -uid:  <36638a7257a04605aeec21ae0469f3f5@uuid.autocrypt.org>
+    identity: 'default' uuid 64ee038effa649f8a82c22e4d2ec15a4
+      email_regex:     .*
+      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  nopreference
+      own-keyhandle:   D67E0166618D4146
+      ^^ uid:           <64ee038effa649f8a82c22e4d2ec15a4@uuid.autocrypt.org>
       ---- no peers registered -----
 
 This shows our own keyhandle of our Autocrypt OpenPGP key.
@@ -88,28 +89,28 @@ you could add to your email configuration (substitute
 ``a@example.org`` with your email address)::
 
     $ autocrypt make-header a@example.org
-    Autocrypt: to=a@example.org; key=
-      mQENBFi2tTkBCADmS/YDZE2FQ9GvLt2e+Ctv4sy8nG9kF026IgOIleH24wBv8U/0G0wkgIJjfTv/Kd
-      Qj0cie+yXHkFb19rtoB0myVeMdxTnW/a7Uorh/C3jqgdNUJ4V9g8JFMaEyuUVQD8NBlNbHR/XrTP5D
-      MsEgMCLHRnknsfSYruOzkK4XVGBZmogHusoSEJrjrxl+JsdUSf+I5PXmRyaXeArQ8HbdJgTe8DolBl
-      +gDYzLxuHweKB6kUeMB+JLifk54kQFFSmpExuSFwwv9qXICjpveQEwpguWlllCOI0DeBO6SSH2ifWt
-      G/ZwTBkpPqkaJUvzoVbeP3lLTyEtGQjwVZx6d6UAGR3BABEBAAG0NiA8MzY2MzhhNzI1N2EwNDYwNW
-      FlZWMyMWFlMDQ2OWYzZjVAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWLa1OQIbAwYLCQgH
-      AwIGFQgCCQoLBBYCAwECHgECF4AACgkQlDytgEr+Aqkg5wf/YnttxUJCDdJf8XRM0HgRJgOLoSBkgf
-      TG5/agTPB71DV6jy4lZzwBkrx9dQZ8YhA7eLsB+NEt9PZOZmvLT8MIqTBVlWCii144EKfujqwpIlkT
-      MoBaMcYq9A7UKB9GR/q6xdPx15sIeoh5WV7CN4biDBCDcg5JvjXgR2I9fqocia0mHyT7SBpZWVxBqe
-      BEz9KF3EO/h1AOCamgszz/GEDBYAUS+i5NAEHnubrhX2FABmduTmhFqmoMdn1MbVYdpsOT3DEBDa84
-      aUbcxS5UD444EwLHYqU3qJljVZE7ILRH9h0dCfjnCVb/A/i9eByureZ+eNqYz3XHfYIB0iZlsZatqL
-      kBDQRYtrU5AQgAwESiZ4qQ7bpN2XsME6nQgNTnvkjmqnByONV0A6HI3Ohu52EjrO8tFZsAKAOhSXcQ
-      FgRNXbo6wja17saTlSJS97bl5TJXAUwHoTzwW++ckN7Ob+w8yHfr2B7uJVQTSCLZe1ODyIgptaqzaY
-      lReycA5e4S0pXrHN2hY9n8voPPAF8Ac6GMKdc2iA+Yv2vZLY3q/ciauGIWzbzQS1ORiXFfjmTW0aQa
-      L4e44/AJEcpu81JhqRBGyK8X89H8Qw91eDzKS+wkg2O+7UuLXMzJlyPBkbpQMkT8Jfi+GSpjgPrHS8
-      sfyrdetG/JQeMoELfyxpxL86cnMKKs0RcmpYYhozEybwARAQABiQEfBBgBAgAJBQJYtrU5AhsMAAoJ
-      EJQ8rYBK/gKp3RQH+QEL3HtUTuwzO9kwV2kmJBKYMcD1aqNRpmmip2/V0yYYwinIJl6IGl0xc/AqZ8
-      5O0YeWyaULj59v45dhP0rhhsCTFlGyIe3jUTejG8D+JQfK0IT2Dn27k/iVPE3Tmf+33PXTQEPqpSz1
-      f+GhktGEBbppToFQlsw4lBPYi1UcmQIlmc5uY9gnCYXUteVqPJc7kvXyZRvgnxszh8Oah4ZuHc/KcA
-      mae0EILtaa0Px/aGbc8ynoI0lLLJI6asVI3MoPdnXAwflc3lnkKdD2ViYMUESxBMZs6hLG9YOMNTFT
-      y5BDTEPf3961vGjHCyxQsh5Ndn2/zRGG20wkvRBMb2xF8d4=
+    Autocrypt: addr=a@example.org; keydata=
+      mQENBFlLz1UBCADM2iM+Nqm8YtHEJYPXBhACycBOalFJAqZzMYUA46xGTop/jBddwgRvNh+ClhQL7H
+      xHE+bpfAE0Y1GBfw3PEI/rQGSyY7VhhH6nt7vTHCCYIRP64nfkK/PyRzGGT0AtS40fHc2DZ3kQxG7c
+      9krprbmx5fPwudgYzXDY+da7PwNxu9lJyPAjHIfnEsEsxPvTpcChhUs5euifT2sIzJF82UAs0oXqoA
+      Ak4G8JF2nZqCILQgkoKlAuEJhw1IjRkOQr19J5UkLKgucNQoOnjJ4HvPdmEt02uqzNXrmUMWl+4Ytb
+      XjmaZ3dME6KiH1KbUdTPIhIIVREUnoywslTc+pt5jDEnABEBAAG0NiA8NjRlZTAzOGVmZmE2NDlmOG
+      E4MmMyMmU0ZDJlYzE1YTRAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWUvPVQIbAwYLCQgH
+      AwIGFQgCCQoLBBYCAwECHgECF4AACgkQ1n4BZmGNQUZlRQgAr4ZK+0hZ6v65AHu+lw5xa5fIMpSCn6
+      anI59VetBur7PbZBIlW5z0jbWW13d+OsS0VW7Uuo07XXzWqc+rpsREpsBa+daWQdi7p/ahLiyd6mhN
+      z8WdI+dod/NLmZuDEGllypjveHmbmRreaqIevf5rW6UHhNMReGU91+xHZcbhsqNDYBO/jiUK6EglRt
+      zGJJuiJcE3+C/Kqu352OkJQdLDXngkmN2JQsosOmMqIrtPZtVsDHdhljMOOXumbH+G0nJoNNJX25Jv
+      iTKdAgaYIcJI5ncEEGVZ6cffN1hPZeM++MvHgnuZ15aWq1cNUXGah27rn/u6pSyKqP0Zq/7RVde+/r
+      kBDQRZS89VAQgA5m0ZWf8entimetIOwWj78FZxZldLcZnNKbPiM5sIztTcC2l3my0pfIzDxs9/PIj3
+      EE/+u1xPMKWjmU0rh4KRqM1/V7TRbRNOCQhc68OQ3f0yQmeu/B971XHxcslfRm5iV14RFNxbDjyx5O
+      IUDSjNy4QBfmMlp1RL81l03Bgv2kalSOPCradEV1eXCE1KSHFu89D6kDjZCZCyd4C+45+T8HdrNfF9
+      txy2Lu9quqiiklJDQ3R08ct4WAxMdf5cP/rTdAjRS1ikNR9GwwsHDHnfjVTlz5nknsPl9bTtfIRmRR
+      1ijUQaqONRMESYyY9Aq8f0kuhJOdD4y5CccaKBrxti9QARAQABiQEfBBgBAgAJBQJZS89VAhsMAAoJ
+      ENZ+AWZhjUFGyfEH/AiFHmaU8XqDJFTkPJX2cfNf8QDPHYio7M++Z15w9y5bp9OU5Amrh8N0Lp+rgv
+      262KqED/7FhvMCAljCIF9tk42y/b7jS1hg/qzXfN3wdEbwx1PVqmyZap4PEUXCL97JAjjY+J7D3Yd7
+      LQMEN10GdehnWJzuACndx5q2pmkh8u2oHu3Y+XnRUXHm8LMCIrQFx3VTzH0BaWm9kwqVHeAqWpD1tO
+      I0kKZx3MVaCcDI7N1JdBwNNqmgBdNhESGUwYd6nHb6tN9c3kGlNfxdNs1v0yXh8B1PwJsTBZPbkC3C
+      lx2Sv8FtIICO+e/2pc0PtAtdFARraeeYWgowzzQKZLe/rWc=
 
 Getting our own public encryption key in armored format::
 
@@ -117,39 +118,39 @@ Getting our own public encryption key in armored format::
     -----BEGIN PGP PUBLIC KEY BLOCK-----
     Version: GnuPG v1
 
-    mQENBFi2tTkBCADmS/YDZE2FQ9GvLt2e+Ctv4sy8nG9kF026IgOIleH24wBv8U/0
-    G0wkgIJjfTv/KdQj0cie+yXHkFb19rtoB0myVeMdxTnW/a7Uorh/C3jqgdNUJ4V9
-    g8JFMaEyuUVQD8NBlNbHR/XrTP5DMsEgMCLHRnknsfSYruOzkK4XVGBZmogHusoS
-    EJrjrxl+JsdUSf+I5PXmRyaXeArQ8HbdJgTe8DolBl+gDYzLxuHweKB6kUeMB+JL
-    ifk54kQFFSmpExuSFwwv9qXICjpveQEwpguWlllCOI0DeBO6SSH2ifWtG/ZwTBkp
-    PqkaJUvzoVbeP3lLTyEtGQjwVZx6d6UAGR3BABEBAAG0NiA8MzY2MzhhNzI1N2Ew
-    NDYwNWFlZWMyMWFlMDQ2OWYzZjVAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIA
-    IgUCWLa1OQIbAwYLCQgHAwIGFQgCCQoLBBYCAwECHgECF4AACgkQlDytgEr+Aqkg
-    5wf/YnttxUJCDdJf8XRM0HgRJgOLoSBkgfTG5/agTPB71DV6jy4lZzwBkrx9dQZ8
-    YhA7eLsB+NEt9PZOZmvLT8MIqTBVlWCii144EKfujqwpIlkTMoBaMcYq9A7UKB9G
-    R/q6xdPx15sIeoh5WV7CN4biDBCDcg5JvjXgR2I9fqocia0mHyT7SBpZWVxBqeBE
-    z9KF3EO/h1AOCamgszz/GEDBYAUS+i5NAEHnubrhX2FABmduTmhFqmoMdn1MbVYd
-    psOT3DEBDa84aUbcxS5UD444EwLHYqU3qJljVZE7ILRH9h0dCfjnCVb/A/i9eByu
-    reZ+eNqYz3XHfYIB0iZlsZatqLkBDQRYtrU5AQgAwESiZ4qQ7bpN2XsME6nQgNTn
-    vkjmqnByONV0A6HI3Ohu52EjrO8tFZsAKAOhSXcQFgRNXbo6wja17saTlSJS97bl
-    5TJXAUwHoTzwW++ckN7Ob+w8yHfr2B7uJVQTSCLZe1ODyIgptaqzaYlReycA5e4S
-    0pXrHN2hY9n8voPPAF8Ac6GMKdc2iA+Yv2vZLY3q/ciauGIWzbzQS1ORiXFfjmTW
-    0aQaL4e44/AJEcpu81JhqRBGyK8X89H8Qw91eDzKS+wkg2O+7UuLXMzJlyPBkbpQ
-    MkT8Jfi+GSpjgPrHS8sfyrdetG/JQeMoELfyxpxL86cnMKKs0RcmpYYhozEybwAR
-    AQABiQEfBBgBAgAJBQJYtrU5AhsMAAoJEJQ8rYBK/gKp3RQH+QEL3HtUTuwzO9kw
-    V2kmJBKYMcD1aqNRpmmip2/V0yYYwinIJl6IGl0xc/AqZ85O0YeWyaULj59v45dh
-    P0rhhsCTFlGyIe3jUTejG8D+JQfK0IT2Dn27k/iVPE3Tmf+33PXTQEPqpSz1f+Gh
-    ktGEBbppToFQlsw4lBPYi1UcmQIlmc5uY9gnCYXUteVqPJc7kvXyZRvgnxszh8Oa
-    h4ZuHc/KcAmae0EILtaa0Px/aGbc8ynoI0lLLJI6asVI3MoPdnXAwflc3lnkKdD2
-    ViYMUESxBMZs6hLG9YOMNTFTy5BDTEPf3961vGjHCyxQsh5Ndn2/zRGG20wkvRBM
-    b2xF8d4=
-    =S06F
+    mQENBFlLz1UBCADM2iM+Nqm8YtHEJYPXBhACycBOalFJAqZzMYUA46xGTop/jBdd
+    wgRvNh+ClhQL7HxHE+bpfAE0Y1GBfw3PEI/rQGSyY7VhhH6nt7vTHCCYIRP64nfk
+    K/PyRzGGT0AtS40fHc2DZ3kQxG7c9krprbmx5fPwudgYzXDY+da7PwNxu9lJyPAj
+    HIfnEsEsxPvTpcChhUs5euifT2sIzJF82UAs0oXqoAAk4G8JF2nZqCILQgkoKlAu
+    EJhw1IjRkOQr19J5UkLKgucNQoOnjJ4HvPdmEt02uqzNXrmUMWl+4YtbXjmaZ3dM
+    E6KiH1KbUdTPIhIIVREUnoywslTc+pt5jDEnABEBAAG0NiA8NjRlZTAzOGVmZmE2
+    NDlmOGE4MmMyMmU0ZDJlYzE1YTRAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIA
+    IgUCWUvPVQIbAwYLCQgHAwIGFQgCCQoLBBYCAwECHgECF4AACgkQ1n4BZmGNQUZl
+    RQgAr4ZK+0hZ6v65AHu+lw5xa5fIMpSCn6anI59VetBur7PbZBIlW5z0jbWW13d+
+    OsS0VW7Uuo07XXzWqc+rpsREpsBa+daWQdi7p/ahLiyd6mhNz8WdI+dod/NLmZuD
+    EGllypjveHmbmRreaqIevf5rW6UHhNMReGU91+xHZcbhsqNDYBO/jiUK6EglRtzG
+    JJuiJcE3+C/Kqu352OkJQdLDXngkmN2JQsosOmMqIrtPZtVsDHdhljMOOXumbH+G
+    0nJoNNJX25JviTKdAgaYIcJI5ncEEGVZ6cffN1hPZeM++MvHgnuZ15aWq1cNUXGa
+    h27rn/u6pSyKqP0Zq/7RVde+/rkBDQRZS89VAQgA5m0ZWf8entimetIOwWj78FZx
+    ZldLcZnNKbPiM5sIztTcC2l3my0pfIzDxs9/PIj3EE/+u1xPMKWjmU0rh4KRqM1/
+    V7TRbRNOCQhc68OQ3f0yQmeu/B971XHxcslfRm5iV14RFNxbDjyx5OIUDSjNy4QB
+    fmMlp1RL81l03Bgv2kalSOPCradEV1eXCE1KSHFu89D6kDjZCZCyd4C+45+T8Hdr
+    NfF9txy2Lu9quqiiklJDQ3R08ct4WAxMdf5cP/rTdAjRS1ikNR9GwwsHDHnfjVTl
+    z5nknsPl9bTtfIRmRR1ijUQaqONRMESYyY9Aq8f0kuhJOdD4y5CccaKBrxti9QAR
+    AQABiQEfBBgBAgAJBQJZS89VAhsMAAoJENZ+AWZhjUFGyfEH/AiFHmaU8XqDJFTk
+    PJX2cfNf8QDPHYio7M++Z15w9y5bp9OU5Amrh8N0Lp+rgv262KqED/7FhvMCAljC
+    IF9tk42y/b7jS1hg/qzXfN3wdEbwx1PVqmyZap4PEUXCL97JAjjY+J7D3Yd7LQME
+    N10GdehnWJzuACndx5q2pmkh8u2oHu3Y+XnRUXHm8LMCIrQFx3VTzH0BaWm9kwqV
+    HeAqWpD1tOI0kKZx3MVaCcDI7N1JdBwNNqmgBdNhESGUwYd6nHb6tN9c3kGlNfxd
+    Ns1v0yXh8B1PwJsTBZPbkC3Clx2Sv8FtIICO+e/2pc0PtAtdFARraeeYWgowzzQK
+    ZLe/rWc=
+    =RDVW
     -----END PGP PUBLIC KEY BLOCK-----
 
 
 .. _syskeyring:
 
-initializing with using system key ring
+Using a key from the gpg keyring
 ---------------------------------------
 
 If you want to use autocrypt with an existing mail setup you
@@ -168,18 +169,17 @@ let's create a standard autocrypt key with gpg::
     Name-Email: test@autocrypt.org
     Expire-Date: 0
 
-Let's run gpg to create the key which happens to be a standard ``type=p``
-Autocrypt key::
+Let's run gpg to create this Autocrypt type 1 key::
 
     $ gpg --batch --gen-key autocrypt_key.spec
     gpg: keyring `/tmp/home/.gnupg/secring.gpg' created
     gpg: keyring `/tmp/home/.gnupg/pubring.gpg' created
-    .........+++++
-    ....+++++
-    +++++
+    ..+++++
+    ..........+++++
+    ...+++++
     ...+++++
     gpg: /tmp/home/.gnupg/trustdb.gpg: trustdb created
-    gpg: key AFF0C9AA marked as ultimately trusted
+    gpg: key 4415EEF7 marked as ultimately trusted
 
 We now have a key generated in the system key ring and
 can initialize autocrypt using this key.  First, for our
@@ -197,13 +197,13 @@ and then we add a default identity tied to the key we want to use from the syste
     $ autocrypt add-identity default --use-system-keyring --use-key test@autocrypt.org
     identity added: 'default'
 
-    identity: 'default' uuid 4f72b7c6522d4584afbf21910883d399
-      email_regex: .*
-      gpgmode: system
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: notset
-      own-keyhandle: 0B55C419AFF0C9AA
-               -uid:  <test@autocrypt.org>
+    identity: 'default' uuid 969736e569dc442ab92597fd05e8373c
+      email_regex:     .*
+      gpgmode:         system
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  nopreference
+      own-keyhandle:   F81E1B474415EEF7
+      ^^ uid:           <test@autocrypt.org>
       ---- no peers registered -----
 
 Success! We have an initialized autocrypt account with an identity
@@ -257,13 +257,13 @@ You can then add an example identity::
     $ autocrypt add-identity home --email-regex '(alice|wonder)@testsuite.autocrypt.org'
     identity added: 'home'
 
-    identity: 'home' uuid 7c2e35c43feb412d90b343e3db857d5d
-      email_regex: (alice|wonder)@testsuite.autocrypt.org
-      gpgmode: own [home: /tmp/home/.config/autocrypt/id/home/gpghome]
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: notset
-      own-keyhandle: 5FF1012CD32FDAAA
-               -uid:  <7c2e35c43feb412d90b343e3db857d5d@uuid.autocrypt.org>
+    identity: 'home' uuid 1d3bb960f1b347bda83dc3773211a791
+      email_regex:     (alice|wonder)@testsuite.autocrypt.org
+      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/home/gpghome]
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  nopreference
+      own-keyhandle:   23117137B89DE0FB
+      ^^ uid:           <1d3bb960f1b347bda83dc3773211a791@uuid.autocrypt.org>
       ---- no peers registered -----
 
 This creates an decryption/encryption key pair and ties it to the name
@@ -275,13 +275,13 @@ And now let's create another identity::
     $ autocrypt add-identity wonder --email-regex='alice@wunderland.example.org'
     identity added: 'wonder'
 
-    identity: 'wonder' uuid 23a5de92cb8f4eca8ad2af0dcf474cce
-      email_regex: alice@wunderland.example.org
-      gpgmode: own [home: /tmp/home/.config/autocrypt/id/wonder/gpghome]
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: notset
-      own-keyhandle: 1C8E56D48EE8B770
-               -uid:  <23a5de92cb8f4eca8ad2af0dcf474cce@uuid.autocrypt.org>
+    identity: 'wonder' uuid abebb96743964765af8706f45a4cae76
+      email_regex:     alice@wunderland.example.org
+      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/wonder/gpghome]
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  nopreference
+      own-keyhandle:   20367F911DD2CA72
+      ^^ uid:           <abebb96743964765af8706f45a4cae76@uuid.autocrypt.org>
       ---- no peers registered -----
 
 We have now configured our Autocrypt account with two identities.
@@ -298,47 +298,40 @@ then one of our ``home`` ones::
 Looks good. Let's modify our ``home`` identity to signal to its peers
 that it prefers receiving encrypted mails::
 
-    $ autocrypt mod-identity home --prefer-encrypt=yes
-    identity modified: 'home'
+    $ autocrypt mod-identity home --prefer-encrypt=mutual
+    Usage: autocrypt mod-identity [OPTIONS] IDENTITY_NAME
 
-    identity: 'home' uuid 7c2e35c43feb412d90b343e3db857d5d
-      email_regex: (alice|wonder)@testsuite.autocrypt.org
-      gpgmode: own [home: /tmp/home/.config/autocrypt/id/home/gpghome]
-      gpgbin: gpg [currently resolves to: /usr/bin/gpg]
-      prefer-encrypt: yes
-      own-keyhandle: 5FF1012CD32FDAAA
-               -uid:  <7c2e35c43feb412d90b343e3db857d5d@uuid.autocrypt.org>
-      ---- no peers registered -----
+    Error: Invalid value for "--prefer-encrypt": invalid choice: yes. (choose from nopreference, mutual)
 
-This new ``prefer-encrypt: yes`` setting tells our peers that we prefer
+This new ``prefer-encrypt: mutual`` setting tells our peers that we prefer
 to receive encrypted mails.  This setting will cause processing of
 outgoing mails from the home address to add a header indicating that we
-want to receive encrypted mails if possible.  We can check this with the
-`make-header`_ subcommand::
+want to receive encrypted mails if the other side also wants encrypted mails.
+We can check the setting works with the `make-header`_ subcommand::
 
     $ autocrypt make-header wonder@testsuite.autocrypt.org
-    Autocrypt: to=wonder@testsuite.autocrypt.org; prefer-encrypt=yes; key=
-      mQENBFi2tT0BCACbCtoKwwAjLXpUMaUJOO6L4Kj9nvjQ4QrXSLovNoFw8V7zio4ZZTawmkm7puFCo8
-      uyEh9A9kqkaPReUcc2TUNh28X1xlvMcuMNkKzxEtis32ealsql/vKFbLAAmEDgt54pMLQoQ6Lxv4dg
-      Fj0lqtVsqPU35kPFCYPz8S2rdnfpsgByq7+Yl1iECgeAct01tHWZUA0hGojeu01kxSCqHTR2/b1kCY
-      19RM9EXofzrhbHgy6quhvnanhOZ4pYvi6mzp511e4Eq8o3gFodJpuSSD3XtE5XPfxllqYpqqYRTLAG
-      HsIvRPBiTKq9u0m3DrA2oCOt0qa/o+ZcP/QS+RllVhURABEBAAG0NiA8N2MyZTM1YzQzZmViNDEyZD
-      kwYjM0M2UzZGI4NTdkNWRAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWLa1PQIbAwYLCQgH
-      AwIGFQgCCQoLBBYCAwECHgECF4AACgkQX/EBLNMv2qq6vQf+IM95jXQmuyAF1cx/8AkpQYG2kWgggv
-      pyEa8mw2MatRiXbllvxWDstzKYMlC1v1PsQeXqMh8JPRhRKNPIN1UlrIei9muhME08SxZE11dbsfG2
-      l5ZJ1iCOHdaD9bnBFJnuRMTsMDdS7AONn/KjjRl+UJfg8jIJc7ZN3hjNx9bglred+kyL6ctel4l8HE
-      r3fS/MxX3kEHazYe1eCloPOzfkogtRMEsiVvUdSMOGPgd0A0AharufX2A5K+t3/Ty5myYoKtqVqjtr
-      FSn2SDYleZWcC2Up/WmCT8GYT9449oqdb98JJaIQRLHboI+FNfIKUb/M2yUlBSQKHbcJy9WFsgbQkb
-      kBDQRYtrU9AQgArHwSh/r31vu+yK7TqdRUPZstpedhltMqgtmSnFqGE1oz8ceiCrvJs40kvvCuSltm
-      781GUrYskiSknjZImV3FaEb9MOvyfuC5B7icfrPUsUPYVdSOrO9v/iyAy53xZU/e9k+KJextYoLSIF
-      Mmhmrnamo7pbLpIbodW1CKhHke6My/e5xevcurza0KdLgPH+F/aPdETIXVVEq08LkMBUxNR3Gym8+C
-      wQQQpYsOe+1WAcbzgGi2rN9OxoK3HE30ZxBMkXN2DaV9l40T/dzlV+P38LXCKDzgLk1eMuuYA8pEQy
-      CPALyhbvhgTJF4vgqc7XjLuNAiKeEPQ04IX32lrpgOswARAQABiQEfBBgBAgAJBQJYtrU9AhsMAAoJ
-      EF/xASzTL9qq5LIH/A6kv79N59j7hvS0p+Qyv+8aR7ExjQEAYPERqv/zPJQgPClmnwxNh6xOqkVD1O
-      naUN6Ao5+ouKvTJfegt9ldR8TVfnzJRFOL+sE7sgywKlqwy316W+Qc9FxEYr5591HqzK569boqKLT6
-      gedi45RaJulmAS1Nak9RiYdGrmuesn4IJqMuL5sIqoxC/YK9uc08oSxUfrrGAL7cfLtqR6Jnifm+dI
-      ZlhQDouIGkAPv4eaLKZtez8y8Omnr+Cium0JqCwVgwRDRoh8pf+dTmogMWuJRh+5/MTG3ZwAwp2Pju
-      byufLrIbebcvUrSGt7uJSfOHftJTtuMIOPhuMbhqAMXcVAE=
+    Autocrypt: addr=wonder@testsuite.autocrypt.org; keydata=
+      mQENBFlLz1kBCADd4K43W/x/im2sASRoURw9Pxa2uz+aiebGQnuz6+fOJMmcJl2MRIsQVh6vKpPuOh
+      qE9JLGqgxbgv9oaC97RgY00JCeabXHAsE0OY9AXsyaGmur1BLp0kV4IE+sqHZWtqudT/F+7FDxdkMN
+      +Zsv4Ek5w6iLBkNleD3XJB58pFJNelhOrUaJEgVcxwvblx05tXerC2nIgjSclirND8EfXGV499E+lF
+      jcmmDMt+OvLSg5U/dB4u9k3seThlWItT+zqHjl+m1sSK0rKq7p+lfMkqFNIAlGVcU/TG+QbgfhfoLC
+      r28M1+M36ydmDZMHmvf1wunKd02rF8deVc5Nl8PxBDCpABEBAAG0NiA8MWQzYmI5NjBmMWIzNDdiZG
+      E4M2RjMzc3MzIxMWE3OTFAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWUvPWQIbAwYLCQgH
+      AwIGFQgCCQoLBBYCAwECHgECF4AACgkQIxFxN7id4PuIUAf/aJEJQcBTnpwYkT57NjM74LUTGEmE8E
+      lvclRpj+b/+SBbECMMyLbUgklk3do8K2mmWdei12tJtsBSXvFy1ZB0JWZ5PXSLcy8CAAJGtp2GShvC
+      3z4x7WDfgMX/HJgMfexUIL8Q+kUwPuRVo5CU+Po0l3E/huSpmRoGEJMeZGAtI07F9OxffYBcEsKI4q
+      fzug3ID9wDZQoX2zNZB/9998BhZI1d0e2/acnux7aedDsMxu3sAj/kVd8WRifPxW2//L+oqhP6/s+H
+      8vo1jHIOUFyFMfNLzeU1+puyKmRMNM13tFjC9gCJ/pskieI1DMtMVA4LNdNF9fRGbEg1lSrg6zaZ5r
+      kBDQRZS89ZAQgAtmeWmxdYh8O1kkgp/wJL/GGKKPHMxJnuXO+rFecW4j/S3u1dmU84Z5Iz1o31Py9b
+      aOM2xv3ylbqTnLINNqf+2BjXbVRyTf3vuXIOxwbsMRcZmI+tOdc+CDIjceq5Hr7jWCTT9diBiMSCmE
+      fSLyWykAZpBINbmgmXTk53wRsn6WoiU6CGGs1fOn5gcKQWgzHDPX7764XEOM9ShJgGMYLYfESyrJbK
+      /c3f49mh2TN4u+6l27KHxCWt/bC+FcADYeS+b/YvVz0vNlmgx+0SCXDq0V9VA4tWPDhewDTK/E5itU
+      iH2UUJg0WYZRT3yWwleQuKu+ctQnrOEYIUOeWwkEzicwARAQABiQEfBBgBAgAJBQJZS89ZAhsMAAoJ
+      ECMRcTe4neD7e8IIAJQh5oNB0CkYnMn6uSBp2ePF9hId8SIIflSX6vHCbLt394VByb3VNeQgfZ3oRk
+      1ZzPHAPnEw7OoV5momM5JoR8lset3vt5LJamUcNCuQsjgZwD5pfhrJO5qgfARaKskTtAX8/2oKDznI
+      HDFFtAhAd45cegE4UL5fkNQzQat0z84jAiSk+F6cCdGpFPaLApMoQTOLmnGfk9KSIORu/7fsvw3m9f
+      76m1/UKCwJRPGaIwIOgTaXfhzUM/pyXFp/JoHJchKaLBbbJimfwNvzUj3YkUm4O57qnHF07tXnojSN
+      rCGPzrHYIP092Sm2w1V54VV3q0aVpF/P6UCna7SNWDzxiEg=
 
 When you pipe a message with a From-address matching Alice's home addresses into
 the `process-outgoing`_ subcommand will add this header. By using the sendmail_
