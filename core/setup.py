@@ -16,7 +16,7 @@ def main():
         license='MIT license',
         platforms=['unix', 'linux', 'osx', 'cygwin', 'win32'],
         author='holger krekel and the autocrypt team',
-        author_email='autocrypt at lists.mayfirst.org',
+        author_email='holger@merlinux.eu',
         classifiers=['Development Status :: 3 - Alpha',
                      'Intended Audience :: Developers',
                      'License :: OSI Approved :: MIT License',
