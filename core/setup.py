@@ -8,9 +8,13 @@ def main():
                 version = line.split("=", 1)[1].strip().strip('"')
                 break
 
+    with open("README.rst") as f:
+        long_desc = f.read()
+
     setup(
         name='autocrypt',
         description='Autocrypt: E-mail Encryption for Everyone example implementation',
+        long_description = long_desc,
         version=version,
         url='https://autocrypt.org',
         license='MIT license',
