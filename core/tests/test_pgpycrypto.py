@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# vim:ts=4:sw=4:expandtab
-"""Tests for PGPyCrypto"""
+# vim:ts=4:sw=4:expandtab 2
+# Copyright 2017 juga (juga at riseup dot net), under MIT license.
+"""Tests for PGPyCrypto."""
 
 from __future__ import unicode_literals
 
 import pytest
 
+from autocrypt.constants import KEY_SIZE
 
 class TestCrypto:
     def test_gen_key_and_get_keydata(self, pgpycrypto):
@@ -62,7 +64,7 @@ class TestCrypto:
         assert len(decrypt_info) == 1
         k = decrypt_info[0]
         assert str(k)
-        assert k.bits == 2048
+        assert k.bits == KEY_SIZE
         assert k.type == "RSAEncryptOrSign"
         assert k.date_created
         keyinfos = pgpycrypto.list_public_keyinfos(keyhandle)

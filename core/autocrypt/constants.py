@@ -4,6 +4,9 @@ import os.path
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# NOTE: key size is 3072 for Level 1
+KEY_SIZE = 3072
+
 NOPREFERENCE = 'nopreference'
 MUTUAL = 'mutual'
 

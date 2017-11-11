@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
+# Copyright 2017 juga (juga at riseup dot net), under MIT license.
 """PGPyCrypto implements the OpenPGP operations needed for Autocrypt.
 The API is the same as in bingpg.py.
 """
@@ -8,6 +9,8 @@ from __future__ import print_function, unicode_literals
 
 import glob
 import os
+import logging
+import logging.config
 import re
 import sys
 
@@ -18,10 +21,13 @@ from pgpy.constants import (CompressionAlgorithm, HashAlgorithm, KeyFlags,
 
 # TODO: these two functions should be in a separate file
 from .bingpg import KeyInfo, b64encode_u
+from .conflog import LOGGING
+from .constants import KEY_SIZE
+
+logging.config.dictConfig(LOGGING)
+logger = logging.getLogger(__name__)
 
 
-# NOTE: key size was decided to be 2048
-KEY_SIZE = 2048
 # TODO: see which defaults we would like here
 SKEY_ARGS = {
     'hashes': [HashAlgorithm.SHA512, HashAlgorithm.SHA256],
