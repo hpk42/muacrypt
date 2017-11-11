@@ -11,6 +11,7 @@ from _pytest.pytester import LineMatcher
 from autocrypt.bingpg import find_executable, BinGPG
 from autocrypt import mime
 from autocrypt.account import Account
+from autocrypt.pgpycrypto import PGPyCrypto
 
 
 def pytest_addoption(parser):
@@ -93,21 +94,6 @@ def bingpg_maker(request, tmpdir, gpgpath):
     return maker
 
 
-@pytest.fixture
-def crypto_maker(request, tmpdir):
-    """Return a function which creates initialized PGPyCrypto instances."""
-    counter = itertools.count()
-
-    def maker(native=False):
-        from autocrypt.pgpycrypto import PGPyCrypto
-        if native:
-            pgpycrypto = PGPyCrypto()
-        else:
-            p = tmpdir.join("pgpycrypto%d" % next(counter))
-            pgpycrypto = PGPyCrypto(p.strpath)
-        return pgpycrypto
-    return maker
-
 
 @pytest.fixture
 def bingpg(bingpg_maker):
@@ -119,12 +105,6 @@ def bingpg(bingpg_maker):
 def bingpg2(bingpg_maker):
     """ return an initialized bingpg instance different from the first. """
     return bingpg_maker()
-
-
-@pytest.fixture
-def pgpycrypto(crypto_maker):
-    """Return an initialized pgpycrypto instance."""
-    return crypto_maker()
 
 
 class ClickRunner:
@@ -237,13 +217,13 @@ class DirCache:
     def __init__(self, cache, key):
         self.cache = cache
         self.disabled = cache.config.getoption("--no-test-cache")
-        self.key = key
-        self.backup_path = self.cache._cachedir.join(self.key)
+        self.own_pgpykey = key
+        self.backup_path = self.cache._cachedir.join(self.own_pgpykey)
 
     def exists(self):
         dummy = object()
         return not self.disabled and \
-               self.cache.get(self.key, dummy) != dummy and \
+               self.cache.get(self.own_pgpykey, dummy) != dummy and \
                self.backup_path.exists()
 
     def store(self, path, ret):
@@ -257,13 +237,13 @@ class DirCache:
             return [n for n in names if n.startswith("S.")]
 
         shutil.copytree(path, self.backup_path.strpath, ignore=ignore)
-        self.cache.set(self.key, ret)
+        self.cache.set(self.own_pgpykey, ret)
 
     def restore(self, path):
         if os.path.exists(path):
             shutil.rmtree(path)
         shutil.copytree(self.backup_path.strpath, path)
-        return self.cache.get(self.key, None)
+        return self.cache.get(self.own_pgpykey, None)
 
 
 @pytest.fixture
@@ -355,3 +335,27 @@ def popen_mock(monkeypatch):
 
     monkeypatch.setattr(subprocess, "Popen", MyPopen)
     return pm
+
+
+@pytest.fixture
+def crypto_maker(request, tmpdir):
+    """Return a function which creates initialized PGPyCrypto instances."""
+    counter = itertools.count()
+
+    from autocrypt.examples_data import PGPHOME
+    def maker(native=False, pgphome=PGPHOME):
+        from autocrypt.pgpycrypto import PGPyCrypto
+        if pgphome:
+            pgpycrypto = PGPyCrypto(pgphome)
+        else:
+            p = tmpdir.join("pgpycrypto%d" % next(counter))
+            pgpycrypto = PGPyCrypto(p.strpath)
+        return pgpycrypto
+    return maker
+
+
+@pytest.fixture
+def pgpycrypto(crypto_maker):
+    """Return an initialized pgpycrypto instance."""
+    return crypto_maker()
+
