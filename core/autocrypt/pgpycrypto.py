@@ -191,6 +191,26 @@ class PGPyCrypto(object):
                     return key
         return None
 
+    def _get_key_from_addr(self, addr):
+        # NOTE: this is a bit unefficient, there should be other way to obtain
+        # a key from PGPKeyring
+        with self.memkr.key(addr) as key:
+            return key
+        return None
+
+    def _get_keyhandle_from_addr(self, addr):
+        key = self._get_key_from_addr(addr)
+        return key.fingerprint.keyid
+
+    def _get_fp_from_keyhandle(self, keyhandle):
+        # NOTE: this is a bit unefficient, there should be other way to obtain
+        # a key from PGPKeyring
+        for fp in self.memkr.fingerprints():
+            with self.memkr.key(fp) as key:
+                if key.fingerprint.keyid == keyhandle:
+                    return key.fingerprint
+        return None
+
     def _key_data(self, key, armor=False, b64=False):
         assert isinstance(key, PGPKey)
         if armor is True:
