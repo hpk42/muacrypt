@@ -336,11 +336,15 @@ class PGPyCrypto(object):
 
     def encrypt(self, data, recipients):
         assert len(recipients) >= 1
-        clear_msg = PGPMessage.new(data)
+        if not isinstance(data, PGPMessage):
+            clear_msg = PGPMessage.new(data)
+        else:
+            clear_msg = data
         # enc_msg |= self.pgpykey.sign(enc_msg)
         if len(recipients) == 1:
-            key = self._get_key_from_keyhandle(recipients[0])
-            enc_msg = key.pubkey.encrypt(clear_msg)
+            key = self._get_key_from_addr(recipients[0])
+            pkey = key if key.is_public else key.pubkey
+            enc_msg = pkey.encrypt(clear_msg)
         else:
             # The symmetric cipher should be specified, in case the first
             # preferred cipher is not the same for all recipients public
@@ -349,10 +353,12 @@ class PGPyCrypto(object):
             sessionkey = cipher.gen_key()
             enc_msg = clear_msg
             for r in recipients:
-                key = self._get_key_from_keyhandle(r)
-                enc_msg = key.pubkey.encrypt(enc_msg, cipher=cipher,
-                                             sessionkey=sessionkey)
+                key = self._get_key_from_addr(r)
+                pkey = key if key.is_public else key.pubkey
+                enc_msg = pkey.encrypt(enc_msg, cipher=cipher,
+                                       sessionkey=sessionkey)
             del sessionkey
+        assert enc_msg.is_encrypted
         return str(enc_msg)
 
     def sign(self, data, keyhandle):
