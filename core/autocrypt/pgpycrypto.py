@@ -366,6 +366,15 @@ class PGPyCrypto(object):
         sig_data = key.sign(data)
         return sig_data
 
+    def sign_encrypt(self, data, keyhandle, recipients):
+        # pkey = p._get_key_from_keyhandle(keyhandle)
+        pgpymsg = PGPMessage.new(data)
+        sig = self.sign(pgpymsg, keyhandle)
+        pgpymsg |= sig
+        assert pgpymsg.is_signed
+        enc = self.encrypt(pgpymsg, recipients)
+        return enc
+
     def _skeys(self):
         skeys = []
         secfps = self.memkr(keyhalf="private")
