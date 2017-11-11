@@ -393,13 +393,15 @@ class PGPyCrypto(object):
         good = next(ver.good_signatures)
         return good.by
 
-    def decrypt(self, enc_data):
+    def decrypt(self, enc_data, skey=None):
         if isinstance(enc_data, str):
             enc_msg = PGPMessage.from_blob(enc_data)
         else:
             enc_msg = enc_data
-        keyhandle = enc_msg.issuers.pop()
-        skey = self._get_key_from_keyhandle(keyhandle)
+        assert enc_msg.is_encrypted
+        if skey is None:
+            keyhandle = enc_msg.encrypters.pop()
+            skey = self._get_key_from_keyhandle(keyhandle)
         out = skey.decrypt(enc_msg)
         keyinfos = []
         keyinfos.append(KeyInfo(skey.key_algorithm.name, skey.key_size,
