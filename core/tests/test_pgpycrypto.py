@@ -56,7 +56,7 @@ class TestCrypto:
         keyhandle2 = pgpycrypto.import_keydata(public_keydata)
         assert keyhandle2 == keyhandle
 
-        out_encrypt = pgpycrypto.encrypt(b"123", recipients=[keyhandle])
+        out_encrypt = pgpycrypto.encrypt("123", recipients=[keyhandle])
         out, decrypt_info = pgpycrypto.decrypt(out_encrypt)
         assert out == b"123"
         assert len(decrypt_info) == 1
