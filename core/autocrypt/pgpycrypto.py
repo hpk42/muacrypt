@@ -16,6 +16,8 @@ import sys
 
 import six
 from pgpy import PGPUID, PGPKey, PGPMessage, PGPKeyring, PGPSignature
+from pgpy.types import Armorable
+from pgpy.packet import Packet
 from pgpy.constants import (CompressionAlgorithm, HashAlgorithm, KeyFlags,
                             PubKeyAlgorithm, SymmetricKeyAlgorithm)
 
@@ -282,7 +284,18 @@ class PGPyCrypto(object):
         return keyinfos
 
     def list_packets(self, keydata):
-        # NOTE: while is known how to get the packets from PGPKey,
+        if isinstance(keydata, bytes):
+            data = bytearray(keydata)
+        elif isinstance(keydata, str):
+            data = Armorable.ascii_unarmor(keydata)['body']
+        packets = []
+        while data:
+            packets.append(Packet(data))
+        return packets
+
+    def list_packets(self, keydata):
+        # NOTE: the previous function does not return packets as required by
+        # the test
         # use gpg only here
         import subprocess
         key, _ = PGPKey.from_blob(keydata)
