@@ -42,7 +42,7 @@ __all__ = ['keydata_wrap', 'keydata_unwrap', 'gen_ac_header',
 def keydata_wrap(value, maxlen=76, indent=" "):
     assert "\n" not in value
     return indent + indent.join([value[0 + i:maxlen + i]
-                               for i in range(0, len(value), maxlen)])
+                                 for i in range(0, len(value), maxlen)])
 
 
 def keydata_unwrap(keydata_wrapped, wrap_char='\n '):
@@ -50,7 +50,7 @@ def keydata_unwrap(keydata_wrapped, wrap_char='\n '):
 
 
 def gen_header_from_dict(header_dict):
-    return "; ".join(["=".join([k,v]) for k, v in header_dict.items()])
+    return "; ".join(["=".join([k, v]) for k, v in header_dict.items()])
 
 
 def header_unwrap(header, wrap_char="\n "):
@@ -66,7 +66,12 @@ def header_wrap(header, maxlen=76, indent=" "):
     return gen_header_from_dict(header_dict)
 
 
-def gen_ac_header(addr, keydata, pe=None):
+def gen_ac_header_dict(addr, keydata, pe=None, unwrap=False, wrap_char='\n '):
+    ac_header = gen_ac_header(addr, keydata, pe, True, '\n')
+    return {AC: ac_header}
+
+
+def gen_ac_header(addr, keydata, pe=None, unwrap=False, wrap_char='\n '):
     """Generate Autocrypt header
 
     :param key: keydata (base 64 encoded public key)
@@ -80,9 +85,11 @@ def gen_ac_header(addr, keydata, pe=None):
 
     """
     assert keydata
-    assert isinstance(keydata, str)
     assert pe in PE_HEADER_TYPES
-    # keydata_wrapped = keydata_wrap(keydata)
+    if isinstance(keydata, bytes):
+        keydata = keydata.decode()
+    if unwrap:
+        keydata = keydata_unwrap(keydata, wrap_char)
     if pe is None or pe == NOPREFERENCE:
         ac_header = AC_HEADER % {ADDR: addr, KEYDATA: keydata}
     else:
