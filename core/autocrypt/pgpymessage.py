@@ -12,13 +12,12 @@ import re
 
 from base64 import b64decode
 from email import policy
-from email.encoders import encode_noop
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.message import Message
 # from email.header import Header
 from email.parser import Parser
+
+from emailpgp.mime import MIMEMultipartPGP
 
 from .constants import (ADDR, KEYDATA, AC_HEADER, AC_GOSSIP,
                         AC_GOSSIP_HEADER, PE_HEADER_TYPES, NOPREFERENCE,
@@ -123,19 +122,7 @@ def parse_ac_headers(msg):
 
 
 def gen_mime_enc_multipart(mime_enc_body, boundary=None):
-    desc = MIMEApplication("Version: 1\n", _subtype='pgp-encrypted',
-                           _encoder=encode_noop)
-    desc["Content-Description"] = "PGP/MIME version identification"
-    payload = MIMEApplication(mime_enc_body,
-                              _subtype='octet-stream; name="encrypted.asc"',
-                              _encoder=encode_noop)
-    payload["Content-Description"] = "OpenPGP encrypted message"
-    payload["Content-Disposition"] = 'inline; filename="encrypted.asc"'
-
-    msg = MIMEMultipart(_subtype="encrypted", boundary=boundary,
-                        _subparts=[desc, payload],
-                        policy=policy.default,
-                        protocol="application/pgp-encrypted")
+    msg = MIMEMultipartPGP(mime_enc_body)
     logger.debug('Generated encrypted multipart body.')
     return msg
 
