@@ -349,13 +349,14 @@ def gen_ac_setup_seckey(sender, pe, p, keyhandle=None):
 
 
 def gen_ac_setup_passphrase():
-    numbers = [random.randrange(0, 9) for i in range(0, AC_PASSPHRASE_LEN)]
+    numbers = [str(random.randrange(0, 9))
+               for i in range(0, AC_PASSPHRASE_LEN)]
     passphrase = "-".join(["".join(numbers[0+i:AC_PASSPHRASE_WORD_LEN+i])
                            for i in range(0, AC_PASSPHRASE_NUM_WORDS)])
-    len_block = len(passphrase) + 1 / AC_PASSPHRASE_NUM_BLOCKS
-    passphrase_blocks = "\n".join([passphrase[0+i:len_block+i]
-                                   for i in range(0, len(passphrase),
-                                                  len_block)])
+    len_block = (len(passphrase) + 1) // AC_PASSPHRASE_NUM_BLOCKS
+    passphrase_blocks_list = [passphrase[0+i:len_block+i]
+                              for i in range(0, len(passphrase), len_block)]
+    passphrase_blocks = "\n".join(passphrase_blocks_list)
     logger.info(passphrase_blocks)
     return passphrase_blocks
 
