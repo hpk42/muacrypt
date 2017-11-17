@@ -432,3 +432,9 @@ class PGPyCrypto(object):
         key, _ = PGPKey.from_blob(keydata)
         self._load_key_into_kr(key)
         return key.fingerprint.keyid
+
+    def sym_encrypt(self, text, passphrase):
+        if isinstance(text, str):
+            text = PGPMessage.new(text)
+        encmsg = text.encrypt(passphrase, cipher=SymmetricKeyAlgorithm.AES128)
+        return encmsg

@@ -8,6 +8,7 @@
 
 import logging
 import logging.config
+import random
 import re
 
 from base64 import b64decode
@@ -19,15 +20,20 @@ from email.parser import Parser
 
 from emailpgp.mime import MIMEMultipartPGP
 
+from .acmime import MIMEMultipartACSetup
 from .constants import (ADDR, KEYDATA, AC_HEADER, AC_GOSSIP,
                         AC_GOSSIP_HEADER, PE_HEADER_TYPES, NOPREFERENCE,
-                        AC_HEADER_PE, PE, AC)
+                        AC_HEADER_PE, PE, AC, AC_PREFER_ENCRYPT_HEADER,
+                        AC_PASSPHRASE_LEN, AC_PASSPHRASE_WORD_LEN,
+                        AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_FORMAT,
+                        AC_PASSPHRASE_BEGIN_LEN, AC_PASSPHRASE_NUM_BLOCKS,
+                        AC_PASSPHRASE_BEGIN, AC_SETUP_INTRO)
 
 logger = logging.getLogger(__name__)
 parser = Parser(policy=policy.default)
 
 
-__all__ = ['keydata_wrap', 'keydata_unwrap', 'gen_ac_header',
+__all__ = ['keydata_wrap', 'keydata_unwrap', 'gen_ac_headers','gen_headers',
            'gen_header_from_dict', 'header_unwrap', 'parse_header',
            'gen_mime_enc_multipart', 'gen_headers_email', 'gen_ac_email',
            'decrypt_mime_enc_email', 'parse_ac_email',
@@ -122,14 +128,13 @@ def parse_ac_headers(msg):
 
 
 def gen_mime_enc_multipart(mime_enc_body, boundary=None):
-    msg = MIMEMultipartPGP(mime_enc_body)
+    msg = MIMEMultipartPGP(mime_enc_body, boundary)
     logger.debug('Generated encrypted multipart body.')
     return msg
 
 
-def gen_headers_email(msg, sender, recipients, keydata, subject, pe,
-                      keyhandle, date=None, _dto=False, message_id=None,
-                      _extra=None):
+def gen_headers(msg, sender, recipients, subject, date=None, _dto=False,
+                message_id=None, _extra=None):
     if _dto:
         msg["Delivered-To"] = recipients[0]
     msg['Subject'] = subject
@@ -142,7 +147,10 @@ def gen_headers_email(msg, sender, recipients, keydata, subject, pe,
     if _extra is not None:
         for name, value in _extra.items():
             msg.add_header(name, value)
+    logger.debug('Generated headers.')
 
+
+def gen_ac_headers(msg, sender, keydata, pe):
     ac_header = gen_ac_header(sender, keydata, pe)
     ac_header_wrapped = header_wrap(ac_header)
     # NOTE: maxlinelen and continuation_ws are set to defaults.
@@ -155,7 +163,7 @@ def gen_headers_email(msg, sender, recipients, keydata, subject, pe,
     # h_encoded = h.encode(splitchars=' ', maxlinelen=76, linesep='\n ')
     # msg['Autocrypt'] = h_encoded
     msg.add_header("Autocrypt", ac_header_wrapped)
-    logger.debug('Generated headers.')
+    logger.debug('Generated AC headers.')
     return msg
 
 
@@ -170,8 +178,9 @@ def gen_ac_email(sender, recipients, p, subject, body, pe=None,
     data = MIMEText(body)
     enc = p.sign_encrypt(data.as_bytes(), keyhandle, recipients)
     msg = gen_mime_enc_multipart(str(enc), boundary)
-    msg = gen_headers_email(msg, sender, recipients, keydata, subject, pe,
-                            keyhandle, date, _dto, message_id, _extra)
+    msg = gen_headers(msg, sender, recipients, subject, date, _dto,
+                      message_id, _extra)
+    msg = gen_ac_headers(msg, sender, keydata, pe)
     logger.debug('Generated Autcrypt Email: \n%s', msg)
     return msg
 
@@ -323,4 +332,47 @@ def gen_ac_gossip_email(sender, recipients, p, subject, body, pe=None,
     logger.debug(msg)
     msg = gen_headers_email(msg, sender, recipients, keydata, subject, pe,
                             keyhandle, date, _dto, message_id, _extra)
+    return msg
+
+
+def gen_ac_setup_seckey(sender, pe, p, keyhandle=None):
+    if keyhandle is None:
+        keyhandle = p._get_keyhandle_from_addr(sender)
+    seckey = p.get_secret_keydata(keyhandle, armor=True)
+    ac_setup_seckey = "\n".join(seckey.split('\n').
+                                insert(2, AC_PREFER_ENCRYPT_HEADER + pe))
+    return ac_setup_seckey
+
+
+def gen_ac_setup_passphrase():
+    numbers = [random.randrange(0, 9) for i in range(0, AC_PASSPHRASE_LEN)]
+    passphrase = "-".join(["".join(numbers[0+i:AC_PASSPHRASE_WORD_LEN+i])
+                           for i in range(0, AC_PASSPHRASE_NUM_WORDS)])
+    len_block = len(passphrase) + 1 / AC_PASSPHRASE_NUM_BLOCKS
+    passphrase_blocks = "\n".join([passphrase[0+i:len_block+i]
+                                   for i in range(0, len(passphrase),
+                                                  len_block)])
+    logger.info(passphrase_blocks)
+    return passphrase_blocks
+
+
+def gen_ac_setup_enc_seckey(ac_setup_seckey, passphrase, p):
+    encmsg = p.sym_encrypt(ac_setup_seckey, passphrase)
+
+    ac_setup_enctext = "\n".join(str(encmsg).split('\n').
+                                 insert(2, AC_PASSPHRASE_FORMAT + "\n" +
+                                        AC_PASSPHRASE_BEGIN +
+                                        passphrase[:AC_PASSPHRASE_BEGIN_LEN]))
+    return AC_SETUP_INTRO + "\n" + ac_setup_enctext
+
+
+def gen_ac_setup_email(sender, p, subject, body, pe,
+                       keyhandle=None, date=None, _dto=False, message_id=None,
+                       boundary=None, _extra=None):
+    passphrase = gen_ac_setup_passphrase()
+    ac_setup_seckey = gen_ac_setup_seckey(sender, pe, p, keyhandle)
+    ac_setup_enc_seckey = gen_ac_setup_enc_seckey(ac_setup_seckey,
+                                                  passphrase, p)
+    msg = MIMEMultipartACSetup(ac_setup_enc_seckey, boundary)
+    logger.debug('Generated multipart AC Setup body.')
     return msg
