@@ -12,7 +12,9 @@ from autocrypt.examples_data import (ALICE, BOB, RECIPIENTS, ALICE_KEYDATA,
                                      SUBJECT_GOSSIP, BODY_GOSSIP,
                                      BOB_KEYDATA_WRAPPED, CLEARTEXT_GOSSIP)
 
-from autocrypt.constants import MUTUAL
+from autocrypt.constants import (MUTUAL, AC_PASSPHRASE_NUM_BLOCKS,
+                                 AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_LEN)
+
 from autocrypt.pgpymessage import (keydata_wrap, keydata_unwrap,
                                    gen_header_from_dict, header_unwrap,
                                    header_wrap, gen_ac_header_dict,
@@ -36,7 +38,7 @@ from autocrypt.pgpymessage import (keydata_wrap, keydata_unwrap,
                                    gen_ac_setup_email)
 
 logging.config.dictConfig(LOGGING)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('autocrypt')
 logger.setLevel(logging.DEBUG)
 
 
@@ -113,3 +115,12 @@ def test_gen_ac_setup_seckey(pgpycrypto, datadir):
                                           '71DBC5657FDE65A7')
     assert ac_setup_seckey.split('\n')[:4] == \
         datadir.read('example-setup-message-cleartext-pyac.key').split('\n')[:4]
+
+
+def test_gen_ac_passphrase():
+    passphrase = gen_ac_setup_passphrase()
+    assert len(passphrase.split('\n')) == AC_PASSPHRASE_NUM_BLOCKS
+    assert len(passphrase.split('-')) == AC_PASSPHRASE_NUM_WORDS
+    assert len(passphrase) == AC_PASSPHRASE_LEN + AC_PASSPHRASE_NUM_WORDS - 1 \
+        + AC_PASSPHRASE_NUM_BLOCKS - 1
+    exp = r'^((\d{4}-){3}\\n){2}(\d{4}-){2}\d{4}$'
