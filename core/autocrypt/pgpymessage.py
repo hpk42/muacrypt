@@ -18,7 +18,7 @@ from email.message import Message
 # from email.header import Header
 from email.parser import Parser
 
-from emailpgp.mime import MIMEMultipartPGP
+from emailpgp.mime.multipartpgp import MIMEMultipartPGP
 
 from .acmime import MIMEMultipartACSetup
 from .constants import (ADDR, KEYDATA, AC_HEADER, AC_GOSSIP,

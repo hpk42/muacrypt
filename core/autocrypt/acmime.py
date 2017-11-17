@@ -1,6 +1,7 @@
 from email import policy, encoders
-from email.mime import MIMEMultipart, MIMEApplication, MIMEText
-from emailpgp.mime import MIMEMultipartPGP
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
 
 from .constants import AC_SETUP_TEXT, AC_CT_SETUP
 
