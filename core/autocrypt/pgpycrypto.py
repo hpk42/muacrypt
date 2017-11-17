@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
+# Copyright 2017 juga (juga at riseup dot net), under MIT license.
 """PGPyCrypto implements the OpenPGP operations needed for Autocrypt.
 The API is the same as in bingpg.py.
 """
@@ -8,20 +9,27 @@ from __future__ import print_function, unicode_literals
 
 import glob
 import os
+import logging
+import logging.config
 import re
 import sys
 
 import six
 from pgpy import PGPUID, PGPKey, PGPMessage, PGPKeyring, PGPSignature
+from pgpy.types import Armorable
+from pgpy.packet import Packet
 from pgpy.constants import (CompressionAlgorithm, HashAlgorithm, KeyFlags,
                             PubKeyAlgorithm, SymmetricKeyAlgorithm)
 
 # TODO: these two functions should be in a separate file
 from .bingpg import KeyInfo, b64encode_u
+from .conflog import LOGGING
+from .constants import KEY_SIZE
+
+logging.config.dictConfig(LOGGING)
+logger = logging.getLogger(__name__)
 
 
-# NOTE: key size was decided to be 2048
-KEY_SIZE = 2048
 # TODO: see which defaults we would like here
 SKEY_ARGS = {
     'hashes': [HashAlgorithm.SHA512, HashAlgorithm.SHA256],
@@ -191,6 +199,26 @@ class PGPyCrypto(object):
                     return key
         return None
 
+    def _get_key_from_addr(self, addr):
+        # NOTE: this is a bit unefficient, there should be other way to obtain
+        # a key from PGPKeyring
+        with self.memkr.key(addr) as key:
+            return key
+        return None
+
+    def _get_keyhandle_from_addr(self, addr):
+        key = self._get_key_from_addr(addr)
+        return key.fingerprint.keyid
+
+    def _get_fp_from_keyhandle(self, keyhandle):
+        # NOTE: this is a bit unefficient, there should be other way to obtain
+        # a key from PGPKeyring
+        for fp in self.memkr.fingerprints():
+            with self.memkr.key(fp) as key:
+                if key.fingerprint.keyid == keyhandle:
+                    return key.fingerprint
+        return None
+
     def _key_data(self, key, armor=False, b64=False):
         assert isinstance(key, PGPKey)
         if armor is True:
@@ -256,7 +284,18 @@ class PGPyCrypto(object):
         return keyinfos
 
     def list_packets(self, keydata):
-        # NOTE: while is known how to get the packets from PGPKey,
+        if isinstance(keydata, bytes):
+            data = bytearray(keydata)
+        elif isinstance(keydata, str):
+            data = Armorable.ascii_unarmor(keydata)['body']
+        packets = []
+        while data:
+            packets.append(Packet(data))
+        return packets
+
+    def list_packets(self, keydata):
+        # NOTE: the previous function does not return packets as required by
+        # the test
         # use gpg only here
         import subprocess
         key, _ = PGPKey.from_blob(keydata)
@@ -316,11 +355,15 @@ class PGPyCrypto(object):
 
     def encrypt(self, data, recipients):
         assert len(recipients) >= 1
-        clear_msg = PGPMessage.new(data)
+        if not isinstance(data, PGPMessage):
+            clear_msg = PGPMessage.new(data)
+        else:
+            clear_msg = data
         # enc_msg |= self.pgpykey.sign(enc_msg)
         if len(recipients) == 1:
-            key = self._get_key_from_keyhandle(recipients[0])
-            enc_msg = key.pubkey.encrypt(clear_msg)
+            key = self._get_key_from_addr(recipients[0])
+            pkey = key if key.is_public else key.pubkey
+            enc_msg = pkey.encrypt(clear_msg)
         else:
             # The symmetric cipher should be specified, in case the first
             # preferred cipher is not the same for all recipients public
@@ -329,16 +372,27 @@ class PGPyCrypto(object):
             sessionkey = cipher.gen_key()
             enc_msg = clear_msg
             for r in recipients:
-                key = self._get_key_from_keyhandle(r)
-                enc_msg = key.pubkey.encrypt(enc_msg, cipher=cipher,
-                                             sessionkey=sessionkey)
+                key = self._get_key_from_addr(r)
+                pkey = key if key.is_public else key.pubkey
+                enc_msg = pkey.encrypt(enc_msg, cipher=cipher,
+                                       sessionkey=sessionkey)
             del sessionkey
+        assert enc_msg.is_encrypted
         return str(enc_msg)
 
     def sign(self, data, keyhandle):
         key = self._get_key_from_keyhandle(keyhandle)
         sig_data = key.sign(data)
         return sig_data
+
+    def sign_encrypt(self, data, keyhandle, recipients):
+        # pkey = p._get_key_from_keyhandle(keyhandle)
+        pgpymsg = PGPMessage.new(data)
+        sig = self.sign(pgpymsg, keyhandle)
+        pgpymsg |= sig
+        assert pgpymsg.is_signed
+        enc = self.encrypt(pgpymsg, recipients)
+        return enc
 
     def _skeys(self):
         skeys = []
@@ -358,13 +412,15 @@ class PGPyCrypto(object):
         good = next(ver.good_signatures)
         return good.by
 
-    def decrypt(self, enc_data):
+    def decrypt(self, enc_data, skey=None):
         if isinstance(enc_data, str):
             enc_msg = PGPMessage.from_blob(enc_data)
         else:
             enc_msg = enc_data
-        keyhandle = enc_msg.issuers.pop()
-        skey = self._get_key_from_keyhandle(keyhandle)
+        assert enc_msg.is_encrypted
+        if skey is None:
+            keyhandle = enc_msg.encrypters.pop()
+            skey = self._get_key_from_keyhandle(keyhandle)
         out = skey.decrypt(enc_msg)
         keyinfos = []
         keyinfos.append(KeyInfo(skey.key_algorithm.name, skey.key_size,
@@ -376,3 +432,9 @@ class PGPyCrypto(object):
         key, _ = PGPKey.from_blob(keydata)
         self._load_key_into_kr(key)
         return key.fingerprint.keyid
+
+    def sym_encrypt(self, text, passphrase):
+        if isinstance(text, str):
+            text = PGPMessage.new(text)
+        encmsg = text.encrypt(passphrase, cipher=SymmetricKeyAlgorithm.AES128)
+        return encmsg

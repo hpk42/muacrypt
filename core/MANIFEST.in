@@ -6,4 +6,4 @@ prune experiments
 recursive-include tests *.eml
 recursive-include tests *.py
 recursive-include tests *.secretkey
-
+include tests/data/*.key
