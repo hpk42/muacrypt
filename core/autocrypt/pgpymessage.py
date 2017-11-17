@@ -363,11 +363,11 @@ def gen_ac_setup_passphrase():
 
 def gen_ac_setup_enc_seckey(ac_setup_seckey, passphrase, p):
     encmsg = p.sym_encrypt(ac_setup_seckey, passphrase)
-
-    ac_setup_enctext = "\n".join(str(encmsg).split('\n').
-                                 insert(2, AC_PASSPHRASE_FORMAT + "\n" +
-                                        AC_PASSPHRASE_BEGIN +
-                                        passphrase[:AC_PASSPHRASE_BEGIN_LEN]))
+    encmsg_list = str(encmsg).split('\n')
+    encmsg_list.insert(2, AC_PASSPHRASE_FORMAT + "\n" +
+                       AC_PASSPHRASE_BEGIN +
+                       passphrase[:AC_PASSPHRASE_BEGIN_LEN])
+    ac_setup_enctext = "\n".join(encmsg_list)
     return AC_SETUP_INTRO + "\n" + ac_setup_enctext
 
 
