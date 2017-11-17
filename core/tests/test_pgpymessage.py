@@ -10,7 +10,8 @@ from autocrypt.conflog import LOGGING
 from autocrypt.examples_data import (ALICE, BOB, RECIPIENTS, ALICE_KEYDATA,
                                      BOB_KEYDATA, BOB_GOSSIP, ALICE_AC,
                                      SUBJECT_GOSSIP, BODY_GOSSIP,
-                                     BOB_KEYDATA_WRAPPED, CLEARTEXT_GOSSIP)
+                                     BOB_KEYDATA_WRAPPED, CLEARTEXT_GOSSIP,
+                                     PASSPHRASE, AC_SETUP_PAYLOAD)
 
 from autocrypt.constants import (MUTUAL, AC_PASSPHRASE_NUM_BLOCKS,
                                  AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_LEN)
@@ -124,3 +125,11 @@ def test_gen_ac_passphrase():
     assert len(passphrase) == AC_PASSPHRASE_LEN + AC_PASSPHRASE_NUM_WORDS - 1 \
         + AC_PASSPHRASE_NUM_BLOCKS - 1
     exp = r'^((\d{4}-){3}\\n){2}(\d{4}-){2}\d{4}$'
+
+
+def test_gen_ac_setup_enc_seckey(pgpycrypto, datadir):
+    ac_setup_seckey = datadir.read('example-setup-message-cleartext-pyac.key')
+    ac_setup_enc_seckey = gen_ac_setup_enc_seckey(ac_setup_seckey, PASSPHRASE,
+                                                  pgpycrypto)
+    assert ac_setup_enc_seckey.split('\n')[:10] == \
+        AC_SETUP_PAYLOAD.split('\n')[:10]

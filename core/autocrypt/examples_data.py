@@ -167,41 +167,13 @@ Regards,
 Alice
 """
 
-AC_SETUP = """
-Date: Sun, 05 Nov 2017 08:44:38 GMT
-To: alice@autocrypt.example
-From: alice@autocrypt.example
-Autocrypt-Setup-Message: v1
-Subject: Autocrypt Setup Message
-Content-type: multipart/mixed; boundary="Y6fyGi9SoGeH8WwRaEdC6bbBcYOedDzrQ"
-
---Y6fyGi9SoGeH8WwRaEdC6bbBcYOedDzrQ
-Content-Type: text/plain
-
-This message contains all information to transfer your Autocrypt
-settings along with your secret key securely from your original
-device.
-
-To set up your new device for Autocrypt, please follow the
-instuctions that should be presented by your new device.
-
-You can keep this message and use it as a backup for your secret
-key. If you want to do this, you should write down the Setup Code
-and store it securely.
---Y6fyGi9SoGeH8WwRaEdC6bbBcYOedDzrQ
-Content-Type: application/autocrypt-setup
-Content-Disposition: attachment; filename="autocrypt-setup-message.html"
-
-<html><body>
-<p>
-This is the Autocrypt setup file used to transfer settings and
+AC_SETUP_PAYLOAD = """This is the Autocrypt setup file used to transfer settings and
 keys between clients. You can decrypt it using the Setup Code
 presented on your old device, and then import the contained key
 into your keyring.
-</p>
 
-<pre>
 -----BEGIN PGP MESSAGE-----
+Version: PGPy v0.4.3
 Passphrase-Format: numeric9x4
 Passphrase-Begin: 17
 
@@ -326,6 +298,7 @@ vEik5aXm2qSKXT+ijXBy5MuNeICoGaQ5WA0OJ30Oh5dN0XpLtFUWHZKThJvR
 mngm1QCMMw2v/j8=
 =9sJE
 -----END PGP MESSAGE-----
-</pre></body></html>
---Y6fyGi9SoGeH8WwRaEdC6bbBcYOedDzrQ--
 """
+PASSPHRASE = """1742-0185-6197-
+1303-7016-8412-
+3581-4441-0597"""

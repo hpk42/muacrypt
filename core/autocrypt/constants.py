@@ -74,7 +74,8 @@ and store it securely."""
 AC_SETUP_INTRO = """This is the Autocrypt setup file used to transfer settings and
 keys between clients. You can decrypt it using the Setup Code
 presented on your old device, and then import the contained key
-into your keyring."""
+into your keyring.
+"""
 
 AC_PASSPHRASE_LEN = 36
 AC_PASSPHRASE_WORD_LEN = 4
