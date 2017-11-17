@@ -27,7 +27,8 @@ from .constants import (ADDR, KEYDATA, AC_HEADER, AC_GOSSIP,
                         AC_PASSPHRASE_LEN, AC_PASSPHRASE_WORD_LEN,
                         AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_FORMAT,
                         AC_PASSPHRASE_BEGIN_LEN, AC_PASSPHRASE_NUM_BLOCKS,
-                        AC_PASSPHRASE_BEGIN, AC_SETUP_INTRO)
+                        AC_PASSPHRASE_BEGIN, AC_SETUP_INTRO, AC_SETUP_SUBJECT,
+                        AC_SETUP_MSG, LEVEL_NUMBER)
 
 logger = logging.getLogger(__name__)
 parser = Parser(policy=policy.default)
@@ -137,6 +138,7 @@ def gen_mime_enc_multipart(mime_enc_body, boundary=None):
 
 def gen_headers(msg, sender, recipients, subject, date=None, _dto=False,
                 message_id=None, _extra=None):
+    logger.debug("Generating headers.")
     if _dto:
         msg["Delivered-To"] = recipients[0]
     msg['Subject'] = subject
@@ -371,13 +373,18 @@ def gen_ac_setup_enc_seckey(ac_setup_seckey, passphrase, p):
     return AC_SETUP_INTRO + "\n" + ac_setup_enctext
 
 
-def gen_ac_setup_email(sender, p, subject, body, pe,
+def gen_ac_setup_email(sender, pe, p, subject=AC_SETUP_SUBJECT, body=None,
                        keyhandle=None, date=None, _dto=False, message_id=None,
-                       boundary=None, _extra=None):
-    passphrase = gen_ac_setup_passphrase()
+                       boundary=None, _extra=None, passphrase=None):
+    passphrase = passphrase or gen_ac_setup_passphrase()
     ac_setup_seckey = gen_ac_setup_seckey(sender, pe, p, keyhandle)
     ac_setup_enc_seckey = gen_ac_setup_enc_seckey(ac_setup_seckey,
                                                   passphrase, p)
-    msg = MIMEMultipartACSetup(ac_setup_enc_seckey, boundary)
+    msg = MIMEMultipartACSetup(ac_setup_enc_seckey, boundary=boundary)
+    if _extra is None:
+        _extra = {}
+    _extra.update({AC_SETUP_MSG: LEVEL_NUMBER})
+    gen_headers(msg, sender, [sender], subject,
+                date, _dto, message_id, _extra)
     logger.debug('Generated multipart AC Setup body.')
     return msg
