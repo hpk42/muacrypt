@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 
-from .constants import AC_SETUP_TEXT, AC_CT_SETUP
+from .constants import AC_SETUP_TEXT, AC_CT_SETUP, AC_CT_SETUP_FN
 
 
 class MIMEMultipartACSetup(MIMEMultipart):
@@ -37,8 +37,10 @@ class MIMEMultipartACSetup(MIMEMultipart):
 
          """
         # _params['protocol'] = "?"
-        description = MIMEApplicationACSetupDescription()
+        description = MIMETextACSetupDescription()
         payload = MIMEApplicationACSetupPayload(_data)
+        payload.add_header("Content-Disposition", 'attachment',
+                           filename=AC_CT_SETUP_FN)
         _subparts = [description, payload]
         MIMEMultipart.__init__(self, _subtype, boundary, _subparts,
                                policy=policy, **_params)
@@ -64,18 +66,18 @@ class MIMEApplicationACSetupPayload(MIMEApplication):
         constructor, which turns them into parameters on the Content-Type
         header.
         """
-        _params["Content-Description"] = "Autocrypt Setup Message key"
-        _params["Content-Disposition"] = 'attachment; filename="autocrypt-setup-message.txt"'
-        # _params["Content-Disposition"] = 'attachment; filename="autocrypt-setup-message.html"'
+        # _params["Content-Description"] = "Autocrypt Setup Message key"
+        # NOTE: adding Content-Disposition as header to be able to pass
+        # filename param without quoting
+        # _params["Content-Disposition"] = ['attachment', "autocrypt-setup-message.txt"]
         MIMEApplication.__init__(self, _data, _subtype, _encoder,
                                  policy=policy, **_params)
 
 
-class MIMEApplicationACSetupDescription(MIMEText):
+class MIMETextACSetupDescription(MIMEText):
     """Class for generating text/plain MIME documents."""
 
-    def __init__(self, _data=AC_SETUP_TEXT, _subtype='plain',
-                 _encoder=encoders.encode_noop, *, policy=None, **_params):
+    def __init__(self, _data=AC_SETUP_TEXT, _subtype='plain'):
         """Create an text/plaind type MIME document.
 
         _data is a string containing by default Version: 1\n.
@@ -90,6 +92,5 @@ class MIMEApplicationACSetupDescription(MIMEText):
         constructor, which turns them into parameters on the Content-Type
         header.
         """
-        _params["Content-Description"] = "Autocrypt Setup Message description"
-        MIMEApplication.__init__(self, _data, _subtype, _encoder,
-                                 policy=policy, **_params)
+        # _params["Content-Description"] = "Autocrypt Setup Message description"
+        MIMEText.__init__(self, _data, _subtype)
