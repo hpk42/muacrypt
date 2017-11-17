@@ -33,15 +33,17 @@ logger = logging.getLogger(__name__)
 parser = Parser(policy=policy.default)
 
 
-__all__ = ['keydata_wrap', 'keydata_unwrap', 'gen_ac_headers','gen_headers',
-           'gen_header_from_dict', 'header_unwrap', 'parse_header',
-           'gen_mime_enc_multipart', 'gen_headers_email', 'gen_ac_email',
-           'decrypt_mime_enc_email', 'parse_ac_email',
+__all__ = ['keydata_wrap', 'keydata_unwrap', 'gen_header_from_dict',
+           'header_unwrap', 'header_wrap', 'gen_ac_header_dict',
+           'gen_ac_header', 'parse_header', 'parse_ac_headers',
+           'gen_mime_enc_multipart', 'gen_headers', 'gen_ac_headers',
+           'gen_ac_email', 'decrypt_mime_enc_email', 'parse_ac_email',
            'ac_header_email_unwrap_keydata', 'gen_ac_gossip_header',
            'gen_ac_gossip_headers', 'parse_ac_gossip_headers',
-           'store_gossip_keys',
-           'get_skey_from_msg', 'parse_ac_gossip_email',
-           'gen_ac_gossip_cleartext_email', 'gen_ac_gossip_email']
+           'store_gossip_keys', 'get_skey_from_msg', 'parse_ac_gossip_email',
+           'gen_ac_gossip_cleartext_email', 'gen_ac_gossip_email',
+           'gen_ac_setup_seckey', 'gen_ac_setup_passphrase',
+           'gen_ac_setup_enc_seckey', 'gen_ac_setup_email']
 
 
 def keydata_wrap(value, maxlen=76, indent=" "):
@@ -340,8 +342,9 @@ def gen_ac_setup_seckey(sender, pe, p, keyhandle=None):
     if keyhandle is None:
         keyhandle = p._get_keyhandle_from_addr(sender)
     seckey = p.get_secret_keydata(keyhandle, armor=True)
-    ac_setup_seckey = "\n".join(seckey.split('\n').
-                                insert(2, AC_PREFER_ENCRYPT_HEADER + pe))
+    seckey_list = seckey.split('\n')
+    seckey_list.insert(2, AC_PREFER_ENCRYPT_HEADER + pe)
+    ac_setup_seckey = "\n".join(seckey_list)
     return ac_setup_seckey
 
 
