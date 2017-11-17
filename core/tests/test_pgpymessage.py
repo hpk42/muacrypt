@@ -14,7 +14,8 @@ from autocrypt.examples_data import (ALICE, BOB, RECIPIENTS, ALICE_KEYDATA,
                                      PASSPHRASE, AC_SETUP_PAYLOAD)
 
 from autocrypt.constants import (MUTUAL, AC_PASSPHRASE_NUM_BLOCKS,
-                                 AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_LEN)
+                                 AC_PASSPHRASE_NUM_WORDS, AC_PASSPHRASE_LEN,
+                                 AC_SETUP_SUBJECT)
 
 from autocrypt.pgpymessage import (keydata_wrap, keydata_unwrap,
                                    gen_header_from_dict, header_unwrap,
@@ -133,3 +134,15 @@ def test_gen_ac_setup_enc_seckey(pgpycrypto, datadir):
                                                   pgpycrypto)
     assert ac_setup_enc_seckey.split('\n')[:10] == \
         AC_SETUP_PAYLOAD.split('\n')[:10]
+
+
+def test_gen_ac_setup_email(pgpycrypto, datadir):
+    ac_setup_email = gen_ac_setup_email(ALICE, MUTUAL, pgpycrypto,
+                                        date="Sun, 05 Nov 2017 08:44:38 GMT",
+                                        keyhandle='71DBC5657FDE65A7',
+                                        boundary='Y6fyGi9SoGeH8WwRaEdC6bbBcYOedDzrQ',
+                                        passphrase=PASSPHRASE)
+    with open('foo', 'w') as f:
+        f.write(ac_setup_email.as_string())
+    assert ac_setup_email.as_string().split('\n')[:33] == \
+        datadir.read('example-setup-message-pyac.eml').split('\n')[:33]
