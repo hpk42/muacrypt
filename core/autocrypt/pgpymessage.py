@@ -128,7 +128,7 @@ def parse_ac_headers(msg):
 
 
 def gen_mime_enc_multipart(mime_enc_body, boundary=None):
-    msg = MIMEMultipartPGP(mime_enc_body, boundary)
+    msg = MIMEMultipartPGP(mime_enc_body, boundary=boundary)
     logger.debug('Generated encrypted multipart body.')
     return msg
 
@@ -178,9 +178,9 @@ def gen_ac_email(sender, recipients, p, subject, body, pe=None,
     data = MIMEText(body)
     enc = p.sign_encrypt(data.as_bytes(), keyhandle, recipients)
     msg = gen_mime_enc_multipart(str(enc), boundary)
-    msg = gen_headers(msg, sender, recipients, subject, date, _dto,
+    gen_headers(msg, sender, recipients, subject, date, _dto,
                       message_id, _extra)
-    msg = gen_ac_headers(msg, sender, keydata, pe)
+    gen_ac_headers(msg, sender, keydata, pe)
     logger.debug('Generated Autcrypt Email: \n%s', msg)
     return msg
 
@@ -328,10 +328,11 @@ def gen_ac_gossip_email(sender, recipients, p, subject, body, pe=None,
     msg_clear = gen_ac_gossip_cleartext_email(recipients, body, p)
 
     enc = p.sign_encrypt(msg_clear.as_bytes(), keyhandle, recipients)
-    msg = gen_mime_enc_multipart(str(enc), boundary)
+    msg = gen_mime_enc_multipart(str(enc), boundary=boundary)
     logger.debug(msg)
-    msg = gen_headers_email(msg, sender, recipients, keydata, subject, pe,
-                            keyhandle, date, _dto, message_id, _extra)
+    gen_headers(msg, sender, recipients, subject,
+                      date, _dto, message_id, _extra)
+    gen_ac_headers(msg, sender, keydata, pe)
     return msg
 
 
