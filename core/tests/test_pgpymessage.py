@@ -13,12 +13,27 @@ from autocrypt.examples_data import (ALICE, BOB, RECIPIENTS, ALICE_KEYDATA,
                                      BOB_KEYDATA_WRAPPED, CLEARTEXT_GOSSIP)
 
 from autocrypt.constants import MUTUAL
-from autocrypt.pgpymessage import (keydata_wrap, header_unwrap, gen_ac_header,
-                                   parse_ac_gossip_email,
-                                   gen_ac_gossip_header, gen_ac_gossip_headers,
+from autocrypt.pgpymessage import (keydata_wrap, keydata_unwrap,
+                                   gen_header_from_dict, header_unwrap,
+                                   header_wrap, gen_ac_header_dict,
+                                   gen_ac_header, parse_header,
+                                   parse_ac_headers,
+                                   gen_mime_enc_multipart,
+                                   gen_headers, gen_ac_headers,
+                                   gen_ac_email, decrypt_mime_enc_email,
+                                   parse_ac_email,
+                                   ac_header_email_unwrap_keydata,
+                                   gen_ac_gossip_header,
+                                   gen_ac_gossip_headers,
                                    parse_ac_gossip_headers,
+                                   store_gossip_keys, get_skey_from_msg,
+                                   parse_ac_gossip_email,
                                    gen_ac_gossip_cleartext_email,
-                                   gen_ac_gossip_email, )
+                                   gen_ac_gossip_email,
+                                   gen_ac_setup_seckey,
+                                   gen_ac_setup_passphrase,
+                                   gen_ac_setup_enc_seckey,
+                                   gen_ac_setup_email)
 
 logging.config.dictConfig(LOGGING)
 logger = logging.getLogger(__name__)
@@ -91,3 +106,10 @@ def test_gen_parse_ac_gossip_email(pgpycrypto, datadir):
                                                  pgpycrypto)
     assert dec_msg.as_string() + '\n' == \
         datadir.read('example-gossip-cleartext_pyac.eml')
+
+
+def test_gen_ac_setup_seckey(pgpycrypto, datadir):
+    ac_setup_seckey = gen_ac_setup_seckey(ALICE, MUTUAL, pgpycrypto,
+                                          '71DBC5657FDE65A7')
+    assert ac_setup_seckey.split('\n')[:4] == \
+        datadir.read('example-setup-message-cleartext-pyac.key').split('\n')[:4]
