@@ -76,7 +76,7 @@ package again.
 running the command line
 ++++++++++++++++++++++++
 
-After _installation simply run the main command::
+After installation simply run the main command::
 
     autocrypt
 
