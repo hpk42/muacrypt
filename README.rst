@@ -18,3 +18,8 @@ This respository offers the following functionality:
   headers from peers and sending (possibly encrypted) replies
   which reflect to the sender what the bot perceived in terms
   of autocrypt information.
+
+**NOTE**
+
+This implementation is not Level 1 compliant.
+See #17.
