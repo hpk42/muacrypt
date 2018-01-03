@@ -168,7 +168,7 @@ def _perform_match(output, fnl):
         lines = [x.strip() for x in fnl.strip().splitlines()]
         try:
             lm.fnmatch_lines(lines)
-        except:
+        except Exception:
             print(output)
             raise
     return output
@@ -243,8 +243,8 @@ class DirCache:
     def exists(self):
         dummy = object()
         return not self.disabled and \
-               self.cache.get(self.key, dummy) != dummy and \
-               self.backup_path.exists()
+            self.cache.get(self.key, dummy) != dummy and \
+            self.backup_path.exists()
 
     def store(self, path, ret):
         if self.backup_path.exists():
