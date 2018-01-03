@@ -74,8 +74,7 @@ def parse_one_ac_header_from_string(string):
 
 def parse_all_ac_headers_from_msg(msg):
     autocrypt_headers = msg.get_all("Autocrypt") or []
-    return [parse_ac_headervalue(inb)
-                for inb in autocrypt_headers if inb]
+    return [parse_ac_headervalue(inb) for inb in autocrypt_headers if inb]
 
 
 def parse_one_ac_header_from_msg(msg):

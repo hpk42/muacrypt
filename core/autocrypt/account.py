@@ -63,7 +63,7 @@ class PersistentAttrMixin(object):
         # by doing some file locking or using sqlite or something.
         try:
             yield
-        except:
+        except Exception:
             self._dict = deepcopy(self._dict_old)
             raise
         else:

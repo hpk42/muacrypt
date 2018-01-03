@@ -125,7 +125,7 @@ class SimpleLog:
                 yield
             finally:
                 self._indent -= 1
-        except:
+        except Exception:
             if raising:
                 raise
             self(traceback.format_exc())
