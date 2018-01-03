@@ -16,7 +16,6 @@ Autocrypt Python API Reference
    autocrypt.bot
    autocrypt.mime
    autocrypt.bingpg
-   autocrypt.pgpycrypto
 
 account module
 --------------
@@ -42,15 +41,6 @@ bingpg module
 .. automodule:: autocrypt.bingpg
     :members:
 
-pgpycrypto module
-------------------
-
-.. note::
-
-  The "pgpy" backend is tested but not used not used yet because
-  pgpy==0.4.1 are not sufficiently substituting gpg functionality yet.
-
-.. automodule:: autocrypt.pgpycrypto
 
 claimchain module
 -----------------
