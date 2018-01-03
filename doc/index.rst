@@ -14,6 +14,12 @@ Autocrypt Python Reference tool and implementation
    diagrams
    api
 
+.. toctree::
+   :hidden:
+
+   future_work
+   pgpy_bugs
+
 .. _installation:
 
 Installation
