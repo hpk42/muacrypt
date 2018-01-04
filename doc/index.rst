@@ -1,58 +1,41 @@
+Autocrypt support for mail agents
+=================================
 
-Autocrypt Python Reference tool and implementation
-==================================================
+py-autocrypt provides a :doc:`cmdline tool <cmdline>` and a :doc:`Python API <api>`, to help mail agents evolve `Autocrypt <https://autocrypt.org>`_ support.
 
-.. note::
+See :doc:`install` for getting started.
 
-    The py-autocrypt tool is as much in development
-    as the spec itself.  Until we have a 1.0 release
-    everything is subject to change.
+Aims and goals
+--------------
 
-.. toctree::
+- `Autocrypt Level 1 compliant functionality
+  <https://autocrypt.org/level1.html>`_ for use by mail user agents (MUAs)
 
-   cmdline
-   diagrams
-   api
+- integrate with re-mailers and other specialized server-side mail agents
+
+- provide support for debugging error cases, easy deployment of fixes
+
+- implement out-of-band verification and claimchains variants (see https://nextleap.eu)
+
+
+Engaging with ongoing development
+---------------------------------
+
+- github repo: https://github.com/hpk42/py-autocrypt
+
+- subscribe to the `mailing list
+  <https://lists.codespeak.net/postorius/lists/py-autocrypt.lists.codespeak.net/>`_
+
+- join the #py-autocrypt channel on freenode
+
+- meet us at upcoming `Autocrypt events <https://autocrypt.org/contact.html>`_.
 
 .. toctree::
    :hidden:
 
-   future_work
-   pgpy_bugs
+   install
+   cmdline
+   diagrams
+   api
 
-.. _installation:
 
-Installation
-------------
-
-You need the python package installer "pip".  If you
-don't have it you can install it on Debian systems::
-
-    sudo apt-get install python-pip
-
-And now you can install the autocrypt package::
-
-    pip install --user autocrypt
-
-And then make sure that ``~/.local/bin`` is contained
-in your ``PATH`` variable.
-
-installation for development
-----------------------------
-
-If you plan to work/modify the sources and have
-a github checkout we recommend to create and activate
-a python virtualenv and issue **once**::
-
-    $ cd src
-    $ virtualenv venv
-    $ source venv/bin/activate
-    $ pip install -e .
-
-This creates a virtual python environment
-in the "src/venv" directory and activates it for your
-shell through the ``source venv/bin/activate`` command.
-
-Changes you subsequently make to the sources will be
-available without further installing the autocrypt
-package again.
