@@ -19,7 +19,16 @@ This respository offers the following functionality:
   which reflect to the sender what the bot perceived in terms
   of autocrypt information.
 
+**Requirements**
+
+You need to separately install "gpg" or "gpg2" if you
+want to use or manage keys with the system keyring.
+
 **NOTE**
 
-This implementation is not Level 1 compliant.
-See #17.
+This implementation is not Level 1 compliant.  See #17.
+
+Also note there is a separate python autocrypt implementation
+effort ongoing at https://github.com/juga0/pyac which is based
+on the "pgpy" library and does not depend on the "gpg" command
+line tool.  We'd like to integrate with pgpy/pyac at a later stage.
