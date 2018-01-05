@@ -1,3 +1,10 @@
+0.8.0.dev1
+----------
+
+- moved repo to hpk42/py-autocrypt and refined entry pages to link
+  to new IRC channel and mailing list and describe the aims.
+
+
 0.7.0
 -------
 
