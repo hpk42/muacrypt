@@ -1,15 +1,16 @@
 Autocrypt support for mail agents
 =================================
 
-py-autocrypt provides a :doc:`cmdline tool <cmdline>` and a :doc:`Python API <api>`, to help mail agents evolve `Autocrypt <https://autocrypt.org>`_ support.
+py-autocrypt provides a command line tool and a Python API to help
+mail agents integrate Autocrypt support and more.
 
-See :doc:`install` for getting started.
+See :doc:`install` for getting pip-installed with the ``autocrypt``
+package released on the Python Package Index.
 
-Aims and goals
---------------
+Here are some preliminary underlying aims and goals:
 
 - `Autocrypt Level 1 compliant functionality
-  <https://autocrypt.org/level1.html>`_ for use by mail user agents (MUAs)
+  <https://github.com/hpk42/py-autocrypt/milestone/1>`_ for use by mail user agents (MUAs)
 
 - integrate with re-mailers and other specialized server-side mail agents
 
@@ -17,18 +18,16 @@ Aims and goals
 
 - implement out-of-band verification and claimchains variants (see https://nextleap.eu)
 
+The project was so far mainly developed by holger krekel (hpk42)
+with some participation/contributions from dkg, juga0 and azul.
+Holger work was and is partially funded by the European Commission
+through the `NEXTLEAP <https://nextleap.eu>`_ research project on
+decentralized messaging.
 
-Engaging with ongoing development
----------------------------------
-
-- github repo: https://github.com/hpk42/py-autocrypt
-
-- subscribe to the `mailing list
-  <https://lists.codespeak.net/postorius/lists/py-autocrypt.lists.codespeak.net/>`_
-
-- join the #py-autocrypt channel on freenode
-
-- meet us at upcoming `Autocrypt events <https://autocrypt.org/contact.html>`_.
+Note that this repository got moved away from the https://github.com/autocrypt
+umbrella because that is mainly about the Autocrypt specification efforts
+while MUA/mail related implementations happen through different social
+arrangements.
 
 .. toctree::
    :hidden:
@@ -37,5 +36,3 @@ Engaging with ongoing development
    cmdline
    diagrams
    api
-
-
