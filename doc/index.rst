@@ -1,6 +1,12 @@
 Autocrypt support for mail agents
 =================================
 
+.. note::
+
+    There is a `tentative name change consideration
+    <https://github.com/hpk42/py-autocrypt/issues/34>`_ for this project
+    which would result in change of links.
+
 py-autocrypt provides a command line tool and a Python API to help
 mail agents integrate Autocrypt support and more.
 
