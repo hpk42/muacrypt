@@ -18,7 +18,7 @@ Here are some preliminary underlying aims and goals:
 - `Autocrypt Level 1 compliant functionality
   <https://github.com/hpk42/py-autocrypt/milestone/1>`_ for use by mail user agents (MUAs)
 
-- integrate with re-mailers and other specialized server-side mail agents
+- integrate with mailman3 and other server-side mailing software
 
 - provide support for debugging error cases, easy deployment of fixes
 
