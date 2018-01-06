@@ -17,12 +17,14 @@ Aims and goals
 - `Autocrypt Level 1 compliant functionality
   <https://github.com/hpk42/py-autocrypt/milestone/1>`_ for use by mail user agents (MUAs)
 
-- integrate with mailman3 and other server-side mailing software
+- `incrementally encrypted mailing lists with mailman3
+  <https://github.com/hpk42/py-autocrypt/issues/30>`_
 
 - support debugging error situations, easy deployment of fixes
 
-- implement out-of-band verification, with
-  claimchains variants (see https://nextleap.eu)
+- implement `out-of-band verification
+  <https://github.com/hpk42/py-autocrypt/issues/29>`_, with
+  `claimchains variants <https://github.com/hpk42/py-autocrypt/issues/28>`_
   and a `kappa-style architecture <http://milinda.pathirage.org/kappa-architecture.com/>`_.
 
 
