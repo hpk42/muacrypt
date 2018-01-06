@@ -4,12 +4,11 @@ muacrypt: utilities for encrypting mail agents
 
 **this tool is under heavy development, use at your own risk**
 
-The MUAC implementation offers a command line
-tool and API.  This README is intended to help contributors
-to get setup with running tests and using the code and
-"autocrypt" command line.  There also are online docs at
-https://py-autocrypt.readthedocs.io which contain more
-documentation.
+The muacrypt package offers a command line tool and API.
+This README is intended to help contributors to get setup with running
+tests and using the command line. The online docs at
+https://py-autocrypt.readthedocs.io contain
+more documentation about overall goals of the project.
 
 testing
 +++++++
@@ -24,15 +23,13 @@ To use the code and run tests you need to have installed:
 
 - python2.7 and python3.5 including headers
   ("python2.7-dev" and "python3.5-dev" on debian).
-  If python3.5 is not present tests for it
-  will be skipped.
 
-- tox either installed via "pip install tox"
-  or via the "python-tox" debian package.
+- tox either installed via ``pip install tox``
+  or ``apt install python-tox``.
 
-If this is all there simply issue:
+If all requirements are fullfilled, simply issue::
 
-    tox
+    $ tox
 
 to run all the tests against the autocrypt classes
 and the command line.
