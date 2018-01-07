@@ -206,7 +206,7 @@ def process_incoming(ctx):
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     peerinfo = account.process_incoming(msg)
-    if peerinfo is not None:
+    if peerinfo.has_autocrypt():
         click.echo("processed mail for identity '{}', found: {}".format(
                    peerinfo.identity.config.name, peerinfo))
     else:

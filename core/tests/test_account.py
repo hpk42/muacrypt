@@ -72,7 +72,7 @@ def test_account_parse_incoming_mail_broken_ac_header(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt="Autocrypt: to=123; key=12312k3")
     peerinfo = ac2.process_incoming(msg)
-    assert not peerinfo
+    assert not peerinfo.has_autocrypt()
 
 
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
@@ -131,8 +131,8 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
     peerinfo = ac1.process_incoming(msg3)
-    assert peerinfo is None
-    assert ac1.get_identity().get_peerinfo(addr) is None
+    assert not peerinfo.has_autocrypt()
+    assert not ac1.get_identity().get_peerinfo(addr).has_autocrypt()
 
 
 def test_account_export_public_key(account, datadir):

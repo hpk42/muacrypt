@@ -295,12 +295,13 @@ class Account(object):
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
-        old = ident.config.peers.get(From, {})
+        peerinfo = ident.get_peerinfo(From)
         d = mime.parse_one_ac_header_from_msg(msg)
         date = msg.get("Date")
         if d and "addr" in d:
             if d["addr"] == From:
-                if parsedate(date) >= parsedate(old.get("*date", date)):
+                if not peerinfo.has_autocrypt() or \
+                   parsedate(date) >= peerinfo.get_last_seen_date():
                     d["*date"] = date
                     keydata = b64decode(d["keydata"])
                     keyhandle = ident.bingpg.import_keydata(keydata)
@@ -311,12 +312,12 @@ class Account(object):
                     # )
                     with ident.config.atomic_change():
                         ident.config.peers[From] = d
-                    return PeerInfo(ident, d)
-        elif old:
+        elif peerinfo.has_autocrypt():
             # we had an autocrypt header and now forget about it
             # because we got a mail which doesn't have one
             with ident.config.atomic_change():
                 ident.config.peers[From] = {}
+        return ident.get_peerinfo(From)
 
     def process_outgoing(self, msg):
         """ process outgoing mail message and add Autocrypt
@@ -431,9 +432,8 @@ class Identity:
         :param emailadr: pure email address without any prefixes or real names.
         :rtype: PeerInfo or None
         """
-        state = self.config.peers.get(emailadr)
-        if state:
-            return PeerInfo(self, state)
+        state = self.config.peers.get(emailadr, {})
+        return PeerInfo(self, emailadr, state)
 
     def exists(self):
         """ return True if the identity exists. """
@@ -458,11 +458,20 @@ class PeerInfo:
     attributes (``addr``, ``keydata``, ``type``, ...) we process also py-autocrypt
     internal ``*date`` and ``*keyhandle`` attributes.
     """
-    def __init__(self, identity, d):
+    def __init__(self, identity, emailadr, d):
         self._dict = dic = d.copy()
+        dic.setdefault("addr", emailadr)
+        dic.setdefault("keydata", '')
         self.identity = identity
-        self.keyhandle = dic.pop("*keyhandle")
-        self.date = dic.pop("*date")
+        self.keyhandle = dic.pop("*keyhandle", None)
+        self.date = dic.pop("*date", None)
+
+    def has_autocrypt(self):
+        return self._dict.get("keydata")
+
+    def get_last_seen_date(self):
+        if self.date:
+            return parsedate(self.date)
 
     def __getitem__(self, name):
         return self._dict[name]
