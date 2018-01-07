@@ -206,15 +206,12 @@ def process_incoming(ctx):
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     peerinfo = account.process_incoming(msg)
-    if peerinfo.has_autocrypt():
-        click.echo("processed mail for identity '{}', found: {}".format(
-                   peerinfo.identity.config.name, peerinfo))
+    if peerinfo.autocrypt_timestamp == peerinfo.last_seen:
+        msg = "found: " + str(peerinfo)
     else:
-        # XXX account.process_incoming() should return the identity
-        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        ident = account.get_identity_from_emailadr(delivto)
-        click.echo("processed mail for identity '{}', no Autocrypt header found.".format(
-                   ident.config.name))
+        msg = "no Autocrypt header found"
+    click.echo("processed mail for identity '{}', {}".format(
+               peerinfo.identity.config.name, msg))
 
 
 @mycommand("process-outgoing")
@@ -348,15 +345,15 @@ def _status_identity(ident):
         kecho("^^ uid", uid)
 
     # print info on peers
-    peers = ic.peers
-    if peers:
+    peernames = ident.get_peername_list()
+    if peernames:
         click.echo("  ----peers-----")
-        for name, ac_dict in peers.items():
-            d = ac_dict.copy()
+        for name in peernames:
+            pi = ident.get_peerinfo(name)
             click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
-                       to=d.pop("addr"), keyhandle=d.pop("*keyhandle"),
-                       bytes=len(d.pop("keydata")),
-                       attrs="; ".join(["%s=%s" % x for x in d.items()])))
+                       to=pi.addr, keyhandle=pi.public_keyhandle,
+                       bytes=len(pi.public_keydata),
+                       attrs=""))
     else:
         click.echo("  ---- no peers registered -----")
 

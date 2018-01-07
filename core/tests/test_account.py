@@ -10,7 +10,7 @@ from autocrypt import mime
 
 
 def test_identity_config(tmpdir):
-    config = IdentityConfig(tmpdir.join("default").strpath)
+    config = IdentityConfig(tmpdir.mkdir("default").strpath)
 
     with pytest.raises(AttributeError):
         config.qwe
@@ -19,22 +19,17 @@ def test_identity_config(tmpdir):
 
     assert config.uuid == ""
     assert config.own_keyhandle == ""
-    assert config.peers == {}
 
     with config.atomic_change():
         config.uuid = "123"
-        config.peers["hello"] = "world"
         assert config.exists()
     assert config.uuid == "123"
-    assert config.peers["hello"] == "world"
     try:
         with config.atomic_change():
             config.uuid = "456"
-            config.peers["hello"] = "aaaa"
             raise ValueError()
     except ValueError:
         assert config.uuid == "123"
-        assert config.peers["hello"] == "world"
     else:
         assert 0
 
@@ -73,7 +68,7 @@ def test_account_parse_incoming_mail_broken_ac_header(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt="Autocrypt: to=123; key=12312k3")
     peerinfo = ac2.process_incoming(msg)
-    assert not peerinfo.has_autocrypt()
+    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
 
 
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
@@ -84,10 +79,10 @@ def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac1.make_header(addr, headername=""))
     peerinfo = ac2.process_incoming(msg)
-    assert peerinfo["addr"] == addr
+    assert peerinfo.addr == addr
     ident2 = ac2.get_identity()
     ident1 = ac1.get_identity()
-    enc = ident2.bingpg.encrypt(data=b"123", recipients=[peerinfo.keyhandle])
+    enc = ident2.bingpg.encrypt(data=b"123", recipients=[peerinfo.public_keyhandle])
     data, descr_info = ident1.bingpg.decrypt(enc)
     assert data == b"123"
 
@@ -102,12 +97,12 @@ def test_account_parse_incoming_mails_replace(account_maker):
         Autocrypt=ac2.make_header(addr, headername=""))
     peerinfo = ac1.process_incoming(msg1)
     ident2 = ac2.get_identity_from_emailadr(addr)
-    assert peerinfo.keyhandle == ident2.config.own_keyhandle
+    assert peerinfo.public_keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(addr, headername=""))
     peerinfo2 = ac1.process_incoming(msg2)
-    assert peerinfo2.keyhandle == ac3.get_identity().config.own_keyhandle
+    assert peerinfo2.public_keyhandle == ac3.get_identity().config.own_keyhandle
 
 
 def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch):
@@ -121,7 +116,7 @@ def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch)
         Date=later_date,
         Autocrypt=ac1.make_header(addr, headername=""))
     peerinfo = ac1.process_incoming(msg1)
-    assert peerinfo.date == fixed_time
+    assert peerinfo.last_seen == fixed_time
 
 
 def test_account_parse_incoming_mails_replace_by_date(account_maker):
@@ -139,22 +134,25 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
     peerinfo = ac1.process_incoming(msg2)
     id1 = peerinfo.identity
-    assert id1.get_peerinfo(addr).keyhandle == ac3.get_identity().config.own_keyhandle
+    assert id1.get_peerinfo(addr).public_keyhandle == \
+        ac3.get_identity().config.own_keyhandle
     ac1.process_incoming(msg1)
-    assert id1.get_peerinfo(addr).keyhandle == ac3.get_identity().config.own_keyhandle
+    assert id1.get_peerinfo(addr).public_keyhandle == \
+        ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
     peerinfo = ac1.process_incoming(msg3)
-    assert not peerinfo.has_autocrypt()
-    assert not ac1.get_identity().get_peerinfo(addr).has_autocrypt()
+    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
+    peerinfo = ac1.get_identity().get_peerinfo(addr)
+    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
 
 
 def test_account_export_public_key(account, datadir):
     account.add_identity()
     msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
     peerinfo = account.process_incoming(msg)
-    assert account.get_identity().export_public_key(peerinfo.keyhandle)
+    assert account.get_identity().export_public_key(peerinfo.public_keyhandle)
 
 
 class TestIdentities:
@@ -168,7 +166,6 @@ class TestIdentities:
         assert ident.config.own_keyhandle
         assert ident.bingpg.get_public_keydata(ident.config.own_keyhandle)
         assert ident.bingpg.get_secret_keydata(ident.config.own_keyhandle)
-        assert ident.config.peers == {}
         assert str(ident)
         account.del_identity("office")
         assert not account.list_identities()

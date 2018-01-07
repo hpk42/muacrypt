@@ -42,9 +42,8 @@ from __future__ import unicode_literals, print_function
 
 import os
 import time
-import json
+import marshal
 import hashlib
-import codecs
 from pprint import pprint
 from autocrypt import mime
 
@@ -60,21 +59,19 @@ class BlockService:
         # each block references a parent block (or None if it's the
         # genesis block) and a timestamp.
         data = [type, parent, time.time()] + list(args)
-        serialized = json.dumps(data).encode("utf8")
+        serialized = marshal.dumps(data)
         cid = hashlib.sha256(serialized).hexdigest()
         path = os.path.join(self._basedir, cid)
         with open(path, "wb") as f:
             f.write(serialized)
         return Block(cid, data, bs=self)
 
-    def get_block(self, cid, raising=True):
+    def get_block(self, cid):
         path = os.path.join(self._basedir, cid)
         if os.path.exists(path):
-            with codecs.open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            with open(path, "rb") as f:
+                data = marshal.load(f)
             return Block(cid, data, bs=self)
-        if raising:
-            raise LookupError("block not found: {r}".format(cid))
 
 
 class Block:
@@ -121,9 +118,8 @@ class Block:
 
 class HeadTracker:
     """ Filesystem implementation for the mutable ID->HEAD mappings """
-    def __init__(self, basedir):
-        self._basedir = basedir
-        self._path = os.path.join(self._basedir, "heads")
+    def __init__(self, path):
+        self._path = path
 
     def get_head_cid(self, ident):
         heads = self._getheads()
@@ -131,19 +127,21 @@ class HeadTracker:
 
     def _getheads(self):
         if os.path.exists(self._path):
-            with codecs.open(self._path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open(self._path, "rb") as f:
+                return marshal.load(f)
         return {}
 
     def upsert(self, ident, cid):
+        if isinstance(cid, Block):
+            cid = cid.cid
         heads = self._getheads()
         heads[ident] = cid
-        with codecs.open(self._path, "w", encoding="utf-8") as f:
-            json.dump(heads, f, indent=2, sort_keys=True)
+        with open(self._path, "wb") as f:
+            marshal.dump(heads, f)
 
 
-class ClaimChain:
-    """ A claimchain maintains an append-only log where each entry
+class ClaimChainBase:
+    """ A ClaimChain maintains an append-only log where each entry
     in the chain has its own content-based address so that claimchains
     can cross-reference entries within each other.  Each entry in a chain
     carries a timestamp and a parent CID (block hash) and type-specific
@@ -164,34 +162,37 @@ class ClaimChain:
         for x in reversed(l):
             pprint("{} {}: {}".format(x.timestamp, x.type, shortrepr(x.args)))
 
+    def is_empty(self):
+        return not self.get_head_block()
+
     def append_block(self, type, args):
-        head = self.get_head_block(raising=False)
+        head = self.get_head_block()
         if head:
             head = head.cid
         block = self._bs.store_block(type, args, parent=head)
         self._ht.upsert(self.ident, block.cid)
-        return block.cid
+        return block
 
-    def get_head_block(self, ident=None, raising=True):
-        if ident is None:
-            ident = self.ident
-        head_cid = self._ht.get_head_cid(ident)
-        if not head_cid:
-            if raising:
-                raise ValueError("no head found for {}".format(ident))
-        else:
-            return self._bs.get_block(head_cid, raising=raising)
+    def get_head_block(self):
+        head_cid = self._ht.get_head_cid(self.ident)
+        if head_cid:
+            return self._bs.get_block(head_cid)
 
     def iter_blocks(self, type=None):
-        for x in self.get_head_block():
-            if type is None or x.type == type:
-                yield x
+        """ yields blocks from head to root for this chain. """
+        head_block = self.get_head_block()
+        if head_block:
+            for x in head_block:
+                if type is None or x.type == type:
+                    yield x
 
     def num_blocks(self):
         return len(list(self.iter_blocks()))
 
+
+class ClaimChain(ClaimChainBase):
     def add_genesis(self, keydata):
-        assert not self.get_head_block(raising=False), "already have a genesis block"
+        assert not self.get_head_block(), "already have a genesis block"
         assert isinstance(keydata, bytes)
         ascii_keydata = mime.encode_binary_keydata(keydata)
         self.append_block("genesis", [ascii_keydata])
@@ -209,9 +210,52 @@ class ClaimChain:
     def is_oob_verified_block(self, cid):
         for block in self.iter_blocks(type="oob_verify"):
             email, _ = block.args
-            head_block = self.get_head_block(ident=email)
+            head_cid = self._ht.get_head_cid(ident=email)
+            head_block = self._bs.get_block(head_cid)
             if head_block.contains_cid(cid):
                 return True
+
+
+class PeerChain(ClaimChainBase):
+    def append_autocrypt_msg(self, msg_date, keydata, keyhandle):
+        return self.append_block("msg_ac", [msg_date, keydata, keyhandle])
+
+    def append_non_autocrypt_msg(self, msg_date):
+        return self.append_block("msg_no", [msg_date])
+
+    def get_last_ac_entry(self):
+        for block in self.iter_blocks("msg_ac"):
+            return AC_Entry(*block.args)
+
+
+class AC_Entry:
+    def __init__(self, msg_date, keydata, keyhandle):
+        self.msg_date = msg_date
+        self.keydata = keydata
+        self.keyhandle = keyhandle
+
+
+class ChainManager:
+    def __init__(self, dirpath):
+        blockdir = os.path.join(dirpath, "blocks")
+        if not os.path.exists(blockdir):
+            os.makedirs(blockdir)
+        self.heads = HeadTracker(os.path.join(dirpath, "heads"))
+        self.blocks = BlockService(blockdir)
+
+    def get_num_peers(self):
+        return len(self.heads._getheads())
+
+    def get_head_block(self, ident):
+        cid = self.heads.get_head_cid(ident)
+        if cid:
+            return self.get_block(cid)
+
+    def get_block(self, cid):
+        return self.blocks.get_block(cid)
+
+    def get_peer_chain(self, ident):
+        return PeerChain(self.blocks, self.heads, ident)
 
 
 def shortrepr(obj):

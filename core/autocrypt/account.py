@@ -21,6 +21,7 @@ from .bingpg import cached_property, BinGPG
 from contextlib import contextmanager
 from base64 import b64decode
 from . import mime
+from .claimchain import ChainManager
 import email.utils
 
 
@@ -109,11 +110,15 @@ class IdentityConfig(PersistentAttrMixin):
     own_keyhandle = persistent_property("own_keyhandle", six.text_type)
     prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
                                          ["nopreference", "mutual"])
-    peers = persistent_property("peers", dict)
+
+    def __init__(self, dirpath):
+        path = os.path.join(dirpath, "config.json")
+        super(IdentityConfig, self).__init__(path)
+        self.chain_manager = ChainManager(dirpath)
 
     def __repr__(self):
         return "IdentityConfig(name={}, own_keyhandle={}, numpeers={})".format(
-            self.name, self.own_keyhandle, len(self.peers))
+            self.name, self.own_keyhandle, self.chain_manager.get_num_peers())
 
     def exists(self):
         return self.uuid
@@ -306,29 +311,21 @@ class Account(object):
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
         peerinfo = ident.get_peerinfo(From)
+        peerchain = peerinfo.peerchain
+
         d = mime.parse_one_ac_header_from_msg(msg)
-        date = msg.get("Date")
+        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         if d and "addr" in d:
             if d["addr"] == From:
-                msg_date = effective_date(parse_date_to_float(date))
-                if not peerinfo.has_autocrypt() or \
-                   msg_date >= peerinfo.get_last_seen_date():
-                    d["*date"] = msg_date
+                if msg_date >= peerinfo.autocrypt_timestamp:
                     keydata = b64decode(d["keydata"])
                     keyhandle = ident.bingpg.import_keydata(keydata)
-                    d["*keyhandle"] = keyhandle
-                    # ident.add_new_incoming_entry(
-                    #    date=date,
-                    #    keydata=keydata,
-                    # )
-                    with ident.config.atomic_change():
-                        ident.config.peers[From] = d
-        elif peerinfo.has_autocrypt():
-            # we had an autocrypt header and now forget about it
-            # because we got a mail which doesn't have one
-            with ident.config.atomic_change():
-                ident.config.peers[From] = {}
-        return ident.get_peerinfo(From)
+                    peerchain.append_autocrypt_msg(
+                        msg_date=msg_date, keydata=keydata, keyhandle=keyhandle)
+        else:
+            if msg_date > peerinfo.last_seen:
+                peerchain.append_non_autocrypt_msg(msg_date=msg_date)
+        return peerinfo
 
     def process_outgoing(self, msg):
         """ process outgoing mail message and add Autocrypt
@@ -357,10 +354,19 @@ class Identity:
     it in a directory. Call create() for initializing settings."""
     def __init__(self, dir):
         self.dir = dir
-        self.config = IdentityConfig(os.path.join(self.dir, "config.json"))
+        self.config = IdentityConfig(self.dir)
 
     def __repr__(self):
         return "Identity[{}]".format(self.config)
+
+    def get_peerinfo(self, addr):
+        peerchain = self.config.chain_manager.get_peer_chain(addr)
+        pi = PeerInfo(peerchain)
+        pi.identity = self
+        return pi
+
+    def get_peername_list(self):
+        return sorted(self.config.chain_manager.heads._getheads())
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -385,7 +391,6 @@ class Identity:
             self.config.prefer_encrypt = "nopreference"
             self.config.gpgbin = gpgbin
             self.config.gpgmode = gpgmode
-            self.config.peers = {}
             if keyhandle is None:
                 emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
                 keyhandle = self.bingpg.gen_secret_key(emailadr)
@@ -436,16 +441,6 @@ class Identity:
             prefer_encrypt=self.config.prefer_encrypt,
         )
 
-    def get_peerinfo(self, emailadr):
-        """ get peerinfo object for a given email address.
-
-        :type emailadr: unicode
-        :param emailadr: pure email address without any prefixes or real names.
-        :rtype: PeerInfo or None
-        """
-        state = self.config.peers.get(emailadr, {})
-        return PeerInfo(self, emailadr, state)
-
     def exists(self):
         """ return True if the identity exists. """
         return self.config.exists()
@@ -464,59 +459,37 @@ class Identity:
 
 
 class PeerInfo:
-    """ Read-Only info coming from the Parsed Autocrypt header from
-    an incoming Mail from a peer. In addition to the public Autocrypt
-    attributes (``addr``, ``keydata``, ``type``, ...) we process also py-autocrypt
-    internal ``*date`` and ``*keyhandle`` attributes.
-    """
-    def __init__(self, identity, emailadr, d):
-        self._dict = dic = d.copy()
-        dic.setdefault("addr", emailadr)
-        dic.setdefault("keydata", '')
-        self.identity = identity
-        self.keyhandle = dic.pop("*keyhandle", None)
-        self.date = dic.pop("*date", None)
-        assert self.date is None or isinstance(self.date, float)
-
-    def has_autocrypt(self):
-        return self._dict.get("keydata")
-
-    def get_last_seen_date(self):
-        return self.date
-
-    def __getitem__(self, name):
-        return self._dict[name]
-
-    def __setitem__(self, name, val):
-        raise TypeError("setting of values not allowed")
+    """ Read-Only per-peer Info as a synthesized view on PeerChains. """
+    def __init__(self, peerchain):
+        self.peerchain = peerchain
 
     def __str__(self):
-        d = self._dict.copy()
-        return \
-            "{addr}: key {keyhandle} [{bytes:d} bytes] " \
-            "{attrs} from date={date}".format(
-                addr=d.pop("addr"), keyhandle=self.keyhandle,
-                bytes=len(d.pop("keydata")),
-                date=self.date,
-                attrs="; ".join(["%s=%s" % x for x in d.items()]))
+        return "Peerinfo addr={addr} key={keyhandle}".format(
+            addr=self.addr, keyhandle=self.public_keyhandle
+        )
 
+    @property
+    def public_keyhandle(self):
+        return self.peerchain.get_last_ac_entry().keyhandle
 
-class IdentityInfo:
-    """ Read only information about an Identity in an account. """
-    def __init__(self, name, email_regex, prefer_encrypt, keyhandle, peers, uuid):
-        self.name = name
-        self.email_regex = email_regex
-        self.keyhandle = keyhandle or ""
-        self.prefer_encrypt = prefer_encrypt
-        self.uuid = uuid
-        self._peers = peers
+    @property
+    def public_keydata(self):
+        return self.peerchain.get_last_ac_entry().keydata
 
-    @cached_property
-    def peers(self):
-        return dict((name, PeerInfo(self, self._peers[name])) for name in self._peers)
+    @property
+    def addr(self):
+        return self.peerchain.ident
 
-    def __str__(self):
-        return "Identity(name={}, email_regex={}, keyhandle={}, num_peers={})".format(
-               self.name, self.email_regex, self.keyhandle, len(self._peers))
+    @property
+    def autocrypt_timestamp(self):
+        entry = self.peerchain.get_last_ac_entry()
+        if entry:
+            return entry.msg_date
+        return 0.0
 
-    __repr__ = __str__
+    @property
+    def last_seen(self):
+        entry = self.peerchain.get_head_block()
+        if entry:
+            return entry.args[0]
+        return 0.0

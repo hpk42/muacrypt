@@ -96,7 +96,7 @@ class TestProcessIncoming:
         """, input=newmail)
 
         # now export the public key
-        m = re.search(r'key (\w+) ', out)
+        m = re.search(r'key=(\w+)', out)
         keyhandle, = m.groups()
         mycmd.run_ok(["export-public-key", "--id=ident1", keyhandle])
         mycmd.run_ok(["status"])

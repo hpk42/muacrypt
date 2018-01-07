@@ -8,7 +8,7 @@ import time
 import hashlib
 import pytest
 from autocrypt import mime
-from autocrypt.claimchain import ClaimChain, BlockService, HeadTracker
+from autocrypt.claimchain import ChainManager, ClaimChain, BlockService, HeadTracker
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def counter():
 
 @pytest.fixture
 def cc_maker(tmpdir, bingpg_maker, counter):
-    ht = HeadTracker(tmpdir.mkdir("heads").strpath)
+    ht = HeadTracker(tmpdir.join("heads").strpath)
     bs = BlockService(tmpdir.mkdir("blocks").strpath)
 
     def maker(genesis=True):
@@ -73,7 +73,7 @@ class TestBlockService:
 class TestHeadTracker:
     @pytest.fixture
     def ht(self, tmpdir):
-        return HeadTracker(tmpdir.mkdir("heads").strpath)
+        return HeadTracker(tmpdir.join("heads").strpath)
 
     def test_get_empty(self, ht):
         assert not ht.get_head_cid("id1")
@@ -113,3 +113,35 @@ class TestClaimChain:
         assert not cc1.is_oob_verified_block(cc2_genesis_cid[:-1])
         assert cc1.is_oob_verified_block(cc2_genesis_cid)
         cc1.dump()
+
+
+class TestChainManager:
+    @pytest.fixture
+    def cm(self, tmpdir):
+        return ChainManager(tmpdir.strpath)
+
+    def test_empty(self, cm):
+        assert cm.get_head_block("something") is None
+
+    def test_something(self, cm):
+        block = cm.blocks.store_block("type0", [])
+        cm.heads.upsert("mychain", cid=block)
+        block2 = cm.get_head_block("mychain")
+        assert block2 == block
+
+    def test_get_peerchain_empty(self, cm):
+        peer_chain = cm.get_peer_chain("name1@123")
+        assert peer_chain.is_empty()
+
+    def test_get_peerchain_add_entries(self, cm):
+        peer_chain = cm.get_peer_chain("name1@123")
+        b1 = peer_chain.append_autocrypt_msg(
+            msg_date=17.0, keydata=b'123', keyhandle=b'4567')
+        assert b1.args[0] == 17.0
+        assert b1.args[1] == b'123'
+        assert b1.args[2] == b'4567'
+
+        b2 = peer_chain.append_non_autocrypt_msg(msg_date=50.0)
+        assert b2.args[0] == 50.0
+
+        assert peer_chain.get_last_ac_entry().msg_date == 17.0
