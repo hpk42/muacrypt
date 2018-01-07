@@ -236,15 +236,13 @@ class Account(object):
         ident = self.get_identity(id_name)
         ident.delete()
 
-    def get_identity_from_emailadr(self, emailadr_list, raising=False):
-        """ get identity for a given email address list. """
-        assert isinstance(emailadr_list, (list, tuple)), repr(emailadr_list)
+    def get_identity_from_emailadr(self, emailadr, raising=False):
+        """ get identity for a given email address. """
         for ident in self.list_identities():
-            for emailadr in emailadr_list:
-                if re.match(ident.config.email_regex, emailadr):
-                    return ident
+            if re.match(ident.config.email_regex, emailadr):
+                return ident
         if raising:
-            raise IdentityNotFound(emailadr_list)
+            raise IdentityNotFound(emailadr)
 
     def remove(self):
         """ remove the account directory and reset this account configuration
@@ -274,7 +272,7 @@ class Account(object):
         """
         if not self.list_identity_names():
             raise NotInitialized("no identities configured")
-        ident = self.get_identity_from_emailadr([emailadr])
+        ident = self.get_identity_from_emailadr(emailadr)
         if ident is None:
             return ""
         else:
@@ -293,7 +291,7 @@ class Account(object):
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
             assert delivto
-        ident = self.get_identity_from_emailadr([delivto])
+        ident = self.get_identity_from_emailadr(delivto)
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
@@ -307,6 +305,10 @@ class Account(object):
                     keydata = b64decode(d["keydata"])
                     keyhandle = ident.bingpg.import_keydata(keydata)
                     d["*keyhandle"] = keyhandle
+                    # ident.add_new_incoming_entry(
+                    #    date=date,
+                    #    keydata=keydata,
+                    # )
                     with ident.config.atomic_change():
                         ident.config.peers[From] = d
                     return PeerInfo(ident, d)

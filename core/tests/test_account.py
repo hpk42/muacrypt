@@ -100,7 +100,7 @@ def test_account_parse_incoming_mails_replace(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac2.make_header(addr, headername=""))
     peerinfo = ac1.process_incoming(msg1)
-    ident2 = ac2.get_identity_from_emailadr([addr])
+    ident2 = ac2.get_identity_from_emailadr(addr)
     assert peerinfo.keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
@@ -146,7 +146,7 @@ class TestIdentities:
     def test_add_one_and_check_defaults(self, account):
         regex = "(office|work)@example.org"
         account.add_identity("office", regex)
-        ident = account.get_identity_from_emailadr(["office@example.org"])
+        ident = account.get_identity_from_emailadr("office@example.org")
         assert ident.config.prefer_encrypt == "nopreference"
         assert ident.config.email_regex == regex
         assert ident.config.uuid
@@ -157,7 +157,7 @@ class TestIdentities:
         assert str(ident)
         account.del_identity("office")
         assert not account.list_identities()
-        assert not account.get_identity_from_emailadr(["office@example.org"])
+        assert not account.get_identity_from_emailadr("office@example.org")
 
     def test_add_existing_key(self, account_maker, datadir, gpgpath, monkeypatch):
         acc1 = account_maker()
@@ -178,11 +178,11 @@ class TestIdentities:
         account.add_identity("office", email_regex="office@example.org")
         account.add_identity("home", email_regex="home@example.org")
 
-        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        ident1 = account.get_identity_from_emailadr("office@example.org")
         assert ident1.config.name == "office"
-        ident2 = account.get_identity_from_emailadr(["home@example.org"])
+        ident2 = account.get_identity_from_emailadr("home@example.org")
         assert ident2.config.name == "home"
-        ident3 = account.get_identity_from_emailadr(["hqweome@example.org"])
+        ident3 = account.get_identity_from_emailadr("hqweome@example.org")
         assert ident3 is None
 
     def test_add_two_modify_one(self, account):
@@ -190,10 +190,10 @@ class TestIdentities:
         account.add_identity("home", email_regex="home@example.org")
 
         account.mod_identity("home", email_regex="newhome@example.org")
-        ident1 = account.get_identity_from_emailadr(["office@example.org"])
+        ident1 = account.get_identity_from_emailadr("office@example.org")
         assert ident1.config.name == "office"
-        assert not account.get_identity_from_emailadr(["home@example.org"])
-        ident3 = account.get_identity_from_emailadr(["newhome@example.org"])
+        assert not account.get_identity_from_emailadr("home@example.org")
+        ident3 = account.get_identity_from_emailadr("newhome@example.org")
         assert ident3.config.name == "home"
 
     @pytest.mark.parametrize("pref", ["mutual", "nopreference"])

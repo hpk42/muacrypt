@@ -171,7 +171,7 @@ def test_email(ctx, emailadr):
     Fail if no identity matches.
     """
     account = get_account(ctx)
-    ident = account.get_identity_from_emailadr([emailadr], raising=True)
+    ident = account.get_identity_from_emailadr(emailadr, raising=True)
     click.echo(ident.config.name)
 
 
@@ -212,7 +212,7 @@ def process_incoming(ctx):
     else:
         # XXX account.process_incoming() should return the identity
         _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        ident = account.get_identity_from_emailadr([delivto])
+        ident = account.get_identity_from_emailadr(delivto)
         click.echo("processed mail for identity '{}', no Autocrypt header found.".format(
                    ident.config.name))
 

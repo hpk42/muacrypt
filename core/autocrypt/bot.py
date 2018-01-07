@@ -66,7 +66,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         log(mime.render_mime_structure(msg))
 
     with log.s("processing your mail through py-autocrypt:"):
-        ident = account.get_identity_from_emailadr([delivto])
+        ident = account.get_identity_from_emailadr(delivto)
         peerinfo = account.process_incoming(msg, delivto=delivto)
         if peerinfo is not None:
             log("processed incoming mail for identity '{}', found:\n{}".format(
