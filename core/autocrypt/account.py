@@ -15,12 +15,22 @@ import json
 import shutil
 import six
 import uuid
+import time
 from copy import deepcopy
 from .bingpg import cached_property, BinGPG
 from contextlib import contextmanager
 from base64 import b64decode
 from . import mime
-from email.utils import parsedate
+import email.utils
+
+
+def parse_date_to_float(date):
+    return time.mktime(email.utils.parsedate(date))
+
+
+def effective_date(date):
+    assert isinstance(date, float)
+    return min(date, time.time())
 
 
 class PersistentAttrMixin(object):
@@ -300,9 +310,10 @@ class Account(object):
         date = msg.get("Date")
         if d and "addr" in d:
             if d["addr"] == From:
+                msg_date = effective_date(parse_date_to_float(date))
                 if not peerinfo.has_autocrypt() or \
-                   parsedate(date) >= peerinfo.get_last_seen_date():
-                    d["*date"] = date
+                   msg_date >= peerinfo.get_last_seen_date():
+                    d["*date"] = msg_date
                     keydata = b64decode(d["keydata"])
                     keyhandle = ident.bingpg.import_keydata(keydata)
                     d["*keyhandle"] = keyhandle
@@ -465,13 +476,13 @@ class PeerInfo:
         self.identity = identity
         self.keyhandle = dic.pop("*keyhandle", None)
         self.date = dic.pop("*date", None)
+        assert self.date is None or isinstance(self.date, float)
 
     def has_autocrypt(self):
         return self._dict.get("keydata")
 
     def get_last_seen_date(self):
-        if self.date:
-            return parsedate(self.date)
+        return self.date
 
     def __getitem__(self, name):
         return self._dict[name]

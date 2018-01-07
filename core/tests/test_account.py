@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import os
+import time
 import pytest
 from autocrypt.account import IdentityConfig, Account, NotInitialized
 from autocrypt import mime
@@ -107,6 +108,20 @@ def test_account_parse_incoming_mails_replace(account_maker):
         Autocrypt=ac3.make_header(addr, headername=""))
     peerinfo2 = ac1.process_incoming(msg2)
     assert peerinfo2.keyhandle == ac3.get_identity().config.own_keyhandle
+
+
+def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch):
+    ac1 = account_maker()
+    fixed_time = time.time()
+    later_date = 'Thu, 16 Feb 2050 15:00:00 -0000'
+    monkeypatch.setattr(time, "time", lambda: fixed_time)
+    addr = "alice@a.org"
+    msg1 = mime.gen_mail_msg(
+        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+        Date=later_date,
+        Autocrypt=ac1.make_header(addr, headername=""))
+    peerinfo = ac1.process_incoming(msg1)
+    assert peerinfo.date == fixed_time
 
 
 def test_account_parse_incoming_mails_replace_by_date(account_maker):
