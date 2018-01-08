@@ -166,5 +166,5 @@ class TestBot:
                 *{senderadr}*{senderkeyhandle}*
             """.format(
                 senderadr=ac_sender.adr,
-                senderkeyhandle=ac_sender.config.own_keyhandle,
+                senderkeyhandle=ac_sender.ownstate.keyhandle,
             ))

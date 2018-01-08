@@ -93,6 +93,11 @@ class TestBinGPG:
         assert packets[3][0] == "public sub key packet"
         assert packets[4][0] == "signature packet"
 
+    def test_get_secret_keyhandle(self, bingpg):
+        keyhandle = bingpg.gen_secret_key(emailadr="hello@xyz.org")
+        assert bingpg.get_secret_keyhandle(keyhandle) == keyhandle
+        assert bingpg.get_secret_keyhandle("hello@xyz.org") == keyhandle
+
     def test_list_secret_keyhandles(self, bingpg):
         keyhandle = bingpg.gen_secret_key(emailadr="hello@xyz.org")
         l = bingpg.list_public_keyinfos(keyhandle)

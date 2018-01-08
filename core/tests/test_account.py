@@ -18,7 +18,6 @@ def test_identity_config(tmpdir):
     assert not config.exists()
 
     assert config.uuid == ""
-    assert config.own_keyhandle == ""
 
     with config.atomic_change():
         config.uuid = "123"
@@ -45,7 +44,7 @@ def test_account_header_defaults(account_maker):
     h = account.make_header(addr)
     d = mime.parse_one_ac_header_from_string(h)
     assert d["addr"] == addr
-    key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
+    key = ident.bingpg.get_public_keydata(ident.ownstate.keyhandle, b64=True)
     assert d["keydata"] == key
     assert d["prefer-encrypt"] == "nopreference"
     assert d["type"] == "1"
@@ -97,12 +96,12 @@ def test_account_parse_incoming_mails_replace(account_maker):
         Autocrypt=ac2.make_header(addr, headername=""))
     r = ac1.process_incoming(msg1)
     ident2 = ac2.get_identity_from_emailadr(addr)
-    assert r.peerstate.public_keyhandle == ident2.config.own_keyhandle
+    assert r.peerstate.public_keyhandle == ident2.ownstate.keyhandle
     msg2 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(addr, headername=""))
     r2 = ac1.process_incoming(msg2)
-    assert r2.peerstate.public_keyhandle == ac3.get_identity().config.own_keyhandle
+    assert r2.peerstate.public_keyhandle == ac3.get_identity().ownstate.keyhandle
 
 
 def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch):
@@ -134,10 +133,10 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
     r = ac1.process_incoming(msg2)
     assert r.identity.get_peerstate(addr).public_keyhandle == \
-        ac3.get_identity().config.own_keyhandle
+        ac3.get_identity().ownstate.keyhandle
     r2 = ac1.process_incoming(msg1)
     assert r2.peerstate.public_keyhandle == \
-        ac3.get_identity().config.own_keyhandle
+        ac3.get_identity().ownstate.keyhandle
     msg3 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
@@ -159,12 +158,12 @@ class TestIdentities:
         regex = "(office|work)@example.org"
         account.add_identity("office", regex)
         ident = account.get_identity_from_emailadr("office@example.org")
-        assert ident.config.prefer_encrypt == "nopreference"
+        assert ident.ownstate.prefer_encrypt == "nopreference"
         assert ident.config.email_regex == regex
         assert ident.config.uuid
-        assert ident.config.own_keyhandle
-        assert ident.bingpg.get_public_keydata(ident.config.own_keyhandle)
-        assert ident.bingpg.get_secret_keydata(ident.config.own_keyhandle)
+        assert ident.ownstate.keyhandle
+        assert ident.bingpg.get_public_keydata(ident.ownstate.keyhandle)
+        assert ident.bingpg.get_secret_keydata(ident.ownstate.keyhandle)
         assert str(ident)
         account.del_identity("office")
         assert not account.list_identities()
@@ -180,10 +179,10 @@ class TestIdentities:
         ident2 = acc2.add_identity(
             "default", email_regex=".*",
             gpgmode="system", gpgbin=gpgbin,
-            keyhandle=ident1.config.own_keyhandle)
+            keyhandle=ident1.ownstate.keyhandle)
         assert ident2.config.gpgmode == "system"
         assert ident2.config.gpgbin == gpgbin
-        assert ident2.config.own_keyhandle == ident1.config.own_keyhandle
+        assert ident2.ownstate.keyhandle == ident1.ownstate.keyhandle
 
     def test_add_two(self, account):
         account.add_identity("office", email_regex="office@example.org")
@@ -221,7 +220,7 @@ class TestIdentities:
         h = account.make_header(addr)
         d = mime.parse_one_ac_header_from_string(h)
         assert d["addr"] == addr
-        key = ident.bingpg.get_public_keydata(ident.config.own_keyhandle, b64=True)
+        key = ident.bingpg.get_public_keydata(ident.ownstate.keyhandle, b64=True)
         assert d["keydata"] == key
         assert d["prefer-encrypt"] == pref
         assert d["type"] == "1"

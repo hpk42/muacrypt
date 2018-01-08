@@ -226,6 +226,13 @@ class BinGPG(object):
             args.append(keyhandle)
         return self._parse_list(args, ("sec", "ssb"))
 
+    def get_secret_keyhandle(self, keyhandle):
+        for k in self.list_secret_keyinfos(keyhandle):
+            is_in_uids = any(keyhandle in uid for uid in k.uids)
+            if is_in_uids or k.match(keyhandle):
+                return k.id
+        return None
+
     def list_public_keyinfos(self, keyhandle=None):
         args = ["--skip-verify", "--with-colons", "--list-public-keys"]
         if keyhandle is not None:

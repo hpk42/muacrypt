@@ -78,7 +78,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
     log("have a nice day, {}".format(delivto))
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
-        .format(r.identity.config.own_keyhandle))
+        .format(r.identity.ownstate.keyhandle))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],

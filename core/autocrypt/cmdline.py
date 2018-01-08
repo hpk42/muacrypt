@@ -87,7 +87,8 @@ option_email_regex = click.option(
     "regex for matching all email addresses belonging to this identity.")
 
 option_prefer_encrypt = click.option(
-    "--prefer-encrypt", default=None, type=click.Choice(["nopreference", "mutual"]),
+    "--prefer-encrypt", default='nopreference',
+    type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
 
@@ -333,14 +334,14 @@ def _status_identity(ident):
     else:
         kecho("gpgbin", ic.gpgbin)
 
-    kecho("prefer-encrypt", ic.prefer_encrypt)
+    kecho("prefer-encrypt", ident.ownstate.prefer_encrypt)
 
     # print info on key including uids
-    keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
+    keyinfos = ident.bingpg.list_public_keyinfos(ident.ownstate.keyhandle)
     uids = set()
     for k in keyinfos:
         uids.update(k.uids)
-    kecho("own-keyhandle", ic.own_keyhandle)
+    kecho("own-keyhandle", ident.ownstate.keyhandle)
     for uid in uids:
         kecho("^^ uid", uid)
 

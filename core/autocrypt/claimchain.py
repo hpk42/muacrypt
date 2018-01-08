@@ -243,9 +243,9 @@ class ClaimChain(ClaimChainBase):
                 return True
 
 
-# ====================================
-# PeerChains
-# ====================================
+# ===========================================================
+# PeerChains for keeping track of incoming messages per peer
+# ===========================================================
 
 @attr.s
 class MsgEntryAC(CCEntryBase):
@@ -284,6 +284,34 @@ class PeerChain(ClaimChainBase):
         return self.append_entry(entry)
 
 
+# ===========================================
+# OwnChain keeps track of own crypto settings
+# ===========================================
+
+@attr.s
+class KeygenEntry(CCEntryBase):
+    TAG = "keygen"
+    entry_date = attrib_float()
+    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
+    keydata = attrib_bytes_or_none()
+    keyhandle = attrib_text_or_none()
+
+
+class OwnChain(ClaimChainBase):
+    def append_keygen(self, **kwargs):
+        return self.append_entry(KeygenEntry(**kwargs))
+
+    def latest_keygen(self):
+        return self.latest_entry_of(KeygenEntry)
+
+    def change_prefer_encrypt(self, prefer_encrypt):
+        # xxx we simply copy+modify the existing entry
+        # we could optimize by simply referencing the old entry
+        entry = self.latest_keygen()
+        new_entry = attr.evolve(entry, prefer_encrypt=prefer_encrypt)
+        self.append_entry(new_entry)
+
+
 class ChainManager:
     def __init__(self, dirpath):
         blockdir = os.path.join(dirpath, "blocks")
@@ -296,10 +324,13 @@ class ChainManager:
         return len(self.heads._getheads())
 
     def get_peername_list(self):
-        return sorted(self.heads._getheads())
+        return sorted(x for x in self.heads._getheads() if x != ".")
 
     def get_peerchain(self, ident):
         return PeerChain(self.blocks, self.heads, ident)
+
+    def get_ownchain(self):
+        return OwnChain(self.blocks, self.heads, ".")
 
 
 def shortrepr(obj):

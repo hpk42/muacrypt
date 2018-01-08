@@ -108,17 +108,13 @@ class IdentityConfig(PersistentAttrMixin):
     email_regex = persistent_property("email_regex", six.text_type)
     gpgmode = persistent_property("gpgmode", six.text_type, ["system", "own"])
     gpgbin = persistent_property("gpgbin", six.text_type)
-    own_keyhandle = persistent_property("own_keyhandle", six.text_type)
-    prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
-                                         ["nopreference", "mutual"])
 
     def __init__(self, dirpath):
         path = os.path.join(dirpath, "config.json")
         super(IdentityConfig, self).__init__(path)
 
     def __repr__(self):
-        return "IdentityConfig(name={}, own_keyhandle={})".format(
-            self.name, self.own_keyhandle)
+        return "IdentityConfig(name={})".format(self.name)
 
     def exists(self):
         return self.uuid
@@ -213,7 +209,7 @@ class Account(object):
         return ident
 
     def mod_identity(self, id_name="default", email_regex=None,
-                     keyhandle=None, gpgbin=None, prefer_encrypt=None):
+                     keyhandle=None, gpgbin=None, prefer_encrypt='nopreference'):
         """ modify a named identity.
 
         All arguments are optional: if they are not specified the underlying
@@ -281,7 +277,7 @@ class Account(object):
         if ident is None:
             return ""
         else:
-            assert ident.config.own_keyhandle
+            assert ident.ownstate.keyhandle
             return ident.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg, delivto=None):
@@ -359,6 +355,7 @@ class Identity:
         self.dir = dir
         self.config = IdentityConfig(self.dir)
         self.chain_manager = ChainManager(dir)
+        self.ownstate = OwnState(self.chain_manager.get_ownchain())
 
     def __repr__(self):
         return "Identity[{}]".format(self.config)
@@ -390,33 +387,30 @@ class Identity:
             self.config.uuid = uuid.uuid4().hex
             self.config.name = name
             self.config.email_regex = email_regex
-            self.config.prefer_encrypt = "nopreference"
             self.config.gpgbin = gpgbin
             self.config.gpgmode = gpgmode
+            prefer_encrypt = "nopreference"
             if keyhandle is None:
                 emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
                 keyhandle = self.bingpg.gen_secret_key(emailadr)
             else:
-                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
-                for k in keyinfos:
-                    is_in_uids = any(keyhandle in uid for uid in k.uids)
-                    if is_in_uids or k.match(keyhandle):
-                        keyhandle = k.id
-                        break
-                else:
-                    raise ValueError("could not find secret key for {!r}, found {!r}"
-                                     .format(keyhandle, keyinfos))
-            self.config.own_keyhandle = keyhandle
+                keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
+                if keyhandle is None:
+                    raise ValueError("no secret key for {!r}".format(keyhandle))
+            keydata = self.bingpg.get_secret_keydata(keyhandle)
+            self.ownstate.ownchain.append_keygen(
+                entry_date=time.time(), keyhandle=keyhandle,
+                keydata=keydata, prefer_encrypt=prefer_encrypt
+            )
         assert self.config.exists()
 
     def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):
         with self.config.atomic_change():
             if email_regex is not None:
                 self.config.email_regex = email_regex
-            if prefer_encrypt is not None:
-                self.config.prefer_encrypt = prefer_encrypt
-            # if gpgbin is not None:
-            #    self.gpgbin = gpgbin
+            if self.ownstate.prefer_encrypt != prefer_encrypt:
+                self.ownstate.ownchain.change_prefer_encrypt(prefer_encrypt)
+                return True
             return self.config.has_changed()
 
     def delete(self):
@@ -439,8 +433,8 @@ class Identity:
     def make_ac_header(self, emailadr, headername="Autocrypt: "):
         return headername + mime.make_ac_header_value(
             addr=emailadr,
-            keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
-            prefer_encrypt=self.config.prefer_encrypt,
+            keydata=self.bingpg.get_public_keydata(self.ownstate.keyhandle),
+            prefer_encrypt=self.ownstate.prefer_encrypt,
         )
 
     def exists(self):
@@ -452,12 +446,32 @@ class Identity:
         indicated by the key handle. """
         kh = keyhandle
         if kh is None:
-            kh = self.config.own_keyhandle
+            kh = self.ownstate.keyhandle
         return self.bingpg.get_public_keydata(kh, armor=True)
 
     def export_secret_key(self):
         """ return armored public key for this account. """
-        return self.bingpg.get_secret_keydata(self.config.own_keyhandle, armor=True)
+        return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
+
+
+@attrs
+class OwnState(object):
+    """ Read-Only synthesized view on OwnState which contains
+    our own account state. """
+    ownchain = attrib()
+
+    def __str__(self):
+        return "OwnState key={keyhandle}".format(
+            keyhandle=self.keyhandle,
+        )
+
+    @property
+    def keyhandle(self):
+        return self.ownchain.latest_keygen().keyhandle
+
+    @property
+    def prefer_encrypt(self):
+        return self.ownchain.latest_keygen().prefer_encrypt
 
 
 @attrs
@@ -467,7 +481,7 @@ class PeerState(object):
     peerchain = attrib()
 
     def __str__(self):
-        return "Peerinfo addr={addr} key={keyhandle}".format(
+        return "PeerState addr={addr} key={keyhandle}".format(
             addr=self.addr, keyhandle=self.public_keyhandle
         )
 
