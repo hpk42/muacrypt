@@ -5,32 +5,8 @@ from __future__ import unicode_literals
 import os
 import time
 import pytest
-from autocrypt.account import IdentityConfig, Account, NotInitialized
+from autocrypt.account import Account, NotInitialized
 from autocrypt import mime
-
-
-def test_identity_config(tmpdir):
-    config = IdentityConfig(tmpdir.mkdir("default").strpath)
-
-    with pytest.raises(AttributeError):
-        config.qwe
-
-    assert not config.exists()
-
-    assert config.uuid == ""
-
-    with config.atomic_change():
-        config.uuid = "123"
-        assert config.exists()
-    assert config.uuid == "123"
-    try:
-        with config.atomic_change():
-            config.uuid = "456"
-            raise ValueError()
-    except ValueError:
-        assert config.uuid == "123"
-    else:
-        assert 0
 
 
 def test_account_header_defaults(account_maker):
@@ -40,7 +16,7 @@ def test_account_header_defaults(account_maker):
         account.make_header(addr)
     account.init()
     ident = account.add_identity()
-    assert ident.config.gpgmode == "own"
+    assert ident.ownstate.gpgmode == "own"
     h = account.make_header(addr)
     d = mime.parse_one_ac_header_from_string(h)
     assert d["addr"] == addr
@@ -149,7 +125,7 @@ def test_account_export_public_key(account, datadir):
     account.add_identity()
     msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
     r = account.process_incoming(msg)
-    assert r.identity.config.name == account.get_identity().config.name
+    assert r.identity.ownstate.name == account.get_identity().ownstate.name
     assert r.identity.export_public_key(r.peerstate.public_keyhandle)
 
 
@@ -159,8 +135,8 @@ class TestIdentities:
         account.add_identity("office", regex)
         ident = account.get_identity_from_emailadr("office@example.org")
         assert ident.ownstate.prefer_encrypt == "nopreference"
-        assert ident.config.email_regex == regex
-        assert ident.config.uuid
+        assert ident.ownstate.email_regex == regex
+        assert ident.ownstate.uuid
         assert ident.ownstate.keyhandle
         assert ident.bingpg.get_public_keydata(ident.ownstate.keyhandle)
         assert ident.bingpg.get_secret_keydata(ident.ownstate.keyhandle)
@@ -180,8 +156,8 @@ class TestIdentities:
             "default", email_regex=".*",
             gpgmode="system", gpgbin=gpgbin,
             keyhandle=ident1.ownstate.keyhandle)
-        assert ident2.config.gpgmode == "system"
-        assert ident2.config.gpgbin == gpgbin
+        assert ident2.ownstate.gpgmode == "system"
+        assert ident2.ownstate.gpgbin == gpgbin
         assert ident2.ownstate.keyhandle == ident1.ownstate.keyhandle
 
     def test_add_two(self, account):
@@ -189,9 +165,9 @@ class TestIdentities:
         account.add_identity("home", email_regex="home@example.org")
 
         ident1 = account.get_identity_from_emailadr("office@example.org")
-        assert ident1.config.name == "office"
+        assert ident1.ownstate.name == "office"
         ident2 = account.get_identity_from_emailadr("home@example.org")
-        assert ident2.config.name == "home"
+        assert ident2.ownstate.name == "home"
         ident3 = account.get_identity_from_emailadr("hqweome@example.org")
         assert ident3 is None
 
@@ -201,10 +177,10 @@ class TestIdentities:
 
         account.mod_identity("home", email_regex="newhome@example.org")
         ident1 = account.get_identity_from_emailadr("office@example.org")
-        assert ident1.config.name == "office"
+        assert ident1.ownstate.name == "office"
         assert not account.get_identity_from_emailadr("home@example.org")
         ident3 = account.get_identity_from_emailadr("newhome@example.org")
-        assert ident3.config.name == "home"
+        assert ident3.ownstate.name == "home"
 
     @pytest.mark.parametrize("pref", ["mutual", "nopreference"])
     def test_account_set_prefer_encrypt_and_header(self, account_maker, pref):
@@ -214,9 +190,9 @@ class TestIdentities:
         with pytest.raises(ValueError):
             ident.modify(prefer_encrypt="random")
         with pytest.raises(ValueError):
-            account.mod_identity(ident.config.name, prefer_encrypt="random")
+            account.mod_identity(ident.ownstate.name, prefer_encrypt="random")
 
-        account.mod_identity(ident.config.name, prefer_encrypt=pref)
+        account.mod_identity(ident.ownstate.name, prefer_encrypt=pref)
         h = account.make_header(addr)
         d = mime.parse_one_ac_header_from_string(h)
         assert d["addr"] == addr

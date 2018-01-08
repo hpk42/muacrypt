@@ -5,8 +5,6 @@
 and manipulation methods. It also contains some internal helpers
 which help to persist config and peer state.
 """
-
-
 from __future__ import unicode_literals
 
 import os
@@ -100,24 +98,6 @@ def persistent_property(name, typ, values=None):
 
 class AccountConfig(PersistentAttrMixin):
     version = persistent_property("version", six.text_type)
-
-
-class IdentityConfig(PersistentAttrMixin):
-    uuid = persistent_property("uuid", six.text_type)
-    name = persistent_property("name", six.text_type)
-    email_regex = persistent_property("email_regex", six.text_type)
-    gpgmode = persistent_property("gpgmode", six.text_type, ["system", "own"])
-    gpgbin = persistent_property("gpgbin", six.text_type)
-
-    def __init__(self, dirpath):
-        path = os.path.join(dirpath, "config.json")
-        super(IdentityConfig, self).__init__(path)
-
-    def __repr__(self):
-        return "IdentityConfig(name={})".format(self.name)
-
-    def exists(self):
-        return self.uuid
 
 
 class AccountException(Exception):
@@ -240,7 +220,7 @@ class Account(object):
     def get_identity_from_emailadr(self, emailadr, raising=False):
         """ get identity for a given email address. """
         for ident in self.list_identities():
-            if re.match(ident.config.email_regex, emailadr):
+            if re.match(ident.ownstate.email_regex, emailadr):
                 return ident
         if raising:
             raise IdentityNotFound(emailadr)
@@ -353,12 +333,11 @@ class Identity:
     it in a directory. Call create() for initializing settings."""
     def __init__(self, dir):
         self.dir = dir
-        self.config = IdentityConfig(self.dir)
         self.chain_manager = ChainManager(dir)
         self.ownstate = OwnState(self.chain_manager.get_ownchain())
 
     def __repr__(self):
-        return "Identity[{}]".format(self.config)
+        return "Identity(name={})".format(self.ownstate.name)
 
     def get_peerstate(self, addr):
         peerchain = self.chain_manager.get_peerchain(addr)
@@ -383,52 +362,51 @@ class Identity:
         assert gpgmode in ("own", "system")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
-        with self.config.atomic_change():
-            self.config.uuid = uuid.uuid4().hex
-            self.config.name = name
-            self.config.email_regex = email_regex
-            self.config.gpgbin = gpgbin
-            self.config.gpgmode = gpgmode
-            prefer_encrypt = "nopreference"
+        self.ownstate.ownchain.new_config(
+            uuid=six.text_type(uuid.uuid4().hex),
+            name=name,
+            email_regex=email_regex,
+            gpgbin=gpgbin,
+            gpgmode=gpgmode,
+            prefer_encrypt="nopreference"
+        )
+        if keyhandle is None:
+            emailadr = "{}@uuid.autocrypt.org".format(self.ownstate.uuid)
+            keyhandle = self.bingpg.gen_secret_key(emailadr)
+        else:
+            keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
             if keyhandle is None:
-                emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
-                keyhandle = self.bingpg.gen_secret_key(emailadr)
-            else:
-                keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
-                if keyhandle is None:
-                    raise ValueError("no secret key for {!r}".format(keyhandle))
-            keydata = self.bingpg.get_secret_keydata(keyhandle)
-            self.ownstate.ownchain.append_keygen(
-                entry_date=time.time(), keyhandle=keyhandle,
-                keydata=keydata, prefer_encrypt=prefer_encrypt
-            )
-        assert self.config.exists()
+                raise ValueError("no secret key for {!r}".format(keyhandle))
+        keydata = self.bingpg.get_secret_keydata(keyhandle)
+        self.ownstate.ownchain.append_keygen(
+            entry_date=time.time(), keyhandle=keyhandle,
+            keydata=keydata,
+        )
 
     def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):
-        with self.config.atomic_change():
-            if email_regex is not None:
-                self.config.email_regex = email_regex
-            if self.ownstate.prefer_encrypt != prefer_encrypt:
-                self.ownstate.ownchain.change_prefer_encrypt(prefer_encrypt)
-                return True
-            return self.config.has_changed()
+        kwargs = {}
+        if email_regex is not None:
+            kwargs["email_regex"] = email_regex
+        if prefer_encrypt is not None:
+            kwargs["prefer_encrypt"] = prefer_encrypt
+        return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
         shutil.rmtree(self.dir, ignore_errors=True)
 
     @cached_property
     def bingpg(self):
-        gpgmode = self.config.gpgmode
+        gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
             gpghome = os.path.join(self.dir, "gpghome")
         elif gpgmode == "system":
             gpghome = None
         else:
             gpghome = -1
-        if gpghome == -1 or not self.config.gpgbin:
+        if gpghome == -1 or not self.ownstate.gpgbin:
             raise NotInitialized(
                 "Account directory {!r} not initialized".format(self.dir))
-        return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
+        return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
     def make_ac_header(self, emailadr, headername="Autocrypt: "):
         return headername + mime.make_ac_header_value(
@@ -439,7 +417,8 @@ class Identity:
 
     def exists(self):
         """ return True if the identity exists. """
-        return self.config.exists()
+        return self.ownstate.ownchain.latest_config() and \
+            self.ownstate.ownchain.latest_keygen()
 
     def export_public_key(self, keyhandle=None):
         """ return armored public key of this account or the one
@@ -454,6 +433,12 @@ class Identity:
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
 
+def config_property(name):
+    def get(self):
+        return getattr(self.ownchain.latest_config(), name)
+    return property(get)
+
+
 @attrs
 class OwnState(object):
     """ Read-Only synthesized view on OwnState which contains
@@ -465,13 +450,19 @@ class OwnState(object):
             keyhandle=self.keyhandle,
         )
 
+    uuid = config_property("uuid")
+    name = config_property("name")
+    email_regex = config_property("email_regex")
+    gpgmode = config_property("gpgmode")
+    gpgbin = config_property("gpgbin")
+    prefer_encrypt = config_property("prefer_encrypt")
+
     @property
     def keyhandle(self):
         return self.ownchain.latest_keygen().keyhandle
 
-    @property
-    def prefer_encrypt(self):
-        return self.ownchain.latest_keygen().prefer_encrypt
+    def exists(self):
+        return self.uuid
 
 
 @attrs

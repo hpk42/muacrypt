@@ -292,9 +292,19 @@ class PeerChain(ClaimChainBase):
 class KeygenEntry(CCEntryBase):
     TAG = "keygen"
     entry_date = attrib_float()
-    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
     keydata = attrib_bytes_or_none()
     keyhandle = attrib_text_or_none()
+
+
+@attr.s
+class OwnConfigEntry(CCEntryBase):
+    TAG = "cfg"
+    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
+    uuid = attrib_text()
+    name = attrib_text()
+    email_regex = attrib_text()
+    gpgmode = attrib(validator=v.in_(['system', 'own']))
+    gpgbin = attrib_text()
 
 
 class OwnChain(ClaimChainBase):
@@ -304,12 +314,21 @@ class OwnChain(ClaimChainBase):
     def latest_keygen(self):
         return self.latest_entry_of(KeygenEntry)
 
-    def change_prefer_encrypt(self, prefer_encrypt):
-        # xxx we simply copy+modify the existing entry
-        # we could optimize by simply referencing the old entry
-        entry = self.latest_keygen()
-        new_entry = attr.evolve(entry, prefer_encrypt=prefer_encrypt)
-        self.append_entry(new_entry)
+    def latest_config(self):
+        return self.latest_entry_of(OwnConfigEntry)
+
+    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin, uuid):
+        self.append_entry(OwnConfigEntry(
+            name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
+            gpgmode=gpgmode, gpgbin=gpgbin, uuid=uuid,
+        ))
+
+    def change_config(self, **kwargs):
+        entry = self.latest_config()
+        new_entry = attr.evolve(entry, **kwargs)
+        if new_entry != entry:
+            self.append_entry(new_entry)
+            return True
 
 
 class ChainManager:

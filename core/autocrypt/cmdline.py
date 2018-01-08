@@ -3,7 +3,6 @@
 
 """Autocrypt Command line implementation.
 """
-
 from __future__ import print_function
 
 import os
@@ -63,7 +62,7 @@ def init(ctx, replace, no_identity):
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
     if not no_identity:
-        account.add_identity("default")
+        account.add_identity(u"default")
     _status(account)
 
 
@@ -121,7 +120,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
         identity_name, keyhandle=use_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
-    click.echo("identity added: '{}'".format(ident.config.name))
+    click.echo("identity added: '{}'".format(ident.ownstate.name))
     _status_identity(ident)
 
 
@@ -145,7 +144,7 @@ def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encryp
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
-    click.echo("identity{}modified: '{}'".format(s, ident.config.name))
+    click.echo("identity{}modified: '{}'".format(s, ident.ownstate.name))
     _status_identity(ident)
 
 
@@ -173,7 +172,7 @@ def test_email(ctx, emailadr):
     """
     account = get_account(ctx)
     ident = account.get_identity_from_emailadr(emailadr, raising=True)
-    click.echo(ident.config.name)
+    click.echo(ident.ownstate.name)
 
 
 @mycommand("make-header")
@@ -212,7 +211,7 @@ def process_incoming(ctx):
     else:
         msg = "no Autocrypt header found"
     click.echo("processed mail for identity '{}', {}".format(
-               r.identity.config.name, msg))
+               r.identity.ownstate.name, msg))
 
 
 @mycommand("process-outgoing")
@@ -270,7 +269,7 @@ def sendmail(ctx, args):
 
 
 id_option = click.option(
-    "--id", default="default", metavar="identity",
+    "--id", default=u"default", metavar="identity",
     help="perform lookup through this identity")
 
 
@@ -316,7 +315,7 @@ def _status(account):
 
 
 def _status_identity(ident):
-    ic = ident.config
+    ic = ident.ownstate
     click.echo("")
     click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
 
