@@ -115,11 +115,10 @@ class IdentityConfig(PersistentAttrMixin):
     def __init__(self, dirpath):
         path = os.path.join(dirpath, "config.json")
         super(IdentityConfig, self).__init__(path)
-        self.chain_manager = ChainManager(dirpath)
 
     def __repr__(self):
-        return "IdentityConfig(name={}, own_keyhandle={}, numpeers={})".format(
-            self.name, self.own_keyhandle, self.chain_manager.get_num_peers())
+        return "IdentityConfig(name={}, own_keyhandle={})".format(
+            self.name, self.own_keyhandle)
 
     def exists(self):
         return self.uuid
@@ -359,16 +358,17 @@ class Identity:
     def __init__(self, dir):
         self.dir = dir
         self.config = IdentityConfig(self.dir)
+        self.chain_manager = ChainManager(dir)
 
     def __repr__(self):
         return "Identity[{}]".format(self.config)
 
     def get_peerstate(self, addr):
-        peerchain = self.config.chain_manager.get_peerchain(addr)
+        peerchain = self.chain_manager.get_peerchain(addr)
         return PeerState(peerchain)
 
     def get_peername_list(self):
-        return self.config.chain_manager.get_peername_list()
+        return self.chain_manager.get_peername_list()
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
