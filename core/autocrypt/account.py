@@ -14,6 +14,7 @@ import re
 import json
 import shutil
 import six
+from attr import attrs, attrib
 import uuid
 import time
 from copy import deepcopy
@@ -128,19 +129,17 @@ class AccountException(Exception):
     """ an exception raised during method calls on an Account instance. """
 
 
+@attrs
 class NotInitialized(AccountException):
-    def __init__(self, msg):
-        super(NotInitialized, self).__init__(msg)
-        self.msg = msg
+    msg = attrib(type=six.text_type)
 
     def __str__(self):
         return "Account not initialized: {}".format(self.msg)
 
 
+@attrs
 class IdentityNotFound(AccountException):
-    def __init__(self, msg):
-        super(IdentityNotFound, self).__init__(msg)
-        self.msg = msg
+    msg = attrib(type=six.text_type)
 
     def __str__(self):
         return "IdentityNotFound: {}".format(self.msg)
@@ -165,14 +164,6 @@ class Account(object):
         :param dir:
              directory in which autocrypt will store all state
              including a gpg-managed keyring.
-        :type gpgpath: unicode
-        :param gpgpath:
-            If the path contains path separators and points
-            to an existing file we use it directly.
-            If it contains no path separators, we lookup
-            the path to the binary under the system's PATH.
-            If we can not determine an eventual binary
-            we raise ValueError.
         """
         self.dir = dir
         self.config = AccountConfig(os.path.join(self.dir, "config.json"))
@@ -313,19 +304,25 @@ class Account(object):
         peerinfo = ident.get_peerinfo(From)
         peerchain = peerinfo.peerchain
 
-        d = mime.parse_one_ac_header_from_msg(msg)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
-        if d and "addr" in d:
-            if d["addr"] == From:
-                if msg_date >= peerinfo.autocrypt_timestamp:
-                    keydata = b64decode(d["keydata"])
-                    keyhandle = ident.bingpg.import_keydata(keydata)
-                    peerchain.append_autocrypt_msg(
-                        msg_date=msg_date, keydata=keydata, keyhandle=keyhandle)
+        d = mime.parse_one_ac_header_from_msg(msg)
+        if d.get("addr") != From:
+            d = {}
+        if d:
+            if msg_date >= peerinfo.autocrypt_timestamp:
+                keydata = b64decode(d["keydata"])
+                keyhandle = ident.bingpg.import_keydata(keydata)
+                peerchain.append_autocrypt_msg(
+                    msg_date=msg_date, keydata=keydata, keyhandle=keyhandle)
         else:
             if msg_date > peerinfo.last_seen:
                 peerchain.append_non_autocrypt_msg(msg_date=msg_date)
-        return peerinfo
+        return ProcessIncomingResult(
+            msgid=msg["Message-Id"],
+            autocrypt_header=d,
+            peerinfo=peerinfo,
+            identity=ident
+        )
 
     def process_outgoing(self, msg):
         """ process outgoing mail message and add Autocrypt
@@ -361,9 +358,7 @@ class Identity:
 
     def get_peerinfo(self, addr):
         peerchain = self.config.chain_manager.get_peer_chain(addr)
-        pi = PeerInfo(peerchain)
-        pi.identity = self
-        return pi
+        return PeerInfo(peerchain)
 
     def get_peername_list(self):
         return sorted(self.config.chain_manager.heads._getheads())
@@ -458,10 +453,10 @@ class Identity:
         return self.bingpg.get_secret_keydata(self.config.own_keyhandle, armor=True)
 
 
-class PeerInfo:
+@attrs
+class PeerInfo(object):
     """ Read-Only per-peer Info as a synthesized view on PeerChains. """
-    def __init__(self, peerchain):
-        self.peerchain = peerchain
+    peerchain = attrib()
 
     def __str__(self):
         return "Peerinfo addr={addr} key={keyhandle}".format(
@@ -493,3 +488,11 @@ class PeerInfo:
         if entry:
             return entry.args[0]
         return 0.0
+
+
+@attrs
+class ProcessIncomingResult(object):
+    msgid = attrib(type=six.text_type)
+    peerinfo = attrib(type=PeerInfo)
+    identity = attrib(type=six.text_type)
+    autocrypt_header = attrib(type=six.text_type)

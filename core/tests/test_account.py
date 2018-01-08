@@ -67,8 +67,8 @@ def test_account_parse_incoming_mail_broken_ac_header(account_maker):
     msg = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt="Autocrypt: to=123; key=12312k3")
-    peerinfo = ac2.process_incoming(msg)
-    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
+    r = ac2.process_incoming(msg)
+    assert not r.autocrypt_header
 
 
 def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
@@ -78,11 +78,11 @@ def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
     msg = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac1.make_header(addr, headername=""))
-    peerinfo = ac2.process_incoming(msg)
-    assert peerinfo.addr == addr
+    r = ac2.process_incoming(msg)
+    assert r.peerinfo.addr == addr
     ident2 = ac2.get_identity()
     ident1 = ac1.get_identity()
-    enc = ident2.bingpg.encrypt(data=b"123", recipients=[peerinfo.public_keyhandle])
+    enc = ident2.bingpg.encrypt(data=b"123", recipients=[r.peerinfo.public_keyhandle])
     data, descr_info = ident1.bingpg.decrypt(enc)
     assert data == b"123"
 
@@ -95,14 +95,14 @@ def test_account_parse_incoming_mails_replace(account_maker):
     msg1 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac2.make_header(addr, headername=""))
-    peerinfo = ac1.process_incoming(msg1)
+    r = ac1.process_incoming(msg1)
     ident2 = ac2.get_identity_from_emailadr(addr)
-    assert peerinfo.public_keyhandle == ident2.config.own_keyhandle
+    assert r.peerinfo.public_keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(addr, headername=""))
-    peerinfo2 = ac1.process_incoming(msg2)
-    assert peerinfo2.public_keyhandle == ac3.get_identity().config.own_keyhandle
+    r2 = ac1.process_incoming(msg2)
+    assert r2.peerinfo.public_keyhandle == ac3.get_identity().config.own_keyhandle
 
 
 def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch):
@@ -115,8 +115,8 @@ def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch)
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date=later_date,
         Autocrypt=ac1.make_header(addr, headername=""))
-    peerinfo = ac1.process_incoming(msg1)
-    assert peerinfo.last_seen == fixed_time
+    r = ac1.process_incoming(msg1)
+    assert r.peerinfo.last_seen == fixed_time
 
 
 def test_account_parse_incoming_mails_replace_by_date(account_maker):
@@ -132,27 +132,26 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac2.make_header(addr, headername=""),
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
-    peerinfo = ac1.process_incoming(msg2)
-    id1 = peerinfo.identity
-    assert id1.get_peerinfo(addr).public_keyhandle == \
+    r = ac1.process_incoming(msg2)
+    assert r.identity.get_peerinfo(addr).public_keyhandle == \
         ac3.get_identity().config.own_keyhandle
-    ac1.process_incoming(msg1)
-    assert id1.get_peerinfo(addr).public_keyhandle == \
+    r2 = ac1.process_incoming(msg1)
+    assert r2.peerinfo.public_keyhandle == \
         ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
-    peerinfo = ac1.process_incoming(msg3)
-    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
-    peerinfo = ac1.get_identity().get_peerinfo(addr)
-    assert peerinfo.last_seen > peerinfo.autocrypt_timestamp
+    r = ac1.process_incoming(msg3)
+    assert not r.autocrypt_header
+    assert r.peerinfo.last_seen > r.peerinfo.autocrypt_timestamp
 
 
 def test_account_export_public_key(account, datadir):
     account.add_identity()
     msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
-    peerinfo = account.process_incoming(msg)
-    assert account.get_identity().export_public_key(peerinfo.public_keyhandle)
+    r = account.process_incoming(msg)
+    assert r.identity.config.name == account.get_identity().config.name
+    assert r.identity.export_public_key(r.peerinfo.public_keyhandle)
 
 
 class TestIdentities:

@@ -205,13 +205,13 @@ def process_incoming(ctx):
     """parse autocrypt headers from stdin mail. """
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    peerinfo = account.process_incoming(msg)
-    if peerinfo.autocrypt_timestamp == peerinfo.last_seen:
-        msg = "found: " + str(peerinfo)
+    r = account.process_incoming(msg)
+    if r.peerinfo.autocrypt_timestamp == r.peerinfo.last_seen:
+        msg = "found: " + str(r.peerinfo)
     else:
         msg = "no Autocrypt header found"
     click.echo("processed mail for identity '{}', {}".format(
-               peerinfo.identity.config.name, msg))
+               r.identity.config.name, msg))
 
 
 @mycommand("process-outgoing")

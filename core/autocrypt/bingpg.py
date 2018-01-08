@@ -70,6 +70,18 @@ class BinGPG(object):
     InvocationFailure = InvocationFailure
 
     def __init__(self, homedir=None, gpgpath="gpg"):
+        """
+        :type homedir: unicode or None
+        :param homedir: gpg home directory, if None system gpg homedir is used.
+        :type gpgpath: unicode
+        :param gpgpath:
+            If the path contains path separators and points
+            to an existing file we use it directly.
+            If it contains no path separators, we lookup
+            the path to the binary under the system's PATH.
+            If we can not determine an eventual binary
+            we raise ValueError.
+        """
         self.homedir = homedir
         p = find_executable(gpgpath)
         if p is None:

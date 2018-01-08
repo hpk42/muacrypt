@@ -34,7 +34,7 @@ def main():
             [console_scripts]
             autocrypt=autocrypt.cmdline:autocrypt_main
         ''',
-        install_requires = ["click>=6.0", "six"],
+        install_requires = ["click>=6.0", "six", "attrs"],
         zip_safe=False,
     )
 
