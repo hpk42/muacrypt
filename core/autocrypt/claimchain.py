@@ -254,7 +254,7 @@ class ChainManager:
     def get_block(self, cid):
         return self.blocks.get_block(cid)
 
-    def get_peer_chain(self, ident):
+    def get_peerchain(self, ident):
         return PeerChain(self.blocks, self.heads, ident)
 
 

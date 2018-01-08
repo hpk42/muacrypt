@@ -68,7 +68,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
     r = account.process_incoming(msg, delivto=delivto)
     with log.s("processing your mail through py-autocrypt:"):
         if r.autocrypt_header:
-            status = "found:\n" + str(r.peerinfo)
+            status = "found:\n" + str(r.peerstate)
         else:
             status = "no Autocrypt header found."
         log("processed incoming mail for identity '{}', {}".format(

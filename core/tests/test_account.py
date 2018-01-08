@@ -79,10 +79,10 @@ def test_account_parse_incoming_mail_and_raw_encrypt(account_maker):
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac1.make_header(addr, headername=""))
     r = ac2.process_incoming(msg)
-    assert r.peerinfo.addr == addr
+    assert r.peerstate.addr == addr
     ident2 = ac2.get_identity()
     ident1 = ac1.get_identity()
-    enc = ident2.bingpg.encrypt(data=b"123", recipients=[r.peerinfo.public_keyhandle])
+    enc = ident2.bingpg.encrypt(data=b"123", recipients=[r.peerstate.public_keyhandle])
     data, descr_info = ident1.bingpg.decrypt(enc)
     assert data == b"123"
 
@@ -97,12 +97,12 @@ def test_account_parse_incoming_mails_replace(account_maker):
         Autocrypt=ac2.make_header(addr, headername=""))
     r = ac1.process_incoming(msg1)
     ident2 = ac2.get_identity_from_emailadr(addr)
-    assert r.peerinfo.public_keyhandle == ident2.config.own_keyhandle
+    assert r.peerstate.public_keyhandle == ident2.config.own_keyhandle
     msg2 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Autocrypt=ac3.make_header(addr, headername=""))
     r2 = ac1.process_incoming(msg2)
-    assert r2.peerinfo.public_keyhandle == ac3.get_identity().config.own_keyhandle
+    assert r2.peerstate.public_keyhandle == ac3.get_identity().config.own_keyhandle
 
 
 def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch):
@@ -116,7 +116,7 @@ def test_account_parse_incoming_mails_effective_date(account_maker, monkeypatch)
         Date=later_date,
         Autocrypt=ac1.make_header(addr, headername=""))
     r = ac1.process_incoming(msg1)
-    assert r.peerinfo.last_seen == fixed_time
+    assert r.peerstate.last_seen == fixed_time
 
 
 def test_account_parse_incoming_mails_replace_by_date(account_maker):
@@ -133,17 +133,17 @@ def test_account_parse_incoming_mails_replace_by_date(account_maker):
         Autocrypt=ac2.make_header(addr, headername=""),
         Date='Thu, 16 Feb 2017 13:00:00 -0000')
     r = ac1.process_incoming(msg2)
-    assert r.identity.get_peerinfo(addr).public_keyhandle == \
+    assert r.identity.get_peerstate(addr).public_keyhandle == \
         ac3.get_identity().config.own_keyhandle
     r2 = ac1.process_incoming(msg1)
-    assert r2.peerinfo.public_keyhandle == \
+    assert r2.peerstate.public_keyhandle == \
         ac3.get_identity().config.own_keyhandle
     msg3 = mime.gen_mail_msg(
         From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
         Date='Thu, 16 Feb 2017 17:00:00 -0000')
     r = ac1.process_incoming(msg3)
     assert not r.autocrypt_header
-    assert r.peerinfo.last_seen > r.peerinfo.autocrypt_timestamp
+    assert r.peerstate.last_seen > r.peerstate.autocrypt_timestamp
 
 
 def test_account_export_public_key(account, datadir):
@@ -151,7 +151,7 @@ def test_account_export_public_key(account, datadir):
     msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
     r = account.process_incoming(msg)
     assert r.identity.config.name == account.get_identity().config.name
-    assert r.identity.export_public_key(r.peerinfo.public_keyhandle)
+    assert r.identity.export_public_key(r.peerstate.public_keyhandle)
 
 
 class TestIdentities:

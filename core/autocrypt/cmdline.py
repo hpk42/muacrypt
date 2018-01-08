@@ -206,8 +206,8 @@ def process_incoming(ctx):
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     r = account.process_incoming(msg)
-    if r.peerinfo.autocrypt_timestamp == r.peerinfo.last_seen:
-        msg = "found: " + str(r.peerinfo)
+    if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
+        msg = "found: " + str(r.peerstate)
     else:
         msg = "no Autocrypt header found"
     click.echo("processed mail for identity '{}', {}".format(
@@ -349,7 +349,7 @@ def _status_identity(ident):
     if peernames:
         click.echo("  ----peers-----")
         for name in peernames:
-            pi = ident.get_peerinfo(name)
+            pi = ident.get_peerstate(name)
             click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
                        to=pi.addr, keyhandle=pi.public_keyhandle,
                        bytes=len(pi.public_keydata),

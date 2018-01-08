@@ -130,18 +130,18 @@ class TestChainManager:
         assert block2 == block
 
     def test_get_peerchain_empty(self, cm):
-        peer_chain = cm.get_peer_chain("name1@123")
-        assert peer_chain.is_empty()
+        peerchain = cm.get_peerchain("name1@123")
+        assert peerchain.is_empty()
 
     def test_get_peerchain_add_entries(self, cm):
-        peer_chain = cm.get_peer_chain("name1@123")
-        b1 = peer_chain.append_autocrypt_msg(
+        peerchain = cm.get_peerchain("name1@123")
+        b1 = peerchain.append_autocrypt_msg(
             msg_date=17.0, keydata=b'123', keyhandle=b'4567')
         assert b1.args[0] == 17.0
         assert b1.args[1] == b'123'
         assert b1.args[2] == b'4567'
 
-        b2 = peer_chain.append_non_autocrypt_msg(msg_date=50.0)
+        b2 = peerchain.append_non_autocrypt_msg(msg_date=50.0)
         assert b2.args[0] == 50.0
 
-        assert peer_chain.get_last_ac_entry().msg_date == 17.0
+        assert peerchain.get_last_ac_entry().msg_date == 17.0

@@ -292,7 +292,7 @@ class Account(object):
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerInfo
+        :rtype: PeerState
         """
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
@@ -301,26 +301,26 @@ class Account(object):
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
-        peerinfo = ident.get_peerinfo(From)
-        peerchain = peerinfo.peerchain
+        peerstate = ident.get_peerstate(From)
+        peerchain = peerstate.peerchain
 
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         d = mime.parse_one_ac_header_from_msg(msg)
         if d.get("addr") != From:
             d = {}
         if d:
-            if msg_date >= peerinfo.autocrypt_timestamp:
+            if msg_date >= peerstate.autocrypt_timestamp:
                 keydata = b64decode(d["keydata"])
                 keyhandle = ident.bingpg.import_keydata(keydata)
                 peerchain.append_autocrypt_msg(
                     msg_date=msg_date, keydata=keydata, keyhandle=keyhandle)
         else:
-            if msg_date > peerinfo.last_seen:
+            if msg_date > peerstate.last_seen:
                 peerchain.append_non_autocrypt_msg(msg_date=msg_date)
         return ProcessIncomingResult(
             msgid=msg["Message-Id"],
             autocrypt_header=d,
-            peerinfo=peerinfo,
+            peerstate=peerstate,
             identity=ident
         )
 
@@ -330,7 +330,7 @@ class Account(object):
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerInfo
+        :rtype: PeerState
         """
         from .cmdline_utils import log_info
         _, addr = mime.parse_email_addr(msg["From"])
@@ -356,9 +356,9 @@ class Identity:
     def __repr__(self):
         return "Identity[{}]".format(self.config)
 
-    def get_peerinfo(self, addr):
-        peerchain = self.config.chain_manager.get_peer_chain(addr)
-        return PeerInfo(peerchain)
+    def get_peerstate(self, addr):
+        peerchain = self.config.chain_manager.get_peerchain(addr)
+        return PeerState(peerchain)
 
     def get_peername_list(self):
         return sorted(self.config.chain_manager.heads._getheads())
@@ -454,22 +454,15 @@ class Identity:
 
 
 @attrs
-class PeerInfo(object):
-    """ Read-Only per-peer Info as a synthesized view on PeerChains. """
+class PeerState(object):
+    """ Read-Only synthesized view on PeerChains which link all
+    message parsing results for a given peer. """
     peerchain = attrib()
 
     def __str__(self):
         return "Peerinfo addr={addr} key={keyhandle}".format(
             addr=self.addr, keyhandle=self.public_keyhandle
         )
-
-    @property
-    def public_keyhandle(self):
-        return self.peerchain.get_last_ac_entry().keyhandle
-
-    @property
-    def public_keydata(self):
-        return self.peerchain.get_last_ac_entry().keydata
 
     @property
     def addr(self):
@@ -489,10 +482,19 @@ class PeerInfo(object):
             return entry.args[0]
         return 0.0
 
+    @property
+    def public_keyhandle(self):
+        return self.peerchain.get_last_ac_entry().keyhandle
+
+    @property
+    def public_keydata(self):
+        return self.peerchain.get_last_ac_entry().keydata
+
+
 
 @attrs
 class ProcessIncomingResult(object):
     msgid = attrib(type=six.text_type)
-    peerinfo = attrib(type=PeerInfo)
+    peerstate = attrib(type=PeerState)
     identity = attrib(type=six.text_type)
     autocrypt_header = attrib(type=six.text_type)
