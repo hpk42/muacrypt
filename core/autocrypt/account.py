@@ -305,6 +305,7 @@ class Account(object):
         peerchain = peerstate.peerchain
 
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
+        msg_id = six.text_type(msg["Message-Id"])
         d = mime.parse_one_ac_header_from_msg(msg)
         if d.get("addr") != From:
             d = {}
@@ -312,13 +313,19 @@ class Account(object):
             if msg_date >= peerstate.autocrypt_timestamp:
                 keydata = b64decode(d["keydata"])
                 keyhandle = ident.bingpg.import_keydata(keydata)
-                peerchain.append_autocrypt_msg(
-                    msg_date=msg_date, keydata=keydata, keyhandle=keyhandle)
+                peerchain.append_ac_entry(
+                    msg_id=msg_id, msg_date=msg_date,
+                    prefer_encrypt=d["prefer-encrypt"],
+                    keydata=keydata, keyhandle=keyhandle
+                )
         else:
             if msg_date > peerstate.last_seen:
-                peerchain.append_non_autocrypt_msg(msg_date=msg_date)
+                peerchain.append_noac_entry(
+                    msg_id=msg_id, msg_date=msg_date
+                )
+
         return ProcessIncomingResult(
-            msgid=msg["Message-Id"],
+            msgid=msg_id,
             autocrypt_header=d,
             peerstate=peerstate,
             identity=ident
@@ -361,7 +368,7 @@ class Identity:
         return PeerState(peerchain)
 
     def get_peername_list(self):
-        return sorted(self.config.chain_manager.heads._getheads())
+        return self.config.chain_manager.get_peername_list()
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -469,27 +476,20 @@ class PeerState(object):
         return self.peerchain.ident
 
     @property
-    def autocrypt_timestamp(self):
-        entry = self.peerchain.get_last_ac_entry()
-        if entry:
-            return entry.msg_date
-        return 0.0
+    def last_seen(self):
+        return getattr(self.peerchain.latest_msg_entry(), "msg_date", 0.0)
 
     @property
-    def last_seen(self):
-        entry = self.peerchain.get_head_block()
-        if entry:
-            return entry.args[0]
-        return 0.0
+    def autocrypt_timestamp(self):
+        return getattr(self.peerchain.latest_ac_entry(), "msg_date", 0.0)
 
     @property
     def public_keyhandle(self):
-        return self.peerchain.get_last_ac_entry().keyhandle
+        return getattr(self.peerchain.latest_ac_entry(), "keyhandle", None)
 
     @property
     def public_keydata(self):
-        return self.peerchain.get_last_ac_entry().keydata
-
+        return getattr(self.peerchain.latest_ac_entry(), "keydata", None)
 
 
 @attrs

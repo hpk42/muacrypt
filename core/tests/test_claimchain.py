@@ -120,28 +120,33 @@ class TestChainManager:
     def cm(self, tmpdir):
         return ChainManager(tmpdir.strpath)
 
-    def test_empty(self, cm):
-        assert cm.get_head_block("something") is None
-
-    def test_something(self, cm):
-        block = cm.blocks.store_block("type0", [])
-        cm.heads.upsert("mychain", cid=block)
-        block2 = cm.get_head_block("mychain")
-        assert block2 == block
-
     def test_get_peerchain_empty(self, cm):
         peerchain = cm.get_peerchain("name1@123")
         assert peerchain.is_empty()
 
     def test_get_peerchain_add_entries(self, cm):
         peerchain = cm.get_peerchain("name1@123")
-        b1 = peerchain.append_autocrypt_msg(
-            msg_date=17.0, keydata=b'123', keyhandle=b'4567')
-        assert b1.args[0] == 17.0
-        assert b1.args[1] == b'123'
-        assert b1.args[2] == b'4567'
+        b1 = peerchain.append_ac_entry(
+            msg_id='hello', msg_date=17.0, prefer_encrypt='nopreference',
+            keydata=b'123', keyhandle='4567'
+        )
+        assert b1.args[0] == 'hello'
+        assert b1.args[1] == 17.0
+        assert b1.args[2] == 'nopreference'
+        assert b1.args[3] == b'123'
+        assert b1.args[4] == '4567'
 
-        b2 = peerchain.append_non_autocrypt_msg(msg_date=50.0)
-        assert b2.args[0] == 50.0
+        b2 = peerchain.append_noac_entry(
+            msg_id='world', msg_date=50.0
+        )
+        assert b2.args[0] == 'world'
+        assert b2.args[1] == 50.0
 
-        assert peerchain.get_last_ac_entry().msg_date == 17.0
+        assert peerchain.latest_ac_entry().msg_date == 17.0
+        assert peerchain.latest_msg_entry().msg_date == 50.0
+        peerchain.append_ac_entry(
+            msg_id='hello', msg_date=70.0, prefer_encrypt='nopreference',
+            keydata=b'123', keyhandle='4567'
+        )
+        assert peerchain.latest_msg_entry().msg_date == 70.0
+        assert peerchain.latest_ac_entry().msg_date == 70.0

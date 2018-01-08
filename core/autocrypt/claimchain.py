@@ -45,6 +45,10 @@ import time
 import marshal
 import hashlib
 from pprint import pprint
+from .myattr import (
+    v, attr, attrib, attrib_text, attrib_text_or_none,
+    attrib_bytes_or_none, attrib_float,
+)
 from autocrypt import mime
 
 
@@ -140,7 +144,11 @@ class HeadTracker:
             marshal.dump(heads, f)
 
 
-class ClaimChainBase:
+class CCEntryBase(object):
+    pass
+
+
+class ClaimChainBase(object):
     """ A ClaimChain maintains an append-only log where each entry
     in the chain has its own content-based address so that claimchains
     can cross-reference entries within each other.  Each entry in a chain
@@ -152,6 +160,7 @@ class ClaimChainBase:
     - oob_verification: identity, verified-head of this identity)
 
     """
+
     def __init__(self, blockservice, headtracker, ident):
         self._bs = blockservice
         self._ht = headtracker
@@ -173,6 +182,11 @@ class ClaimChainBase:
         self._ht.upsert(self.ident, block.cid)
         return block
 
+    def append_entry(self, entry):
+        assert isinstance(entry, CCEntryBase)
+        args = attr.astuple(entry)
+        return self.append_block(entry.TAG, args)
+
     def get_head_block(self):
         head_cid = self._ht.get_head_cid(self.ident)
         if head_cid:
@@ -185,6 +199,19 @@ class ClaimChainBase:
             for x in head_block:
                 if type is None or x.type == type:
                     yield x
+
+    def iter_entries(self, types):
+        if not isinstance(types, (list, tuple)):
+            tags = {types.TAG: types}
+        else:
+            tags = dict((x.TAG, x) for x in types)
+        for block in self.iter_blocks():
+            if block and block.type in tags:
+                yield tags[block.type](*block.args)
+
+    def latest_entry_of(self, entryclass):
+        for entry in self.iter_entries(entryclass):
+            return entry
 
     def num_blocks(self):
         return len(list(self.iter_blocks()))
@@ -216,23 +243,45 @@ class ClaimChain(ClaimChainBase):
                 return True
 
 
+# ====================================
+# PeerChains
+# ====================================
+
+@attr.s
+class MsgEntryAC(CCEntryBase):
+    TAG = "msgac"
+    msg_id = attrib_text()
+    msg_date = attrib_float()
+    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
+    keydata = attrib_bytes_or_none()
+    keyhandle = attrib_text_or_none()
+
+
+@attr.s
+class MsgEntryNOAC(CCEntryBase):
+    TAG = "msgno"
+    msg_id = attrib_text()
+    msg_date = attrib_float()
+
+
 class PeerChain(ClaimChainBase):
-    def append_autocrypt_msg(self, msg_date, keydata, keyhandle):
-        return self.append_block("msg_ac", [msg_date, keydata, keyhandle])
+    def latest_ac_entry(self):
+        """ Return latest message with autocrypt header. """
+        return self.latest_entry_of(MsgEntryAC)
 
-    def append_non_autocrypt_msg(self, msg_date):
-        return self.append_block("msg_no", [msg_date])
+    def latest_msg_entry(self):
+        """ Return latest message with or without autocrypt header. """
+        return self.latest_entry_of((MsgEntryAC, MsgEntryNOAC))
 
-    def get_last_ac_entry(self):
-        for block in self.iter_blocks("msg_ac"):
-            return AC_Entry(*block.args)
+    def append_ac_entry(self, **kwargs):
+        """append an Autocrypt message entry. """
+        entry = MsgEntryAC(**kwargs)
+        return self.append_entry(entry)
 
-
-class AC_Entry:
-    def __init__(self, msg_date, keydata, keyhandle):
-        self.msg_date = msg_date
-        self.keydata = keydata
-        self.keyhandle = keyhandle
+    def append_noac_entry(self, **kwargs):
+        """append a non-Autocrypt message entry. """
+        entry = MsgEntryNOAC(**kwargs)
+        return self.append_entry(entry)
 
 
 class ChainManager:
@@ -246,13 +295,8 @@ class ChainManager:
     def get_num_peers(self):
         return len(self.heads._getheads())
 
-    def get_head_block(self, ident):
-        cid = self.heads.get_head_cid(ident)
-        if cid:
-            return self.get_block(cid)
-
-    def get_block(self, cid):
-        return self.blocks.get_block(cid)
+    def get_peername_list(self):
+        return sorted(self.heads._getheads())
 
     def get_peerchain(self, ident):
         return PeerChain(self.blocks, self.heads, ident)
