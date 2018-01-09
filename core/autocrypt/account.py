@@ -256,9 +256,13 @@ class Account(object):
 
 
 class Identity:
-    """ An Identity manages all Autocrypt settings and keys for a peer.
-    Call create() for initializing settings."""
+    """ An Identity manages all Autocrypt settings (both own keys and
+    settings as well as per-peer ones derived from Autocrypt headers).
+    """
+
     def __init__(self, store, name):
+        """ shallo initializer. Call create() for initializing this
+        identity. exists() tells whether that has happened already. """
         self.name = name
         self.store = store
         self.ownstate = self.store.get_ownstate(name)
