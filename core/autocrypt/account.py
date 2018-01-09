@@ -7,17 +7,13 @@ which help to persist config and peer state.
 """
 from __future__ import unicode_literals
 
-import os
 import re
-import json
 import shutil
 import six
 from attr import attrs, attrib
 import uuid
 import time
-from copy import deepcopy
 from .bingpg import cached_property, BinGPG
-from contextlib import contextmanager
 from base64 import b64decode
 from . import mime
 from .claimchain import ChainManager
@@ -31,73 +27,6 @@ def parse_date_to_float(date):
 def effective_date(date):
     assert isinstance(date, float)
     return min(date, time.time())
-
-
-class PersistentAttrMixin(object):
-    def __init__(self, path):
-        self._path = path
-        self._dict_old = {}
-
-    @cached_property
-    def _dict(self):
-        if os.path.exists(self._path):
-            with open(self._path, "r") as f:
-                d = json.load(f)
-        else:
-            d = {}
-        self._dict_old = deepcopy(d)
-        return d
-
-    # def _reload(self):
-    #    try:
-    #        self._property_cache.pop("_dict")
-    #    except AttributeError:
-    #        pass
-
-    def has_changed(self):
-        return self._dict != self._dict_old
-
-    def _commit(self):
-        if self.has_changed():
-            with open(self._path, "w") as f:
-                json.dump(self._dict, f)
-            self._dict_old = deepcopy(self._dict)
-            return True
-
-    def exists(self):
-        return os.path.exists(self._path)
-
-    @contextmanager
-    def atomic_change(self):
-        # XXX allow multi-read/single-write multi-process concurrency model
-        # by doing some file locking or using sqlite or something.
-        try:
-            yield
-        except Exception:
-            self._dict = deepcopy(self._dict_old)
-            raise
-        else:
-            self._commit()
-
-
-def persistent_property(name, typ, values=None):
-    def get(self):
-        return self._dict.setdefault(name, typ())
-
-    def set(self, value):
-        if not isinstance(value, typ):
-            if not (typ == six.text_type and isinstance(value, bytes)):
-                raise TypeError(value)
-            value = value.decode("ascii")
-        if values is not None and value not in values:
-            raise ValueError("can only set to one of %r" % values)
-        self._dict[name] = value
-
-    return property(get, set)
-
-
-class AccountConfig(PersistentAttrMixin):
-    version = persistent_property("version", six.text_type)
 
 
 class AccountException(Exception):
@@ -141,30 +70,25 @@ class Account(object):
              including a gpg-managed keyring.
         """
         self.dir = dir
-        self.config = AccountConfig(os.path.join(self.dir, "config.json"))
-        self._idpath = os.path.join(self.dir, "id")
+        self.chain_manager = ChainManager(dir)
+        self.accountstate = AccountState(self.chain_manager.get_accountchain())
 
     def init(self):
-        assert not self.config.exists()
-        with self.config.atomic_change():
-            self.config.version = "0.1"
-        os.mkdir(self._idpath)
+        assert self.accountstate.version is None
+        self.accountstate.accountchain.set_version("0.1")
 
     def exists(self):
-        return self.config.exists()
+        return self.accountstate.version is not None
 
     def get_identity(self, id_name="default", check=True):
         assert id_name.isalnum(), id_name
-        ident = Identity(os.path.join(self._idpath, id_name))
+        ident = Identity(self.chain_manager, id_name)
         if check and not ident.exists():
             raise IdentityNotFound("identity {!r} not known".format(id_name))
         return ident
 
     def list_identity_names(self):
-        try:
-            return [x for x in os.listdir(self._idpath) if x[0] != "."]
-        except OSError:
-            return []
+        return self.chain_manager.get_identity_names()
 
     def list_identities(self):
         return [self.get_identity(x) for x in self.list_identity_names()]
@@ -230,6 +154,8 @@ class Account(object):
         to empty.  You need to add identities to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
+        self.chain_manager = ChainManager(self.dir)
+        self.accountstate = AccountState(self.chain_manager.get_accountchain())
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -331,20 +257,20 @@ class Account(object):
 class Identity:
     """ An Identity manages all Autocrypt settings and keys for a peer and stores
     it in a directory. Call create() for initializing settings."""
-    def __init__(self, dir):
-        self.dir = dir
-        self.chain_manager = ChainManager(dir)
-        self.ownstate = OwnState(self.chain_manager.get_ownchain())
+    def __init__(self, chain_manager, name):
+        self.name = name
+        self.chain_manager = chain_manager
+        self.ownstate = OwnState(self.chain_manager.get_ownchain(name))
 
     def __repr__(self):
-        return "Identity(name={})".format(self.ownstate.name)
+        return "Identity(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        peerchain = self.chain_manager.get_peerchain(addr)
+        peerchain = self.chain_manager.get_peerchain(self.name, addr)
         return PeerState(peerchain)
 
     def get_peername_list(self):
-        return self.chain_manager.get_peername_list()
+        return self.chain_manager.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -360,8 +286,6 @@ class Identity:
                         in the user's system GnuPG keyring.
         """
         assert gpgmode in ("own", "system")
-        if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
         self.ownstate.ownchain.new_config(
             uuid=six.text_type(uuid.uuid4().hex),
             name=name,
@@ -392,13 +316,13 @@ class Identity:
         return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
-        shutil.rmtree(self.dir, ignore_errors=True)
+        self.chain_manager.remove_identity(self.name)
 
     @cached_property
     def bingpg(self):
         gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = os.path.join(self.dir, "gpghome")
+            gpghome = self.chain_manager.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:
@@ -440,6 +364,19 @@ def config_property(name):
 
 
 @attrs
+class AccountState(object):
+    """ Read-Only synthesized AccountState view. """
+    accountchain = attrib()
+
+    @property
+    def version(self):
+        return getattr(self.accountchain.latest_config(), "version", None)
+
+    def __str__(self):
+        return "AccountState version={version}".format(version=self.version)
+
+
+@attrs
 class OwnState(object):
     """ Read-Only synthesized view on OwnState which contains
     our own account state. """
@@ -478,7 +415,7 @@ class PeerState(object):
 
     @property
     def addr(self):
-        return self.peerchain.ident
+        return self.peerchain.ident.split(":", 2)[-1]
 
     @property
     def last_seen(self):

@@ -57,7 +57,7 @@ def init(ctx, replace, no_identity):
         else:
             out_red("deleting account directory: {}".format(account.dir))
             account.remove()
-    if not os.path.exists(account.dir):
+    if not os.path.isdir(account.dir):
         os.mkdir(account.dir)
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
@@ -120,7 +120,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
         identity_name, keyhandle=use_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
-    click.echo("identity added: '{}'".format(ident.ownstate.name))
+    click.echo("identity added: '{}'".format(ident.name))
     _status_identity(ident)
 
 
@@ -144,7 +144,7 @@ def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encryp
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
-    click.echo("identity{}modified: '{}'".format(s, ident.ownstate.name))
+    click.echo("identity{}modified: '{}'".format(s, ident.name))
     _status_identity(ident)
 
 
@@ -172,7 +172,7 @@ def test_email(ctx, emailadr):
     """
     account = get_account(ctx)
     ident = account.get_identity_from_emailadr(emailadr, raising=True)
-    click.echo(ident.ownstate.name)
+    click.echo(ident.name)
 
 
 @mycommand("make-header")
@@ -211,7 +211,7 @@ def process_incoming(ctx):
     else:
         msg = "no Autocrypt header found"
     click.echo("processed mail for identity '{}', {}".format(
-               r.identity.ownstate.name, msg))
+               r.identity.name, msg))
 
 
 @mycommand("process-outgoing")

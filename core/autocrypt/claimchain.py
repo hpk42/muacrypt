@@ -129,11 +129,21 @@ class HeadTracker:
         heads = self._getheads()
         return heads.get(ident)
 
-    def _getheads(self):
+    def _getheads(self, prefix=""):
         if os.path.exists(self._path):
             with open(self._path, "rb") as f:
-                return marshal.load(f)
+                d = marshal.load(f)
+                if prefix:
+                    d = dict((x[len(prefix):], y) for x, y in d.items()
+                             if x.startswith(prefix))
+                return d
         return {}
+
+    def remove_if(self, cal):
+        heads = self._getheads()
+        filtered = dict((x, y) for x, y in heads.items() if not cal(x, y))
+        with open(self._path, "wb") as f:
+            marshal.dump(filtered, f)
 
     def upsert(self, ident, cid):
         if isinstance(cid, Block):
@@ -331,25 +341,70 @@ class OwnChain(ClaimChainBase):
             return True
 
 
+# =================================================
+# AccountChain keeps track of account modifications
+# =================================================
+
+@attr.s
+class AConfigEntry(CCEntryBase):
+    TAG = "acfg"
+    version = attrib_text()
+
+
+class AccountChain(ClaimChainBase):
+    def set_version(self, version):
+        assert not self.latest_config()
+        return self.append_entry(AConfigEntry(version=version))
+
+    def latest_config(self):
+        return self.latest_entry_of(AConfigEntry)
+
+
 class ChainManager:
+    _account_pat = "."
+    _own_pat = "own:{id}"
+    _peer_pat = "peer:{id}:{addr}"
+
     def __init__(self, dirpath):
+        self.dirpath = dirpath
         blockdir = os.path.join(dirpath, "blocks")
         if not os.path.exists(blockdir):
             os.makedirs(blockdir)
         self.heads = HeadTracker(os.path.join(dirpath, "heads"))
         self.blocks = BlockService(blockdir)
 
-    def get_num_peers(self):
-        return len(self.heads._getheads())
+    def get_accountchain(self):
+        return AccountChain(self.blocks, self.heads, self._account_pat)
 
-    def get_peername_list(self):
-        return sorted(x for x in self.heads._getheads() if x != ".")
+    def get_identity_names(self):
+        return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
 
-    def get_peerchain(self, ident):
-        return PeerChain(self.blocks, self.heads, ident)
+    def get_num_peers(self, ident):
+        return len(self.get_peername_list())
 
-    def get_ownchain(self):
-        return OwnChain(self.blocks, self.heads, ".")
+    def get_peername_list(self, id_name):
+        prefix = self._peer_pat.format(id=id_name, addr="")
+        return sorted(self.heads._getheads(prefix=prefix))
+
+    def get_peerchain(self, id_name, addr):
+        # XXX encode addr?
+        assert addr.encode("ascii"), addr
+        head_name = self._peer_pat.format(id=id_name, addr=addr)
+        return PeerChain(self.blocks, self.heads, head_name)
+
+    def get_ownchain(self, id_name):
+        head_name = self._own_pat.format(id=id_name)
+        return OwnChain(self.blocks, self.heads, head_name)
+
+    def get_own_gpghome(self, id_name):
+        return os.path.join(self.dirpath, "gpg", id_name)
+
+    def remove_identity(self, id_name):
+        def match_ident(key, value):
+            l = key.split(":", 2)
+            if l[0] in ("own", "peer") and l[1] == id_name:
+                return True
+        self.heads.remove_if(match_ident)
 
 
 def shortrepr(obj):

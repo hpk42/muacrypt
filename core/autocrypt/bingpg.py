@@ -103,7 +103,7 @@ class BinGPG(object):
 
         if not os.path.exists(self.homedir):
             # we create the dir if the basedir exists, otherwise we fail
-            os.mkdir(self.homedir)
+            os.makedirs(self.homedir)
             os.chmod(self.homedir, 0o700)
 
         # fix bad defaults for certain gpg2 versions

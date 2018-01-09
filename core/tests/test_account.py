@@ -125,7 +125,7 @@ def test_account_export_public_key(account, datadir):
     account.add_identity()
     msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
     r = account.process_incoming(msg)
-    assert r.identity.ownstate.name == account.get_identity().ownstate.name
+    assert r.identity.name == account.get_identity().name
     assert r.identity.export_public_key(r.peerstate.public_keyhandle)
 
 
@@ -165,9 +165,9 @@ class TestIdentities:
         account.add_identity("home", email_regex="home@example.org")
 
         ident1 = account.get_identity_from_emailadr("office@example.org")
-        assert ident1.ownstate.name == "office"
+        assert ident1.name == "office"
         ident2 = account.get_identity_from_emailadr("home@example.org")
-        assert ident2.ownstate.name == "home"
+        assert ident2.name == "home"
         ident3 = account.get_identity_from_emailadr("hqweome@example.org")
         assert ident3 is None
 
@@ -177,10 +177,10 @@ class TestIdentities:
 
         account.mod_identity("home", email_regex="newhome@example.org")
         ident1 = account.get_identity_from_emailadr("office@example.org")
-        assert ident1.ownstate.name == "office"
+        assert ident1.name == "office"
         assert not account.get_identity_from_emailadr("home@example.org")
         ident3 = account.get_identity_from_emailadr("newhome@example.org")
-        assert ident3.ownstate.name == "home"
+        assert ident3.name == "home"
 
     @pytest.mark.parametrize("pref", ["mutual", "nopreference"])
     def test_account_set_prefer_encrypt_and_header(self, account_maker, pref):
@@ -190,9 +190,9 @@ class TestIdentities:
         with pytest.raises(ValueError):
             ident.modify(prefer_encrypt="random")
         with pytest.raises(ValueError):
-            account.mod_identity(ident.ownstate.name, prefer_encrypt="random")
+            account.mod_identity(ident.name, prefer_encrypt="random")
 
-        account.mod_identity(ident.ownstate.name, prefer_encrypt=pref)
+        account.mod_identity(ident.name, prefer_encrypt=pref)
         h = account.make_header(addr)
         d = mime.parse_one_ac_header_from_string(h)
         assert d["addr"] == addr

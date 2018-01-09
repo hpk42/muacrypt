@@ -121,11 +121,11 @@ class TestChainManager:
         return ChainManager(tmpdir.strpath)
 
     def test_get_peerchain_empty(self, cm):
-        peerchain = cm.get_peerchain("name1@123")
+        peerchain = cm.get_peerchain("id1", "name1@123")
         assert peerchain.is_empty()
 
     def test_get_peerchain_add_entries(self, cm):
-        peerchain = cm.get_peerchain("name1@123")
+        peerchain = cm.get_peerchain("id1", "name1@123")
         b1 = peerchain.append_ac_entry(
             msg_id='hello', msg_date=17.0, prefer_encrypt='nopreference',
             keydata=b'123', keyhandle='4567'

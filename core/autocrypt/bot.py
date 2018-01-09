@@ -72,7 +72,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         else:
             status = "no Autocrypt header found."
         log("processed incoming mail for identity '{}', {}".format(
-            r.identity.ownstate.name, status))
+            r.identity.name, status))
 
     log("\n")
     log("have a nice day, {}".format(delivto))
