@@ -360,7 +360,7 @@ class AccountChain(ClaimChainBase):
         return self.latest_entry_of(AConfigEntry)
 
 
-class ChainManager:
+class ACStore:
     _account_pat = "."
     _own_pat = "own:{id}"
     _peer_pat = "peer:{id}:{addr}"

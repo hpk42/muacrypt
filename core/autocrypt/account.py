@@ -16,7 +16,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from base64 import b64decode
 from . import mime
-from .claimchain import ChainManager
+from .claimchain import ACStore
 import email.utils
 
 
@@ -70,8 +70,8 @@ class Account(object):
              including a gpg-managed keyring.
         """
         self.dir = dir
-        self.chain_manager = ChainManager(dir)
-        self.accountstate = AccountState(self.chain_manager.get_accountchain())
+        self.acstore = ACStore(dir)
+        self.accountstate = AccountState(self.acstore.get_accountchain())
 
     def init(self):
         assert self.accountstate.version is None
@@ -82,13 +82,13 @@ class Account(object):
 
     def get_identity(self, id_name="default", check=True):
         assert id_name.isalnum(), id_name
-        ident = Identity(self.chain_manager, id_name)
+        ident = Identity(self.acstore, id_name)
         if check and not ident.exists():
             raise IdentityNotFound("identity {!r} not known".format(id_name))
         return ident
 
     def list_identity_names(self):
-        return self.chain_manager.get_identity_names()
+        return self.acstore.get_identity_names()
 
     def list_identities(self):
         return [self.get_identity(x) for x in self.list_identity_names()]
@@ -154,8 +154,8 @@ class Account(object):
         to empty.  You need to add identities to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
-        self.chain_manager = ChainManager(self.dir)
-        self.accountstate = AccountState(self.chain_manager.get_accountchain())
+        self.acstore = ACStore(self.dir)
+        self.accountstate = AccountState(self.acstore.get_accountchain())
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -255,22 +255,22 @@ class Account(object):
 
 
 class Identity:
-    """ An Identity manages all Autocrypt settings and keys for a peer and stores
-    it in a directory. Call create() for initializing settings."""
-    def __init__(self, chain_manager, name):
+    """ An Identity manages all Autocrypt settings and keys for a peer.
+    Call create() for initializing settings."""
+    def __init__(self, acstore, name):
         self.name = name
-        self.chain_manager = chain_manager
-        self.ownstate = OwnState(self.chain_manager.get_ownchain(name))
+        self.acstore = acstore
+        self.ownstate = OwnState(self.acstore.get_ownchain(name))
 
     def __repr__(self):
         return "Identity(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        peerchain = self.chain_manager.get_peerchain(self.name, addr)
+        peerchain = self.acstore.get_peerchain(self.name, addr)
         return PeerState(peerchain)
 
     def get_peername_list(self):
-        return self.chain_manager.get_peername_list(self.name)
+        return self.acstore.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -316,13 +316,13 @@ class Identity:
         return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
-        self.chain_manager.remove_identity(self.name)
+        self.acstore.remove_identity(self.name)
 
     @cached_property
     def bingpg(self):
         gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = self.chain_manager.get_own_gpghome(self.name)
+            gpghome = self.acstore.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:

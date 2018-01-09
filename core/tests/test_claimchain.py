@@ -8,7 +8,7 @@ import time
 import hashlib
 import pytest
 from autocrypt import mime
-from autocrypt.claimchain import ChainManager, ClaimChain, BlockService, HeadTracker
+from autocrypt.claimchain import ACStore, ClaimChain, BlockService, HeadTracker
 
 
 @pytest.fixture
@@ -115,10 +115,10 @@ class TestClaimChain:
         cc1.dump()
 
 
-class TestChainManager:
+class TestACStore:
     @pytest.fixture
     def cm(self, tmpdir):
-        return ChainManager(tmpdir.strpath)
+        return ACStore(tmpdir.strpath)
 
     def test_get_peerchain_empty(self, cm):
         peerchain = cm.get_peerchain("id1", "name1@123")
