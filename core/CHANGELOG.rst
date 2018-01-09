@@ -17,7 +17,7 @@
 - change "sendmail" and "process-outoing" commands to not add autocrypt
   headers if no identity can be determined for a mail.
 
-- add first version of "claimchain" code which py-autocrypt is to
+- add first version of "store_fs" code which py-autocrypt is to
   use for its internal key management.  Claimchains are an append-only
   log of claims about cryptographic key material.
 

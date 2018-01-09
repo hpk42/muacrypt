@@ -13,15 +13,34 @@ Autocrypt Python API Reference
 .. autosummary::
 
    autocrypt.account
+   autocrypt.storage
+   autocrypt.storage_fs
+   autocrypt.bingpg
+   autocrypt.cmdline
    autocrypt.bot
    autocrypt.mime
-   autocrypt.bingpg
 
 account module
 --------------
 
 .. automodule:: autocrypt.account
     :members:
+
+cmdline module
+---------------
+
+.. automodule:: autocrypt.cmdline
+    :members:
+
+storage module
+--------------
+
+.. automodule:: autocrypt.storage
+
+storage_fs module
+-----------------
+
+.. automodule:: autocrypt.storage_fs
 
 bot module
 ----------
@@ -40,22 +59,3 @@ bingpg module
 
 .. automodule:: autocrypt.bingpg
     :members:
-
-
-claimchain module
------------------
-
-.. note::
-
-  The claimchain module is not required for, or part of Autocrypt Level 1.
-  It is a prototype and experimental effort which azul and hpk are playing
-  with to allow for helping users protect against MITM attacks or, conversely,
-  to make it more costly for providers or network-level attackers who want
-  to subvert communications.   This is part of their involvement on the
-  NEXTLEAP EU project.
-
-  Eventually claimchains could be integrated as a Plugin but this requires an
-  according pluginization of py-autocrypt which is better to do after the prototyping
-  stabilizes.
-
-.. automodule:: autocrypt.claimchain

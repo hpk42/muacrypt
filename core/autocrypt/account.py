@@ -16,7 +16,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from base64 import b64decode
 from . import mime
-from .claimchain import ACStore
+from .storage import Store
 import email.utils
 
 
@@ -52,12 +52,13 @@ class IdentityNotFound(AccountException):
 class Account(object):
     """ Autocrypt Account class which allows to manipulate autocrypt
     configuration and state for use from mail processing agents.
-    Autocrypt uses a standalone GPG managed keyring and persists its
-    config to a default app-config location.
 
-    You can init an account and then use it to generate Autocrypt
-    headers and process incoming mails to discover and memorize
-    a peer's Autocrypt headers.
+    Each account manages one or more Identities which manage
+    processing of incoming and outgoing mails and keep all related
+    state on a per-identity basis.
+
+    All state is kept in Chains, any update to state results in
+    a new immutable block or "Chain Entry" as the storage layer calls it.
     """
 
     def __init__(self, dir):
@@ -70,8 +71,8 @@ class Account(object):
              including a gpg-managed keyring.
         """
         self.dir = dir
-        self.acstore = ACStore(dir)
-        self.accountstate = AccountState(self.acstore.get_accountchain())
+        self.store = Store(dir)
+        self.accountstate = self.store.get_accountstate()
 
     def init(self):
         assert self.accountstate.version is None
@@ -82,13 +83,13 @@ class Account(object):
 
     def get_identity(self, id_name="default", check=True):
         assert id_name.isalnum(), id_name
-        ident = Identity(self.acstore, id_name)
+        ident = Identity(self.store, id_name)
         if check and not ident.exists():
             raise IdentityNotFound("identity {!r} not known".format(id_name))
         return ident
 
     def list_identity_names(self):
-        return self.acstore.get_identity_names()
+        return self.store.get_identity_names()
 
     def list_identities(self):
         return [self.get_identity(x) for x in self.list_identity_names()]
@@ -154,8 +155,8 @@ class Account(object):
         to empty.  You need to add identities to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
-        self.acstore = ACStore(self.dir)
-        self.accountstate = AccountState(self.acstore.get_accountchain())
+        self.store = Store(self.dir)
+        self.accountstate = self.store.get_accountstate()
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -257,20 +258,19 @@ class Account(object):
 class Identity:
     """ An Identity manages all Autocrypt settings and keys for a peer.
     Call create() for initializing settings."""
-    def __init__(self, acstore, name):
+    def __init__(self, store, name):
         self.name = name
-        self.acstore = acstore
-        self.ownstate = OwnState(self.acstore.get_ownchain(name))
+        self.store = store
+        self.ownstate = self.store.get_ownstate(name)
 
     def __repr__(self):
         return "Identity(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        peerchain = self.acstore.get_peerchain(self.name, addr)
-        return PeerState(peerchain)
+        return self.store.get_peerstate(self.name, addr)
 
     def get_peername_list(self):
-        return self.acstore.get_peername_list(self.name)
+        return self.store.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -316,13 +316,13 @@ class Identity:
         return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
-        self.acstore.remove_identity(self.name)
+        self.store.remove_identity(self.name)
 
     @cached_property
     def bingpg(self):
         gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = self.acstore.get_own_gpghome(self.name)
+            gpghome = self.store.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:
@@ -357,86 +357,9 @@ class Identity:
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
 
-def config_property(name):
-    def get(self):
-        return getattr(self.ownchain.latest_config(), name)
-    return property(get)
-
-
-@attrs
-class AccountState(object):
-    """ Read-Only synthesized AccountState view. """
-    accountchain = attrib()
-
-    @property
-    def version(self):
-        return getattr(self.accountchain.latest_config(), "version", None)
-
-    def __str__(self):
-        return "AccountState version={version}".format(version=self.version)
-
-
-@attrs
-class OwnState(object):
-    """ Read-Only synthesized view on OwnState which contains
-    our own account state. """
-    ownchain = attrib()
-
-    def __str__(self):
-        return "OwnState key={keyhandle}".format(
-            keyhandle=self.keyhandle,
-        )
-
-    uuid = config_property("uuid")
-    name = config_property("name")
-    email_regex = config_property("email_regex")
-    gpgmode = config_property("gpgmode")
-    gpgbin = config_property("gpgbin")
-    prefer_encrypt = config_property("prefer_encrypt")
-
-    @property
-    def keyhandle(self):
-        return self.ownchain.latest_keygen().keyhandle
-
-    def exists(self):
-        return self.uuid
-
-
-@attrs
-class PeerState(object):
-    """ Read-Only synthesized view on PeerChains which link all
-    message parsing results for a given peer. """
-    peerchain = attrib()
-
-    def __str__(self):
-        return "PeerState addr={addr} key={keyhandle}".format(
-            addr=self.addr, keyhandle=self.public_keyhandle
-        )
-
-    @property
-    def addr(self):
-        return self.peerchain.ident.split(":", 2)[-1]
-
-    @property
-    def last_seen(self):
-        return getattr(self.peerchain.latest_msg_entry(), "msg_date", 0.0)
-
-    @property
-    def autocrypt_timestamp(self):
-        return getattr(self.peerchain.latest_ac_entry(), "msg_date", 0.0)
-
-    @property
-    def public_keyhandle(self):
-        return getattr(self.peerchain.latest_ac_entry(), "keyhandle", None)
-
-    @property
-    def public_keydata(self):
-        return getattr(self.peerchain.latest_ac_entry(), "keydata", None)
-
-
 @attrs
 class ProcessIncomingResult(object):
     msgid = attrib(type=six.text_type)
-    peerstate = attrib(type=PeerState)
+    peerstate = attrib()
     identity = attrib(type=six.text_type)
     autocrypt_header = attrib(type=six.text_type)
