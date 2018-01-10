@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Autocrypt documentation build configuration file, created by
+# muacrypt documentation build configuration file, created by
 # sphinx-quickstart on Fri Nov 11 22:05:17 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -19,7 +19,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join("..", "core")))
-from autocrypt import __version__ as release
+from muacrypt import __version__ as release
 version = ".".join(release.split(".")[:2])
 
 # -- General configuration ------------------------------------------------
@@ -57,9 +57,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Autocrypt'
-copyright = u'2018, py-autocrypt contributors'
-author = u'py-autocrypt contributors'
+project = u'muacrypt'
+copyright = u'2018, muacrypt contributors'
+author = u'muacrypt contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -142,7 +142,7 @@ html_theme = 'alabaster'
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-# html_title = u'Autocrypt v0.1'
+# html_title = u'muacryptv0.1'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
@@ -256,7 +256,7 @@ html_sidebars = {
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'pyautocryptdoc'
+htmlhelp_basename = 'muacryptdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -281,10 +281,10 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'Autocrypt.tex', u'Autocrypt Documentation',
-     u'hpk, dkg etc.al', 'manual'),
-]
+#latex_documents = [
+#    (master_doc, 'muacrypt.tex', u'muacrypt Documentation',
+#     u'hpk, dkg etc.al', 'manual'),
+#]
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -324,7 +324,7 @@ latex_use_parts = False
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'autocrypt', u'Autocrypt Documentation',
+    (master_doc, 'muacrypt', u'muacrypt documentation',
      [author], 1)
 ]
 
@@ -339,8 +339,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Autocrypt', u'Autocrypt Documentation',
-     author, 'Autocrypt', 'E-Mail Encryption for Everyone.',
+    (master_doc, 'muacrypt', u'muacrypt Documentation',
+     author, 'muacrypt', 'crypto for MUAs.',
      'Miscellaneous'),
 ]
 
