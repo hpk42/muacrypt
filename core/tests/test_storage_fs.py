@@ -6,7 +6,7 @@ from __future__ import unicode_literals, print_function
 import time
 import hashlib
 import pytest
-from autocrypt.storage_fs import BlockService, HeadTracker
+from muacrypt.storage_fs import BlockService, HeadTracker
 
 
 class TestBlockService:

@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
-""" Contains Account class which offers all autocrypt related access
-and manipulation methods. It also contains some internal helpers
-which help to persist config and peer state.
-"""
+""" Account and Identities for processing mail. """
+
 from __future__ import unicode_literals
 
 import re
@@ -50,10 +48,7 @@ class IdentityNotFound(AccountException):
 
 
 class Account(object):
-    """ Autocrypt Account class which allows to manipulate autocrypt
-    configuration and state for use from mail processing agents.
-
-    Each account manages one or more Identities which manage
+    """ Each account manages one or more Identities which manage
     processing of incoming and outgoing mails and keep all related
     state on a per-identity basis.
 
@@ -62,12 +57,11 @@ class Account(object):
     """
 
     def __init__(self, dir):
-        """ Initialize the account configuration and internally
-        used gpggrapper.
+        """ Initialize account configuration.
 
         :type dir: unicode
         :param dir:
-             directory in which autocrypt will store all state
+             directory in which muacrypt will store all state
              including a gpg-managed keyring.
         """
         self.dir = dir
@@ -176,7 +170,7 @@ class Account(object):
             By specifying an empty string you just get the header value.
 
         :rtype: unicode
-        :returns: autocrypt header with prefix and value (or empty string)
+        :returns: Autocrypt header with prefix and value (or empty string)
         """
         if not self.list_identity_names():
             raise NotInitialized("no identities configured")
@@ -299,7 +293,7 @@ class Identity:
             prefer_encrypt="nopreference"
         )
         if keyhandle is None:
-            emailadr = "{}@uuid.autocrypt.org".format(self.ownstate.uuid)
+            emailadr = "{}@uuid.muacrypt.org".format(self.ownstate.uuid)
             keyhandle = self.bingpg.gen_secret_key(emailadr)
         else:
             keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
