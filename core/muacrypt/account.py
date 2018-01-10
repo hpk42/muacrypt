@@ -7,12 +7,12 @@ from __future__ import unicode_literals
 
 import re
 import shutil
+from base64 import b64decode
 import six
 from attr import attrs, attrib
 import uuid
 import time
 from .bingpg import cached_property, BinGPG
-from base64 import b64decode
 from . import mime
 from .storage import Store
 import email.utils
@@ -202,21 +202,14 @@ class AccountManager(object):
         d = mime.parse_one_ac_header_from_msg(msg)
         if d.get("addr") != From:
             d = {}
-        if d:
-            if msg_date >= peerstate.autocrypt_timestamp:
-                keydata = b64decode(d["keydata"])
-                keyhandle = account.bingpg.import_keydata(keydata)
-                peerchain.append_ac_entry(
-                    msg_id=msg_id, msg_date=msg_date,
-                    prefer_encrypt=d["prefer-encrypt"],
-                    keydata=keydata, keyhandle=keyhandle
-                )
+            keydata = keyhandle = None,
         else:
-            if msg_date > peerstate.last_seen:
-                peerchain.append_noac_entry(
-                    msg_id=msg_id, msg_date=msg_date
-                )
-
+            keydata = b64decode(d["keydata"])
+            keyhandle = account.bingpg.import_keydata(keydata)
+        peerstate.update_from_msg(
+            msg_id=msg_id, effective_date=msg_date,
+            parsed_autocrypt_header=d, keydata=keydata, keyhandle=keyhandle,
+        )
         return ProcessIncomingResult(
             msgid=msg_id,
             autocrypt_header=d,
