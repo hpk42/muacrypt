@@ -30,18 +30,15 @@ To use the code and run tests you need to have installed:
 - python2.7 and python3.5 including headers
   ("python2.7-dev" and "python3.5-dev" on debian).
 
-- tox either installed via ``pip install tox``
-  or ``apt install python-tox``.
+- "tox" to run automated tests ("python-tox" on Debian)
 
-In one command on Debian::
+In one installation command on Debian::
 
     apt install gnupg2 rng-tools python2.7-dev python3.5-dev python-tox
 
 Afterwards you can run all tests::
 
     $ tox
-
-this runs all automated tests.
 
 
 installation
@@ -56,11 +53,10 @@ of choice.  If you don't know about python's virtual environments
 you may just install the debian package "python-pip" and then
 use "pip" to install the muacrypt library and command line too::
 
-    $ sudo pip install muacrypt
+    $ pip install --user muacrypt
 
-This will install the required dependency "click", a python
-framework for writing command line clients.
-
+The ``muacrypt`` command line tool will be installed into
+``$HOME/.local/bin`` which needs to be in your ``PATH``.
 
 installation for development
 ++++++++++++++++++++++++++++
