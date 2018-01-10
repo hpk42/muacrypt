@@ -135,8 +135,21 @@ class TestAccountCommands:
         """)
         mycmd.run_ok(["mod-account", "default", "--prefer-encrypt=mutual"], """
             *account modified*default*
+            *email?regex*.**
             *prefer-encrypt*mutual*
         """)
+        mycmd.run_ok(["mod-account", "default", "--email-regex=xyz"], """
+            *account modified*default*
+            *email?regex*xyz*
+            *prefer-encrypt*mutual*
+        """)
+
+        mycmd.run_ok(["mod-account", "default", "--prefer-encrypt=nopreference"], """
+            *account modified*default*
+            *email?regex*xyz*
+            *prefer-encrypt*nopreference*
+        """)
+
 
     def test_init_existing_key_native_gpg(self, mycmd, monkeypatch, bingpg, gpgpath):
         adr = "x@y.org"

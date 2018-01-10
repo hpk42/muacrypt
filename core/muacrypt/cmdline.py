@@ -82,11 +82,11 @@ option_gpgbin = click.option(
     "is looked up on demand through the system's PATH.")
 
 option_email_regex = click.option(
-    "--email-regex", default=".*", type=str, help= # NOQA
-    "regex for matching all email addresses belonging to this account.")
+    "--email-regex", default=None, type=str,
+    help="regex for matching all email addresses belonging to this account.")
 
 option_prefer_encrypt = click.option(
-    "--prefer-encrypt", default='nopreference',
+    "--prefer-encrypt", default=None,
     type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
@@ -118,7 +118,8 @@ def add_account(ctx, account_name, use_system_keyring,
     account_manager = get_account_manager(ctx)
     account = account_manager.add_account(
         account_name, keyhandle=use_key, gpgbin=gpgbin,
-        gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
+        gpgmode="system" if use_system_keyring else "own",
+        email_regex=email_regex
     )
     click.echo("account added: '{}'".format(account.name))
     _status_account(account)
@@ -302,7 +303,7 @@ def status(ctx, account_name):
         account_manager = get_account_manager(ctx)
         _status(account_manager)
     else:
-        _status(get_account(ctx, account_name))
+        _status_account(get_account(ctx, account_name))
 
 
 def _status(account_manager):
@@ -313,11 +314,11 @@ def _status(account_manager):
         return
     for account in accounts:
         _status_account(account)
+        click.echo("")
 
 
 def _status_account(account):
     ic = account.ownstate
-    click.echo("")
     click.secho("account: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
 
     def kecho(name, value):

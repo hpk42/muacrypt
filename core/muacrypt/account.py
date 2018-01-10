@@ -83,7 +83,7 @@ class AccountManager(object):
     def list_accounts(self):
         return [self.get_account(x) for x in self.list_account_names()]
 
-    def add_account(self, account_name="default", email_regex=".*",
+    def add_account(self, account_name="default", email_regex=None,
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
         """ add a named account to this account.
 
@@ -98,12 +98,14 @@ class AccountManager(object):
         """
         account = self.get_account(account_name, check=False)
         assert not account.exists()
+        if email_regex is None:
+            email_regex = '.*'
         account.create(account_name, email_regex=email_regex, keyhandle=keyhandle,
                      gpgbin=gpgbin, gpgmode=gpgmode)
         return account
 
     def mod_account(self, account_name="default", email_regex=None,
-                     keyhandle=None, gpgbin=None, prefer_encrypt='nopreference'):
+                    keyhandle=None, gpgbin=None, prefer_encrypt=None):
         """ modify a named account.
 
         All arguments are optional: if they are not specified the underlying
