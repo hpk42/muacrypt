@@ -11,7 +11,7 @@ import subprocess
 import six
 import click
 from .cmdline_utils import (
-    get_account_manager, MyGroup, MyCommandUnknownOptions,
+    get_account, get_account_manager, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
 from .account import AccountManager  # , AccountNotFound
@@ -48,7 +48,7 @@ def init(ctx, replace, no_account):
     control (which gpg binary to use, which existing key to use, if to
     use an existing system key ring ...) specify "--no-account".
     """
-    account_manager = ctx.parent.account_manager
+    account_manager = get_account_manager(ctx, checkinit=False)
     basedir = account_manager.dir
     if account_manager.exists():
         if not replace:
@@ -160,6 +160,11 @@ def del_account(ctx, account_name):
     _status(account_manager)
 
 
+account_option = click.option(
+    "-a", "--account", default=u"default", metavar="name",
+    help="perform lookup through this account")
+
+
 @mycommand("test-email")
 @click.argument("emailadr", type=str, required=True)
 @click.pass_context
@@ -183,13 +188,13 @@ def make_header(ctx, emailadr):
 
 
 @mycommand("set-prefer-encrypt")
+@account_option
 @click.argument("value", default=None, required=False,
                 type=click.Choice(["notset", "yes", "no"]))
 @click.pass_context
 def set_prefer_encrypt(ctx, value):
     """print or set prefer-encrypted setting."""
-    account_manager = get_account_manager(ctx)
-    account = account_manager.get_account()
+    account = get_account(ctx, account)
     if value is None:
         click.echo(account.config.prefer_encrypt)
     else:
@@ -267,18 +272,13 @@ def sendmail(ctx, args):
         ctx.exit(ret)
 
 
-account_option = click.option(
-    "-a", "--account", default=u"default", metavar="name",
-    help="perform lookup through this account")
-
-
 @mycommand("export-public-key")
 @account_option
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
 def export_public_key(ctx, account, keyhandle_or_email):
     """print public key of own or peer account."""
-    account = get_account_manager(ctx).get_account(account)
+    account = get_account(ctx, account)
     data = account.export_public_key(keyhandle_or_email)
     click.echo(data)
 
@@ -288,18 +288,21 @@ def export_public_key(ctx, account, keyhandle_or_email):
 @click.pass_context
 def export_secret_key(ctx, account):
     """print secret key of own account."""
-    account = get_account_manager(ctx).get_account(account)
+    account = get_account(ctx, account)
     data = account.export_secret_key()
     click.echo(data)
 
 
 @mycommand()
-@click.argument("account_name", type=str, required=False, default="default")
+@click.argument("account_name", type=str, required=False, default=None)
 @click.pass_context
 def status(ctx, account_name):
     """print account info and status. """
-    account_manager = get_account_manager(ctx)
-    _status(account_manager)
+    if account_name is None:
+        account_manager = get_account_manager(ctx)
+        _status(account_manager)
+    else:
+        _status(get_account(ctx, account_name))
 
 
 def _status(account_manager):

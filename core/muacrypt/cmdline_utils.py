@@ -54,11 +54,15 @@ def mycommand(*args):
     return click.command(*args, cls=MyCommand)
 
 
-def get_account_manager(ctx):
+def get_account_manager(ctx, checkinit=True):
     account_manager = ctx.parent.account_manager
-    if not account_manager.exists():
+    if checkinit and not account_manager.exists():
         raise NotInitialized(account_manager.dir)
     return account_manager
+
+
+def get_account(ctx, name):
+    return get_account_manager(ctx).get_account(name)
 
 
 def trunc_string(s, maxlen=80):
