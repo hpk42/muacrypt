@@ -39,7 +39,7 @@ def test_init(mycmd):
 
 def test_init_and_make_header(mycmd):
     mycmd.run_fail(["make-header", "xyz"], """
-        *Account*not initialized*
+        *AccountManager*not initialized*
     """)
     adr = "x@yz.org"
     mycmd.run_ok(["init"])

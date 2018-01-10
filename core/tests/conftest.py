@@ -10,7 +10,7 @@ import pytest
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
-from muacrypt.account import Account
+from muacrypt.account import AccountManager
 
 
 def pytest_addoption(parser):
@@ -261,12 +261,12 @@ def account_maker(tmpdir, gpgpath):
 
     def maker(init=True, addid=True):
         basedir = tmpdir.mkdir("a%d" % next(count)).strpath
-        ac = Account(basedir)
+        mc = AccountManager(basedir)
         if init:
-            ac.init()
+            mc.init()
             if addid:
-                ac.add_identity(gpgbin=gpgpath)
-        return ac
+                mc.add_identity(gpgbin=gpgpath)
+        return mc
     return maker
 
 

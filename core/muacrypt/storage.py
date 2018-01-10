@@ -45,11 +45,11 @@ class Store:
         self.heads = HeadTracker(os.path.join(dirpath, "heads"))
         self.blocks = BlockService(blockdir)
 
-    def get_accountchain(self):
-        return AccountChain(self.blocks, self.heads, self._account_pat)
+    def get_accountmanager_chain(self):
+        return AccountManagerChain(self.blocks, self.heads, self._account_pat)
 
-    def get_accountstate(self):
-        return AccountState(self.get_accountchain())
+    def get_accountmanager_state(self):
+        return AccountManagerState(self.get_accountmanager_chain())
 
     def get_identity_names(self):
         return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
@@ -288,7 +288,7 @@ class OwnChain(ChainBase):
 
 
 # =================================================
-# AccountChain keeps track of account modifications
+# AccountManagerChain keeps track of account modifications
 # =================================================
 
 @attr.s
@@ -297,7 +297,7 @@ class AConfigEntry(EntryBase):
     version = attrib_text()
 
 
-class AccountChain(ChainBase):
+class AccountManagerChain(ChainBase):
     def set_version(self, version):
         assert not self.latest_config()
         return self.append_entry(AConfigEntry(version=version))
@@ -307,16 +307,16 @@ class AccountChain(ChainBase):
 
 
 @attrs
-class AccountState(object):
-    """ Read-Only synthesized AccountState view. """
-    accountchain = attrib()
+class AccountManagerState(object):
+    """ Read-Only synthesized AccountManagerState view. """
+    accountmanager_chain = attrib()
 
     @property
     def version(self):
-        return getattr(self.accountchain.latest_config(), "version", None)
+        return getattr(self.accountmanager_chain.latest_config(), "version", None)
 
     def __str__(self):
-        return "AccountState version={version}".format(version=self.version)
+        return "AccountManagerState version={version}".format(version=self.version)
 
 
 @attrs

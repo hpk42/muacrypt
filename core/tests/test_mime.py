@@ -59,14 +59,6 @@ class TestEmailCorpus:
         assert d["addr"] == "alice@testsuite.autocrypt.org", d
         bingpg.import_keydata(b64decode(d["keydata"]))
 
-    def test_25519_simple(self, datadir, bingpg):
-        if (not bingpg.supports_eddsa()):
-            pytest.xfail("No support for EDDSA")
-        d = datadir.parse_ac_header_from_email("25519-simple.eml")
-        assert d["addr"] == "alice@testsuite.autocrypt.org"
-        assert "keydata" in d and d["keydata"]
-        bingpg.import_keydata(b64decode(d["keydata"]))
-
     def test_rsa2048_explicit_type(self, datadir, bingpg):
         d = datadir.parse_ac_header_from_email("rsa2048-explicit-type.eml")
         assert d["addr"] == "alice@testsuite.autocrypt.org"

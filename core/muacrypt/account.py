@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
-""" Account and Identities for processing mail. """
+""" AccountManager and Identities for processing mail. """
 
 from __future__ import unicode_literals
 
@@ -28,7 +28,7 @@ def effective_date(date):
 
 
 class AccountException(Exception):
-    """ an exception raised during method calls on an Account instance. """
+    """ an exception raised during method calls on an AccountManager instance. """
 
 
 @attrs
@@ -36,7 +36,7 @@ class NotInitialized(AccountException):
     msg = attrib(type=six.text_type)
 
     def __str__(self):
-        return "Account not initialized: {}".format(self.msg)
+        return "AccountManager not initialized: {}".format(self.msg)
 
 
 @attrs
@@ -47,33 +47,28 @@ class IdentityNotFound(AccountException):
         return "IdentityNotFound: {}".format(self.msg)
 
 
-class Account(object):
-    """ Each account manages one or more Identities which manage
-    processing of incoming and outgoing mails and keep all related
-    state on a per-identity basis.
-
-    All state is kept in Chains, any update to state results in
-    a new immutable block or "Chain Entry" as the storage layer calls it.
+class AccountManager(object):
+    """ Each AccountManager manages one or more Accounts
+    which in turn perform processing of incoming and outgoing
+    mails and keep all Autocrypt related state in append-only logs.
     """
-
     def __init__(self, dir):
-        """ Initialize account configuration.
+        """ Initialize multi-account configuration.
 
         :type dir: unicode
         :param dir:
-             directory in which muacrypt will store all state
-             including a gpg-managed keyring.
+             directory in which muacrypt will store state.
         """
         self.dir = dir
         self.store = Store(dir)
-        self.accountstate = self.store.get_accountstate()
+        self.accountmanager_state = self.store.get_accountmanager_state()
 
     def init(self):
-        assert self.accountstate.version is None
-        self.accountstate.accountchain.set_version("0.1")
+        assert self.accountmanager_state.version is None
+        self.accountmanager_state.accountmanager_chain.set_version("0.1")
 
     def exists(self):
-        return self.accountstate.version is not None
+        return self.accountmanager_state.version is not None
 
     def get_identity(self, id_name="default", check=True):
         assert id_name.isalnum(), id_name
@@ -150,7 +145,7 @@ class Account(object):
         """
         shutil.rmtree(self.dir, ignore_errors=True)
         self.store = Store(self.dir)
-        self.accountstate = self.store.get_accountstate()
+        self.accountmanager_state = self.store.get_accountmanager_state()
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -327,7 +322,7 @@ class Identity:
             gpghome = -1
         if gpghome == -1 or not self.ownstate.gpgbin:
             raise NotInitialized(
-                "Account directory {!r} not initialized".format(self.dir))
+                "AccountManager directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
     def make_ac_header(self, emailadr, headername="Autocrypt: "):

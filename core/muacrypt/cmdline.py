@@ -14,7 +14,7 @@ from .cmdline_utils import (
     get_account, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
-from .account import Account  # , IdentityNotFound
+from .account import AccountManager  # , IdentityNotFound
 from .bingpg import find_executable
 from . import mime
 from .bot import bot_reply
@@ -30,7 +30,7 @@ from .bot import bot_reply
 def autocrypt_main(context, basedir):
     """access and manage Autocrypt keys, options, headers."""
     basedir = os.path.abspath(os.path.expanduser(basedir))
-    context.account = Account(basedir)
+    context.account = AccountManager(basedir)
 
 
 @mycommand()

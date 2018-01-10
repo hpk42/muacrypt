@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import os
 import time
 import pytest
-from muacrypt.account import Account, NotInitialized
+from muacrypt.account import AccountManager, NotInitialized
 from muacrypt import mime
 
 
@@ -28,12 +28,12 @@ def test_account_header_defaults(account_maker):
 
 def test_account_handling(tmpdir):
     tmpdir = tmpdir.strpath
-    acc = Account(tmpdir)
-    assert not acc.exists()
-    acc.init()
-    assert acc.exists()
-    acc.remove()
-    assert not acc.exists()
+    mc = AccountManager(tmpdir)
+    assert not mc.exists()
+    mc.init()
+    assert mc.exists()
+    mc.remove()
+    assert not mc.exists()
 
 
 def test_account_parse_incoming_mail_broken_ac_header(account_maker):
