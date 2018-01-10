@@ -150,7 +150,6 @@ class TestAccountCommands:
             *prefer-encrypt*nopreference*
         """)
 
-
     def test_init_existing_key_native_gpg(self, mycmd, monkeypatch, bingpg, gpgpath):
         adr = "x@y.org"
         keyhandle = bingpg.gen_secret_key(adr)

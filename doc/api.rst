@@ -36,11 +36,13 @@ storage module
 --------------
 
 .. automodule:: muacrypt.storage
+    :members:
 
 storage_fs module
 -----------------
 
 .. automodule:: muacrypt.storage_fs
+    :members:
 
 bot module
 ----------

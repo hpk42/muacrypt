@@ -3,13 +3,12 @@ Storage layer which mainly provides the Store class through which
 all application state is persistet.  The Store uses
 Kappa architecture http://milinda.pathirage.org/kappa-architecture.com/
 i.e. all changes are added to append-only logs ("chains") and they contain
-entries ("claims") that may cross-reference each other. The linking is done
-using crytographic hashes.  The storage works by creating and accessing
-immutable blocks through the BlockService. The HeadTracker keeps track
-of named "heads" which can be queried through the Store class.
-
-Both the current BlockService and the HeadTracker use the
-file system for persistent storage.
+immutable entries ("claims") that may cross-reference other entries (even
+from other chains). The linking between entries is done using
+crytographic hashes.  The HeadTracker keeps track of named "heads"
+which can be queried through the Store class.  Both the current
+BlockService and the HeadTracker use the file system for
+persistent storage.
 """
 
 from __future__ import unicode_literals
@@ -30,8 +29,7 @@ from .myattr import (
 
 
 class Store:
-    """ Persisting configuration, account and
-     per-account Autocrypt settings."""
+    """ Persisting Muacrypt and per-account settings."""
 
     _account_pat = "."
     _own_pat = "own:{id}"
@@ -105,7 +103,7 @@ class EntryBase(object):
 class ChainBase(object):
     """ A Chain maintains an append-only log where each entry
     in the chain has its own content-based address so that chains
-    can cross-reference entries within each other.  Each entry in a chain
+    can cross-reference entries from the same or other chains. Each entry in a chain
     carries a timestamp and a parent CID (block hash) and type-specific
     extra data.
     """
