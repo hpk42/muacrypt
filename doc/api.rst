@@ -12,50 +12,50 @@ Autocrypt Python API Reference
 
 .. autosummary::
 
-   autocrypt.account
-   autocrypt.storage
-   autocrypt.storage_fs
-   autocrypt.bingpg
-   autocrypt.cmdline
-   autocrypt.bot
-   autocrypt.mime
+   muacrypt.account
+   muacrypt.storage
+   muacrypt.storage_fs
+   muacrypt.bingpg
+   muacrypt.cmdline
+   muacrypt.bot
+   muacrypt.mime
 
 account module
 --------------
 
-.. automodule:: autocrypt.account
+.. automodule:: muacrypt.account
     :members:
 
 cmdline module
 ---------------
 
-.. automodule:: autocrypt.cmdline
+.. automodule:: muacrypt.cmdline
     :members:
 
 storage module
 --------------
 
-.. automodule:: autocrypt.storage
+.. automodule:: muacrypt.storage
 
 storage_fs module
 -----------------
 
-.. automodule:: autocrypt.storage_fs
+.. automodule:: muacrypt.storage_fs
 
 bot module
 ----------
 
-.. automodule:: autocrypt.bot
+.. automodule:: muacrypt.bot
     :members:
 
 mime module
 -----------
 
-.. automodule:: autocrypt.mime
+.. automodule:: muacrypt.mime
     :members:
 
 bingpg module
 --------------
 
-.. automodule:: autocrypt.bingpg
+.. automodule:: muacrypt.bingpg
     :members:
