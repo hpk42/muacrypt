@@ -2,7 +2,7 @@ from __future__ import print_function, unicode_literals
 import os
 import re
 import six
-from autocrypt import mime
+from muacrypt import mime
 
 
 def test_help(cmd):
@@ -54,7 +54,7 @@ def test_init_and_make_header(mycmd):
 
 def test_init_and_make_header_with_envvar(cmd, tmpdir):
     with tmpdir.as_cwd():
-        os.environ["AUTOCRYPT_BASEDIR"] = "."
+        os.environ["MUACRYPT_BASEDIR"] = "."
         test_init_and_make_header(cmd)
 
 

@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 
 import os
 import pytest
-from autocrypt.bingpg import cached_property, BinGPG, KeyInfo
+from muacrypt.bingpg import cached_property, BinGPG, KeyInfo
 
 
 def test_cached_property_object():

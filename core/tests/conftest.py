@@ -8,9 +8,9 @@ import os
 import itertools
 import pytest
 from _pytest.pytester import LineMatcher
-from autocrypt.bingpg import find_executable, BinGPG
-from autocrypt import mime
-from autocrypt.account import Account
+from muacrypt.bingpg import find_executable, BinGPG
+from muacrypt import mime
+from muacrypt.account import Account
 
 
 def pytest_addoption(parser):
@@ -160,7 +160,7 @@ def linematch():
 @pytest.fixture
 def cmd():
     """ invoke a command line subcommand. """
-    from autocrypt.cmdline import autocrypt_main
+    from muacrypt.cmdline import autocrypt_main
     return ClickRunner(autocrypt_main)
 
 

@@ -2,7 +2,7 @@ from __future__ import unicode_literals, print_function
 
 import itertools
 import pytest
-from autocrypt.storage import Chain, Store, HeadTracker, BlockService, mime
+from muacrypt.storage import Chain, Store, HeadTracker, BlockService, mime
 
 
 @pytest.fixture

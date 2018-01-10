@@ -4,8 +4,8 @@ from __future__ import unicode_literals, print_function
 
 import six
 import pytest
-from autocrypt import mime
-from autocrypt.bot import SimpleLog
+from muacrypt import mime
+from muacrypt.bot import SimpleLog
 
 
 @pytest.fixture(params=["sender@example.org"])

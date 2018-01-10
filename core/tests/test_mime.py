@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import pytest
 import six
-from autocrypt import mime
+from muacrypt import mime
 from base64 import b64decode
 
 

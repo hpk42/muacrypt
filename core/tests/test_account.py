@@ -5,8 +5,8 @@ from __future__ import unicode_literals
 import os
 import time
 import pytest
-from autocrypt.account import Account, NotInitialized
-from autocrypt import mime
+from muacrypt.account import Account, NotInitialized
+from muacrypt import mime
 
 
 def test_account_header_defaults(account_maker):

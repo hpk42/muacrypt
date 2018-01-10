@@ -222,11 +222,11 @@ class MsgEntryNOAC(EntryBase):
 
 class PeerChain(ChainBase):
     def latest_ac_entry(self):
-        """ Return latest message with autocrypt header. """
+        """ Return latest message with Autocrypt header. """
         return self.latest_entry_of(MsgEntryAC)
 
     def latest_msg_entry(self):
-        """ Return latest message with or without autocrypt header. """
+        """ Return latest message with or without Autocrypt header. """
         return self.latest_entry_of((MsgEntryAC, MsgEntryNOAC))
 
     def append_ac_entry(self, **kwargs):
