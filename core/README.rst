@@ -1,4 +1,5 @@
 
+<<<<<<< HEAD
 muacrypt: Autocrypt and more for mail user agents
 =================================================
 
@@ -33,12 +34,17 @@ To use the code and run tests you need to have installed:
 
 - tox either installed via ``pip install tox``
   or ``apt install python-tox``.
+<<<<<<< HEAD
 
 In one command on Debian::
 
     apt install gnupg2 rng-tools python2.7-dev python3.5-dev python-tox
 
 Afterwards you can run all tests:
+=======
+
+If all requirements are fullfilled, simply issue::
+>>>>>>> 28d5b29caf182e0b072fa9b3669de1610a24a144
 
     $ tox
 
