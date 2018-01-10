@@ -70,6 +70,18 @@ class BinGPG(object):
     InvocationFailure = InvocationFailure
 
     def __init__(self, homedir=None, gpgpath="gpg"):
+        """
+        :type homedir: unicode or None
+        :param homedir: gpg home directory, if None system gpg homedir is used.
+        :type gpgpath: unicode
+        :param gpgpath:
+            If the path contains path separators and points
+            to an existing file we use it directly.
+            If it contains no path separators, we lookup
+            the path to the binary under the system's PATH.
+            If we can not determine an eventual binary
+            we raise ValueError.
+        """
         self.homedir = homedir
         p = find_executable(gpgpath)
         if p is None:
@@ -91,7 +103,7 @@ class BinGPG(object):
 
         if not os.path.exists(self.homedir):
             # we create the dir if the basedir exists, otherwise we fail
-            os.mkdir(self.homedir)
+            os.makedirs(self.homedir)
             os.chmod(self.homedir, 0o700)
 
         # fix bad defaults for certain gpg2 versions
@@ -213,6 +225,13 @@ class BinGPG(object):
         if keyhandle is not None:
             args.append(keyhandle)
         return self._parse_list(args, ("sec", "ssb"))
+
+    def get_secret_keyhandle(self, keyhandle):
+        for k in self.list_secret_keyinfos(keyhandle):
+            is_in_uids = any(keyhandle in uid for uid in k.uids)
+            if is_in_uids or k.match(keyhandle):
+                return k.id
+        return None
 
     def list_public_keyinfos(self, keyhandle=None):
         args = ["--skip-verify", "--with-colons", "--list-public-keys"]

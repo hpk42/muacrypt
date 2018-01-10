@@ -65,21 +65,20 @@ def bot_reply(ctx, smtp, fallback_delivto):
     with log.s("And this is the mime structure i saw:"):
         log(mime.render_mime_structure(msg))
 
+    r = account.process_incoming(msg, delivto=delivto)
     with log.s("processing your mail through py-autocrypt:"):
-        ident = account.get_identity_from_emailadr([delivto])
-        peerinfo = account.process_incoming(msg, delivto=delivto)
-        if peerinfo is not None:
-            log("processed incoming mail for identity '{}', found:\n{}".format(
-                ident.config.name, peerinfo))
+        if r.autocrypt_header:
+            status = "found:\n" + str(r.peerstate)
         else:
-            log("processed incoming mail for identity '{}', "
-                "no Autocrypt header found.".format(ident.config.name))
+            status = "no Autocrypt header found."
+        log("processed incoming mail for identity '{}', {}".format(
+            r.identity.name, status))
 
     log("\n")
     log("have a nice day, {}".format(delivto))
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
-        .format(ident.config.own_keyhandle))
+        .format(r.identity.ownstate.keyhandle))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],

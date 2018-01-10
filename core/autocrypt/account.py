@@ -5,127 +5,45 @@
 and manipulation methods. It also contains some internal helpers
 which help to persist config and peer state.
 """
-
-
 from __future__ import unicode_literals
 
-import os
 import re
-import json
 import shutil
 import six
+from attr import attrs, attrib
 import uuid
-from copy import deepcopy
+import time
 from .bingpg import cached_property, BinGPG
-from contextlib import contextmanager
 from base64 import b64decode
 from . import mime
-from email.utils import parsedate
+from .storage import Store
+import email.utils
 
 
-class PersistentAttrMixin(object):
-    def __init__(self, path):
-        self._path = path
-        self._dict_old = {}
-
-    @cached_property
-    def _dict(self):
-        if os.path.exists(self._path):
-            with open(self._path, "r") as f:
-                d = json.load(f)
-        else:
-            d = {}
-        self._dict_old = deepcopy(d)
-        return d
-
-    # def _reload(self):
-    #    try:
-    #        self._property_cache.pop("_dict")
-    #    except AttributeError:
-    #        pass
-
-    def has_changed(self):
-        return self._dict != self._dict_old
-
-    def _commit(self):
-        if self.has_changed():
-            with open(self._path, "w") as f:
-                json.dump(self._dict, f)
-            self._dict_old = deepcopy(self._dict)
-            return True
-
-    def exists(self):
-        return os.path.exists(self._path)
-
-    @contextmanager
-    def atomic_change(self):
-        # XXX allow multi-read/single-write multi-process concurrency model
-        # by doing some file locking or using sqlite or something.
-        try:
-            yield
-        except Exception:
-            self._dict = deepcopy(self._dict_old)
-            raise
-        else:
-            self._commit()
+def parse_date_to_float(date):
+    return time.mktime(email.utils.parsedate(date))
 
 
-def persistent_property(name, typ, values=None):
-    def get(self):
-        return self._dict.setdefault(name, typ())
-
-    def set(self, value):
-        if not isinstance(value, typ):
-            if not (typ == six.text_type and isinstance(value, bytes)):
-                raise TypeError(value)
-            value = value.decode("ascii")
-        if values is not None and value not in values:
-            raise ValueError("can only set to one of %r" % values)
-        self._dict[name] = value
-
-    return property(get, set)
-
-
-class AccountConfig(PersistentAttrMixin):
-    version = persistent_property("version", six.text_type)
-
-
-class IdentityConfig(PersistentAttrMixin):
-    uuid = persistent_property("uuid", six.text_type)
-    name = persistent_property("name", six.text_type)
-    email_regex = persistent_property("email_regex", six.text_type)
-    gpgmode = persistent_property("gpgmode", six.text_type, ["system", "own"])
-    gpgbin = persistent_property("gpgbin", six.text_type)
-    own_keyhandle = persistent_property("own_keyhandle", six.text_type)
-    prefer_encrypt = persistent_property("prefer_encrypt", six.text_type,
-                                         ["nopreference", "mutual"])
-    peers = persistent_property("peers", dict)
-
-    def __repr__(self):
-        return "IdentityConfig(name={}, own_keyhandle={}, numpeers={})".format(
-            self.name, self.own_keyhandle, len(self.peers))
-
-    def exists(self):
-        return self.uuid
+def effective_date(date):
+    assert isinstance(date, float)
+    return min(date, time.time())
 
 
 class AccountException(Exception):
     """ an exception raised during method calls on an Account instance. """
 
 
+@attrs
 class NotInitialized(AccountException):
-    def __init__(self, msg):
-        super(NotInitialized, self).__init__(msg)
-        self.msg = msg
+    msg = attrib(type=six.text_type)
 
     def __str__(self):
         return "Account not initialized: {}".format(self.msg)
 
 
+@attrs
 class IdentityNotFound(AccountException):
-    def __init__(self, msg):
-        super(IdentityNotFound, self).__init__(msg)
-        self.msg = msg
+    msg = attrib(type=six.text_type)
 
     def __str__(self):
         return "IdentityNotFound: {}".format(self.msg)
@@ -134,12 +52,13 @@ class IdentityNotFound(AccountException):
 class Account(object):
     """ Autocrypt Account class which allows to manipulate autocrypt
     configuration and state for use from mail processing agents.
-    Autocrypt uses a standalone GPG managed keyring and persists its
-    config to a default app-config location.
 
-    You can init an account and then use it to generate Autocrypt
-    headers and process incoming mails to discover and memorize
-    a peer's Autocrypt headers.
+    Each account manages one or more Identities which manage
+    processing of incoming and outgoing mails and keep all related
+    state on a per-identity basis.
+
+    All state is kept in Chains, any update to state results in
+    a new immutable block or "Chain Entry" as the storage layer calls it.
     """
 
     def __init__(self, dir):
@@ -150,40 +69,27 @@ class Account(object):
         :param dir:
              directory in which autocrypt will store all state
              including a gpg-managed keyring.
-        :type gpgpath: unicode
-        :param gpgpath:
-            If the path contains path separators and points
-            to an existing file we use it directly.
-            If it contains no path separators, we lookup
-            the path to the binary under the system's PATH.
-            If we can not determine an eventual binary
-            we raise ValueError.
         """
         self.dir = dir
-        self.config = AccountConfig(os.path.join(self.dir, "config.json"))
-        self._idpath = os.path.join(self.dir, "id")
+        self.store = Store(dir)
+        self.accountstate = self.store.get_accountstate()
 
     def init(self):
-        assert not self.config.exists()
-        with self.config.atomic_change():
-            self.config.version = "0.1"
-        os.mkdir(self._idpath)
+        assert self.accountstate.version is None
+        self.accountstate.accountchain.set_version("0.1")
 
     def exists(self):
-        return self.config.exists()
+        return self.accountstate.version is not None
 
     def get_identity(self, id_name="default", check=True):
         assert id_name.isalnum(), id_name
-        ident = Identity(os.path.join(self._idpath, id_name))
+        ident = Identity(self.store, id_name)
         if check and not ident.exists():
             raise IdentityNotFound("identity {!r} not known".format(id_name))
         return ident
 
     def list_identity_names(self):
-        try:
-            return [x for x in os.listdir(self._idpath) if x[0] != "."]
-        except OSError:
-            return []
+        return self.store.get_identity_names()
 
     def list_identities(self):
         return [self.get_identity(x) for x in self.list_identity_names()]
@@ -208,7 +114,7 @@ class Account(object):
         return ident
 
     def mod_identity(self, id_name="default", email_regex=None,
-                     keyhandle=None, gpgbin=None, prefer_encrypt=None):
+                     keyhandle=None, gpgbin=None, prefer_encrypt='nopreference'):
         """ modify a named identity.
 
         All arguments are optional: if they are not specified the underlying
@@ -236,21 +142,21 @@ class Account(object):
         ident = self.get_identity(id_name)
         ident.delete()
 
-    def get_identity_from_emailadr(self, emailadr_list, raising=False):
-        """ get identity for a given email address list. """
-        assert isinstance(emailadr_list, (list, tuple)), repr(emailadr_list)
+    def get_identity_from_emailadr(self, emailadr, raising=False):
+        """ get identity for a given email address. """
         for ident in self.list_identities():
-            for emailadr in emailadr_list:
-                if re.match(ident.config.email_regex, emailadr):
-                    return ident
+            if re.match(ident.ownstate.email_regex, emailadr):
+                return ident
         if raising:
-            raise IdentityNotFound(emailadr_list)
+            raise IdentityNotFound(emailadr)
 
     def remove(self):
         """ remove the account directory and reset this account configuration
         to empty.  You need to add identities to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
+        self.store = Store(self.dir)
+        self.accountstate = self.store.get_accountstate()
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -274,11 +180,11 @@ class Account(object):
         """
         if not self.list_identity_names():
             raise NotInitialized("no identities configured")
-        ident = self.get_identity_from_emailadr([emailadr])
+        ident = self.get_identity_from_emailadr(emailadr)
         if ident is None:
             return ""
         else:
-            assert ident.config.own_keyhandle
+            assert ident.ownstate.keyhandle
             return ident.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg, delivto=None):
@@ -288,33 +194,44 @@ class Account(object):
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerInfo
+        :rtype: PeerState
         """
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
             assert delivto
-        ident = self.get_identity_from_emailadr([delivto])
+        ident = self.get_identity_from_emailadr(delivto)
         if ident is None:
             raise IdentityNotFound("no identity matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
-        old = ident.config.peers.get(From, {})
+        peerstate = ident.get_peerstate(From)
+        peerchain = peerstate.peerchain
+
+        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
+        msg_id = six.text_type(msg["Message-Id"])
         d = mime.parse_one_ac_header_from_msg(msg)
-        date = msg.get("Date")
-        if d and "addr" in d:
-            if d["addr"] == From:
-                if parsedate(date) >= parsedate(old.get("*date", date)):
-                    d["*date"] = date
-                    keydata = b64decode(d["keydata"])
-                    keyhandle = ident.bingpg.import_keydata(keydata)
-                    d["*keyhandle"] = keyhandle
-                    with ident.config.atomic_change():
-                        ident.config.peers[From] = d
-                    return PeerInfo(ident, d)
-        elif old:
-            # we had an autocrypt header and now forget about it
-            # because we got a mail which doesn't have one
-            with ident.config.atomic_change():
-                ident.config.peers[From] = {}
+        if d.get("addr") != From:
+            d = {}
+        if d:
+            if msg_date >= peerstate.autocrypt_timestamp:
+                keydata = b64decode(d["keydata"])
+                keyhandle = ident.bingpg.import_keydata(keydata)
+                peerchain.append_ac_entry(
+                    msg_id=msg_id, msg_date=msg_date,
+                    prefer_encrypt=d["prefer-encrypt"],
+                    keydata=keydata, keyhandle=keyhandle
+                )
+        else:
+            if msg_date > peerstate.last_seen:
+                peerchain.append_noac_entry(
+                    msg_id=msg_id, msg_date=msg_date
+                )
+
+        return ProcessIncomingResult(
+            msgid=msg_id,
+            autocrypt_header=d,
+            peerstate=peerstate,
+            identity=ident
+        )
 
     def process_outgoing(self, msg):
         """ process outgoing mail message and add Autocrypt
@@ -322,7 +239,7 @@ class Account(object):
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerInfo
+        :rtype: PeerState
         """
         from .cmdline_utils import log_info
         _, addr = mime.parse_email_addr(msg["From"])
@@ -339,14 +256,25 @@ class Account(object):
 
 
 class Identity:
-    """ An Identity manages all Autocrypt settings and keys for a peer and stores
-    it in a directory. Call create() for initializing settings."""
-    def __init__(self, dir):
-        self.dir = dir
-        self.config = IdentityConfig(os.path.join(self.dir, "config.json"))
+    """ An Identity manages all Autocrypt settings (both own keys and
+    settings as well as per-peer ones derived from Autocrypt headers).
+    """
+
+    def __init__(self, store, name):
+        """ shallo initializer. Call create() for initializing this
+        identity. exists() tells whether that has happened already. """
+        self.name = name
+        self.store = store
+        self.ownstate = self.store.get_ownstate(name)
 
     def __repr__(self):
-        return "Identity[{}]".format(self.config)
+        return "Identity(name={})".format(self.name)
+
+    def get_peerstate(self, addr):
+        return self.store.get_peerstate(self.name, addr)
+
+    def get_peername_list(self):
+        return self.store.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this identity.
@@ -362,139 +290,80 @@ class Identity:
                         in the user's system GnuPG keyring.
         """
         assert gpgmode in ("own", "system")
-        if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
-        with self.config.atomic_change():
-            self.config.uuid = uuid.uuid4().hex
-            self.config.name = name
-            self.config.email_regex = email_regex
-            self.config.prefer_encrypt = "nopreference"
-            self.config.gpgbin = gpgbin
-            self.config.gpgmode = gpgmode
-            self.config.peers = {}
+        self.ownstate.ownchain.new_config(
+            uuid=six.text_type(uuid.uuid4().hex),
+            name=name,
+            email_regex=email_regex,
+            gpgbin=gpgbin,
+            gpgmode=gpgmode,
+            prefer_encrypt="nopreference"
+        )
+        if keyhandle is None:
+            emailadr = "{}@uuid.autocrypt.org".format(self.ownstate.uuid)
+            keyhandle = self.bingpg.gen_secret_key(emailadr)
+        else:
+            keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
             if keyhandle is None:
-                emailadr = "{}@uuid.autocrypt.org".format(self.config.uuid)
-                keyhandle = self.bingpg.gen_secret_key(emailadr)
-            else:
-                keyinfos = self.bingpg.list_secret_keyinfos(keyhandle)
-                for k in keyinfos:
-                    is_in_uids = any(keyhandle in uid for uid in k.uids)
-                    if is_in_uids or k.match(keyhandle):
-                        keyhandle = k.id
-                        break
-                else:
-                    raise ValueError("could not find secret key for {!r}, found {!r}"
-                                     .format(keyhandle, keyinfos))
-            self.config.own_keyhandle = keyhandle
-        assert self.config.exists()
+                raise ValueError("no secret key for {!r}".format(keyhandle))
+        keydata = self.bingpg.get_secret_keydata(keyhandle)
+        self.ownstate.ownchain.append_keygen(
+            entry_date=time.time(), keyhandle=keyhandle,
+            keydata=keydata,
+        )
 
     def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):
-        with self.config.atomic_change():
-            if email_regex is not None:
-                self.config.email_regex = email_regex
-            if prefer_encrypt is not None:
-                self.config.prefer_encrypt = prefer_encrypt
-            # if gpgbin is not None:
-            #    self.gpgbin = gpgbin
-            return self.config.has_changed()
+        kwargs = {}
+        if email_regex is not None:
+            kwargs["email_regex"] = email_regex
+        if prefer_encrypt is not None:
+            kwargs["prefer_encrypt"] = prefer_encrypt
+        return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
-        shutil.rmtree(self.dir, ignore_errors=True)
+        self.store.remove_identity(self.name)
 
     @cached_property
     def bingpg(self):
-        gpgmode = self.config.gpgmode
+        gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = os.path.join(self.dir, "gpghome")
+            gpghome = self.store.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:
             gpghome = -1
-        if gpghome == -1 or not self.config.gpgbin:
+        if gpghome == -1 or not self.ownstate.gpgbin:
             raise NotInitialized(
                 "Account directory {!r} not initialized".format(self.dir))
-        return BinGPG(homedir=gpghome, gpgpath=self.config.gpgbin)
+        return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
     def make_ac_header(self, emailadr, headername="Autocrypt: "):
         return headername + mime.make_ac_header_value(
             addr=emailadr,
-            keydata=self.bingpg.get_public_keydata(self.config.own_keyhandle),
-            prefer_encrypt=self.config.prefer_encrypt,
+            keydata=self.bingpg.get_public_keydata(self.ownstate.keyhandle),
+            prefer_encrypt=self.ownstate.prefer_encrypt,
         )
-
-    def get_peerinfo(self, emailadr):
-        """ get peerinfo object for a given email address.
-
-        :type emailadr: unicode
-        :param emailadr: pure email address without any prefixes or real names.
-        :rtype: PeerInfo or None
-        """
-        state = self.config.peers.get(emailadr)
-        if state:
-            return PeerInfo(self, state)
 
     def exists(self):
         """ return True if the identity exists. """
-        return self.config.exists()
+        return self.ownstate.ownchain.latest_config() and \
+            self.ownstate.ownchain.latest_keygen()
 
     def export_public_key(self, keyhandle=None):
         """ return armored public key of this account or the one
         indicated by the key handle. """
         kh = keyhandle
         if kh is None:
-            kh = self.config.own_keyhandle
+            kh = self.ownstate.keyhandle
         return self.bingpg.get_public_keydata(kh, armor=True)
 
     def export_secret_key(self):
         """ return armored public key for this account. """
-        return self.bingpg.get_secret_keydata(self.config.own_keyhandle, armor=True)
+        return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
 
-class PeerInfo:
-    """ Read-Only info coming from the Parsed Autocrypt header from
-    an incoming Mail from a peer. In addition to the public Autocrypt
-    attributes (``addr``, ``keydata``, ``type``, ...) we process also py-autocrypt
-    internal ``*date`` and ``*keyhandle`` attributes.
-    """
-    def __init__(self, identity, d):
-        self._dict = dic = d.copy()
-        self.identity = identity
-        self.keyhandle = dic.pop("*keyhandle")
-        self.date = dic.pop("*date")
-
-    def __getitem__(self, name):
-        return self._dict[name]
-
-    def __setitem__(self, name, val):
-        raise TypeError("setting of values not allowed")
-
-    def __str__(self):
-        d = self._dict.copy()
-        return \
-            "{addr}: key {keyhandle} [{bytes:d} bytes] " \
-            "{attrs} from date={date}".format(
-                addr=d.pop("addr"), keyhandle=self.keyhandle,
-                bytes=len(d.pop("keydata")),
-                date=self.date,
-                attrs="; ".join(["%s=%s" % x for x in d.items()]))
-
-
-class IdentityInfo:
-    """ Read only information about an Identity in an account. """
-    def __init__(self, name, email_regex, prefer_encrypt, keyhandle, peers, uuid):
-        self.name = name
-        self.email_regex = email_regex
-        self.keyhandle = keyhandle or ""
-        self.prefer_encrypt = prefer_encrypt
-        self.uuid = uuid
-        self._peers = peers
-
-    @cached_property
-    def peers(self):
-        return dict((name, PeerInfo(self, self._peers[name])) for name in self._peers)
-
-    def __str__(self):
-        return "Identity(name={}, email_regex={}, keyhandle={}, num_peers={})".format(
-               self.name, self.email_regex, self.keyhandle, len(self._peers))
-
-    __repr__ = __str__
+@attrs
+class ProcessIncomingResult(object):
+    msgid = attrib(type=six.text_type)
+    peerstate = attrib()
+    identity = attrib(type=six.text_type)
+    autocrypt_header = attrib(type=six.text_type)

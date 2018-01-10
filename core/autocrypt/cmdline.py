@@ -3,7 +3,6 @@
 
 """Autocrypt Command line implementation.
 """
-
 from __future__ import print_function
 
 import os
@@ -58,12 +57,12 @@ def init(ctx, replace, no_identity):
         else:
             out_red("deleting account directory: {}".format(account.dir))
             account.remove()
-    if not os.path.exists(account.dir):
+    if not os.path.isdir(account.dir):
         os.mkdir(account.dir)
     account.init()
     click.echo("account directory initialized: {}".format(account.dir))
     if not no_identity:
-        account.add_identity("default")
+        account.add_identity(u"default")
     _status(account)
 
 
@@ -87,7 +86,8 @@ option_email_regex = click.option(
     "regex for matching all email addresses belonging to this identity.")
 
 option_prefer_encrypt = click.option(
-    "--prefer-encrypt", default=None, type=click.Choice(["nopreference", "mutual"]),
+    "--prefer-encrypt", default='nopreference',
+    type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
 
@@ -120,7 +120,7 @@ def add_identity(ctx, identity_name, use_system_keyring,
         identity_name, keyhandle=use_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
-    click.echo("identity added: '{}'".format(ident.config.name))
+    click.echo("identity added: '{}'".format(ident.name))
     _status_identity(ident)
 
 
@@ -144,7 +144,7 @@ def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encryp
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
-    click.echo("identity{}modified: '{}'".format(s, ident.config.name))
+    click.echo("identity{}modified: '{}'".format(s, ident.name))
     _status_identity(ident)
 
 
@@ -171,8 +171,8 @@ def test_email(ctx, emailadr):
     Fail if no identity matches.
     """
     account = get_account(ctx)
-    ident = account.get_identity_from_emailadr([emailadr], raising=True)
-    click.echo(ident.config.name)
+    ident = account.get_identity_from_emailadr(emailadr, raising=True)
+    click.echo(ident.name)
 
 
 @mycommand("make-header")
@@ -205,16 +205,13 @@ def process_incoming(ctx):
     """parse autocrypt headers from stdin mail. """
     account = get_account(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    peerinfo = account.process_incoming(msg)
-    if peerinfo is not None:
-        click.echo("processed mail for identity '{}', found: {}".format(
-                   peerinfo.identity.config.name, peerinfo))
+    r = account.process_incoming(msg)
+    if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
+        msg = "found: " + str(r.peerstate)
     else:
-        # XXX account.process_incoming() should return the identity
-        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        ident = account.get_identity_from_emailadr([delivto])
-        click.echo("processed mail for identity '{}', no Autocrypt header found.".format(
-                   ident.config.name))
+        msg = "no Autocrypt header found"
+    click.echo("processed mail for identity '{}', {}".format(
+               r.identity.name, msg))
 
 
 @mycommand("process-outgoing")
@@ -272,7 +269,7 @@ def sendmail(ctx, args):
 
 
 id_option = click.option(
-    "--id", default="default", metavar="identity",
+    "--id", default=u"default", metavar="identity",
     help="perform lookup through this identity")
 
 
@@ -318,7 +315,7 @@ def _status(account):
 
 
 def _status_identity(ident):
-    ic = ident.config
+    ic = ident.ownstate
     click.echo("")
     click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
 
@@ -336,27 +333,27 @@ def _status_identity(ident):
     else:
         kecho("gpgbin", ic.gpgbin)
 
-    kecho("prefer-encrypt", ic.prefer_encrypt)
+    kecho("prefer-encrypt", ident.ownstate.prefer_encrypt)
 
     # print info on key including uids
-    keyinfos = ident.bingpg.list_public_keyinfos(ic.own_keyhandle)
+    keyinfos = ident.bingpg.list_public_keyinfos(ident.ownstate.keyhandle)
     uids = set()
     for k in keyinfos:
         uids.update(k.uids)
-    kecho("own-keyhandle", ic.own_keyhandle)
+    kecho("own-keyhandle", ident.ownstate.keyhandle)
     for uid in uids:
         kecho("^^ uid", uid)
 
     # print info on peers
-    peers = ic.peers
-    if peers:
+    peernames = ident.get_peername_list()
+    if peernames:
         click.echo("  ----peers-----")
-        for name, ac_dict in peers.items():
-            d = ac_dict.copy()
+        for name in peernames:
+            pi = ident.get_peerstate(name)
             click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
-                       to=d.pop("addr"), keyhandle=d.pop("*keyhandle"),
-                       bytes=len(d.pop("keydata")),
-                       attrs="; ".join(["%s=%s" % x for x in d.items()])))
+                       to=pi.addr, keyhandle=pi.public_keyhandle,
+                       bytes=len(pi.public_keydata),
+                       attrs=""))
     else:
         click.echo("  ---- no peers registered -----")
 
