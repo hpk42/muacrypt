@@ -84,9 +84,9 @@ class HeadTracker:
     def __init__(self, path):
         self._path = path
 
-    def get_head_cid(self, ident):
+    def get_head_cid(self, account):
         heads = self._getheads()
-        return heads.get(ident)
+        return heads.get(account)
 
     def _getheads(self, prefix=""):
         if os.path.exists(self._path):
@@ -104,10 +104,10 @@ class HeadTracker:
         with open(self._path, "wb") as f:
             marshal.dump(filtered, f)
 
-    def upsert(self, ident, cid):
+    def upsert(self, account, cid):
         if isinstance(cid, Block):
             cid = cid.cid
         heads = self._getheads()
-        heads[ident] = cid
+        heads[account] = cid
         with open(self._path, "wb") as f:
             marshal.dump(heads, f)

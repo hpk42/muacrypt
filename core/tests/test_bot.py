@@ -9,12 +9,13 @@ from muacrypt.bot import SimpleLog
 
 
 @pytest.fixture(params=["sender@example.org"])
-def ac_sender(account, request):
-    ident = account.add_identity("sender", email_regex=request.param)
-    ident.adr = request.param
-    ident.ac_headerval = ident.make_ac_header(ident.adr, headername="")
-    assert ident.ac_headerval
-    return ident
+def ac_sender(manager_maker, request):
+    manager = manager_maker(init=False)
+    account = manager.add_account("sender", email_regex=request.param)
+    account.adr = request.param
+    account.ac_headerval = account.make_ac_header(account.adr, headername="")
+    assert account.ac_headerval
+    return account
 
 
 @pytest.fixture
@@ -92,7 +93,7 @@ class TestBot:
 
         reply_msg = mime.parse_message_from_string(out)
         linematch(decode_body(reply_msg), """
-            *processed*identity*default*
+            *processed*account*default*
         """)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["From"] == bcmd.bot_adr
@@ -110,7 +111,7 @@ class TestBot:
 
         reply_msg = mime.parse_message_from_string(out)
         linematch(decode_body(reply_msg), """
-            *processed*identity*default*
+            *processed*account*default*
         """)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["From"] == bcmd.bot_adr

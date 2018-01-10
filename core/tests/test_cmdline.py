@@ -66,7 +66,7 @@ def test_exports_and_status_plain(mycmd):
     check_ascii(out)
     out = mycmd.run_ok(["status"], """
         account-dir:*
-        *identity*default*uuid*
+        *account*default*uuid*
         *prefer-encrypt*nopreference*
         *own-keyhandle:*
     """)
@@ -81,60 +81,60 @@ def check_ascii(out):
 
 class TestProcessIncoming:
     def test_process_incoming(self, mycmd, datadir):
-        mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "ident1", "--email-regex=some@example.org"])
+        mycmd.run_ok(["init", "--no-account"])
+        mycmd.run_ok(["add-account", "account1", "--email-regex=some@example.org"])
         mail = datadir.read("rsa2048-simple.eml")
         mycmd.run_fail(["process-incoming"], """
-            *IdentityNotFound*bob@testsuite.autocrypt.org*
+            *AccountNotFound*bob@testsuite.autocrypt.org*
         """, input=mail)
 
         msg = mime.parse_message_from_string(mail)
         msg.replace_header("Delivered-To", "some@example.org")
         newmail = msg.as_string()
         out = mycmd.run_ok(["process-incoming"], """
-            *processed*identity*ident1*
+            *processed*account*account1*
         """, input=newmail)
 
         # now export the public key
         m = re.search(r'key=(\w+)', out)
         keyhandle, = m.groups()
-        mycmd.run_ok(["export-public-key", "--id=ident1", keyhandle])
+        mycmd.run_ok(["export-public-key", "--account=account1", keyhandle])
         mycmd.run_ok(["status"])
 
     def test_process_incoming_no_autocrypt(self, mycmd, datadir):
-        mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "ident1", "--email-regex=b@b.org"])
+        mycmd.run_ok(["init", "--no-account"])
+        mycmd.run_ok(["add-account", "account1", "--email-regex=b@b.org"])
         msg = mime.gen_mail_msg(From="Alice <a@a.org>", To=["b@b.org"], _dto=True)
         mycmd.run_ok(["process-incoming"], """
-            *processed*ident1*no*Autocrypt*header*
+            *processed*account1*no*Autocrypt*header*
         """, input=msg.as_string())
 
 
-class TestIdentityCommands:
-    def test_add_list_del_identity(self, mycmd):
-        mycmd.run_ok(["init", "--no-identity"])
+class TestAccountCommands:
+    def test_add_list_del_account(self, mycmd):
+        mycmd.run_ok(["init", "--no-account"])
         mycmd.run_ok(["status"], """
-            *no identities configured*
+            *no accounts configured*
         """)
-        mycmd.run_ok(["add-identity", "home", "--email-regex=home@example.org"], """
-            *identity added*home*
+        mycmd.run_ok(["add-account", "home", "--email-regex=home@example.org"], """
+            *account added*home*
         """)
         mycmd.run_ok(["status"], """
-            *identity*home*
+            *account*home*
             *home@example.org*
         """)
-        mycmd.run_ok(["del-identity", "home"])
+        mycmd.run_ok(["del-account", "home"])
         mycmd.run_ok(["status"], """
-            *no identities configured*
+            *no accounts configured*
         """)
 
-    def test_modify_identity_prefer_encrypt(self, mycmd):
+    def test_modify_account_prefer_encrypt(self, mycmd):
         mycmd.run_ok(["init"])
         mycmd.run_ok(["status"], """
-            *identity*default*
+            *account*default*
         """)
-        mycmd.run_ok(["mod-identity", "default", "--prefer-encrypt=mutual"], """
-            *identity modified*default*
+        mycmd.run_ok(["mod-account", "default", "--prefer-encrypt=mutual"], """
+            *account modified*default*
             *prefer-encrypt*mutual*
         """)
 
@@ -142,8 +142,8 @@ class TestIdentityCommands:
         adr = "x@y.org"
         keyhandle = bingpg.gen_secret_key(adr)
         monkeypatch.setenv("GNUPGHOME", bingpg.homedir)
-        mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "home", "--use-key", adr,
+        mycmd.run_ok(["init", "--no-account"])
+        mycmd.run_ok(["add-account", "home", "--use-key", adr,
                       "--gpgbin=%s" % gpgpath, "--use-system-keyring"], """
                 *gpgmode*system*
                 *gpgbin*{}*
@@ -154,12 +154,12 @@ class TestIdentityCommands:
         """)
 
     def test_test_email(self, mycmd):
-        mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "home", "--email-regex=(home|office)@example.org"])
+        mycmd.run_ok(["init", "--no-account"])
+        mycmd.run_ok(["add-account", "home", "--email-regex=(home|office)@example.org"])
         mycmd.run_ok(["test-email", "home@example.org"])
         mycmd.run_ok(["test-email", "office@example.org"])
         mycmd.run_fail(["test-email", "xhome@example.org"], """
-            *IdentityNotFound*xhome@example.org*
+            *AccountNotFound*xhome@example.org*
         """)
 
 
@@ -176,20 +176,20 @@ class TestProcessOutgoing:
         x2 = mime.parse_one_ac_header_from_string(found_header)
         assert x1 == x2
 
-    def test_matching_identity(self, mycmd, gen_mail):
-        mycmd.run_ok(["init", "--no-identity"])
-        mycmd.run_ok(["add-identity", "ident1", "--email-regex=ident1@a.org"])
+    def test_matching_account(self, mycmd, gen_mail):
+        mycmd.run_ok(["init", "--no-account"])
+        mycmd.run_ok(["add-account", "account1", "--email-regex=account1@a.org"])
         mail = gen_mail(From="x@y.org")
         # mycmd.run_fail(["process-outgoing"], input=mail.as_string(), fnl="""
-        #     *IdentityNotFound*x@y.org*
+        #     *AccountNotFound*x@y.org*
         # """)
         out0 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
         assert "Autocrypt" not in out0
 
-        mail = gen_mail(From="ident1@a.org")
+        mail = gen_mail(From="account1@a.org")
         out1 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
         msg2 = mime.parse_message_from_string(out1)
-        assert "ident1@a.org" in msg2["Autocrypt"]
+        assert "account1@a.org" in msg2["Autocrypt"]
 
     def test_simple_dont_replace(self, mycmd, gen_mail):
         mycmd.run_ok(["init"])
@@ -218,9 +218,9 @@ class TestProcessOutgoing:
         out_msg = mime.parse_message_from_string(call.input)
         assert "Autocrypt" in out_msg, out_msg.as_string()
 
-    def test_sendmail_no_identity(self, mycmd, gen_mail, popen_mock):
+    def test_sendmail_no_account(self, mycmd, gen_mail, popen_mock):
         mycmd.run_ok(["init"])
-        mycmd.run_ok(["mod-identity", "default", "--email-regex", "123123"])
+        mycmd.run_ok(["mod-account", "default", "--email-regex", "123123"])
         mail = gen_mail().as_string()
         pargs = ["-oi", "b@b.org"]
         mycmd.run_ok(["sendmail", "-f", "--"] + pargs, input=mail)

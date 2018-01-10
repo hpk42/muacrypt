@@ -40,11 +40,11 @@ class NotInitialized(AccountException):
 
 
 @attrs
-class IdentityNotFound(AccountException):
+class AccountNotFound(AccountException):
     msg = attrib(type=six.text_type)
 
     def __str__(self):
-        return "IdentityNotFound: {}".format(self.msg)
+        return "AccountNotFound: {}".format(self.msg)
 
 
 class AccountManager(object):
@@ -70,78 +70,78 @@ class AccountManager(object):
     def exists(self):
         return self.accountmanager_state.version is not None
 
-    def get_identity(self, id_name="default", check=True):
-        assert id_name.isalnum(), id_name
-        ident = Identity(self.store, id_name)
-        if check and not ident.exists():
-            raise IdentityNotFound("identity {!r} not known".format(id_name))
-        return ident
+    def get_account(self, account_name="default", check=True):
+        assert account_name.isalnum(), account_name
+        account = Account(self.store, account_name)
+        if check and not account.exists():
+            raise AccountNotFound("account {!r} not known".format(account_name))
+        return account
 
-    def list_identity_names(self):
-        return self.store.get_identity_names()
+    def list_account_names(self):
+        return self.store.get_account_names()
 
-    def list_identities(self):
-        return [self.get_identity(x) for x in self.list_identity_names()]
+    def list_accounts(self):
+        return [self.get_account(x) for x in self.list_account_names()]
 
-    def add_identity(self, id_name="default", email_regex=".*",
+    def add_account(self, account_name="default", email_regex=".*",
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
-        """ add a named identity to this account.
+        """ add a named account to this account.
 
-        :param id_name: name of this identity
+        :param account_name: name of this account
         :param email_regex: regular expression which matches all email addresses
-                            belonging to this identity.
-        :param keyhandle: key fingerprint or uid to use for this identity.
+                            belonging to this account.
+        :param keyhandle: key fingerprint or uid to use for this account.
         :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" (default) keeps all key state inside the identity
+        :param gpgmode: "own" (default) keeps all key state inside the account
                         directory under the account.  "system" will store keys
                         in the user's system gnupg keyring.
         """
-        ident = self.get_identity(id_name, check=False)
-        assert not ident.exists()
-        ident.create(id_name, email_regex=email_regex, keyhandle=keyhandle,
+        account = self.get_account(account_name, check=False)
+        assert not account.exists()
+        account.create(account_name, email_regex=email_regex, keyhandle=keyhandle,
                      gpgbin=gpgbin, gpgmode=gpgmode)
-        return ident
+        return account
 
-    def mod_identity(self, id_name="default", email_regex=None,
+    def mod_account(self, account_name="default", email_regex=None,
                      keyhandle=None, gpgbin=None, prefer_encrypt='nopreference'):
-        """ modify a named identity.
+        """ modify a named account.
 
         All arguments are optional: if they are not specified the underlying
-        identity setting remains unchanged.
+        account setting remains unchanged.
 
-        :param id_name: name of this identity
+        :param account_name: name of this account
         :param email_regex: regular expression which matches all email addresses
-                            belonging to this identity.
-        :param keyhandle: key fingerprint or uid to use for this identity.
+                            belonging to this account.
+        :param keyhandle: key fingerprint or uid to use for this account.
         :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" keeps all key state inside the identity
+        :param gpgmode: "own" keeps all key state inside the account
                         directory under the account.  "system" will store keys
                         in the user's system gnupg keyring.
-        :returns: Identity instance
+        :returns: Account instance
         """
-        ident = self.get_identity(id_name)
-        changed = ident.modify(
+        account = self.get_account(account_name)
+        changed = account.modify(
             email_regex=email_regex, keyhandle=keyhandle, gpgbin=gpgbin,
             prefer_encrypt=prefer_encrypt,
         )
-        return changed, ident
+        return changed, account
 
-    def del_identity(self, id_name):
-        """ fully remove an identity. """
-        ident = self.get_identity(id_name)
-        ident.delete()
+    def del_account(self, account_name):
+        """ fully remove an account. """
+        account = self.get_account(account_name)
+        account.delete()
 
-    def get_identity_from_emailadr(self, emailadr, raising=False):
-        """ get identity for a given email address. """
-        for ident in self.list_identities():
-            if re.match(ident.ownstate.email_regex, emailadr):
-                return ident
+    def get_account_from_emailadr(self, emailadr, raising=False):
+        """ get account for a given email address. """
+        for account in self.list_accounts():
+            if re.match(account.ownstate.email_regex, emailadr):
+                return account
         if raising:
-            raise IdentityNotFound(emailadr)
+            raise AccountNotFound(emailadr)
 
     def remove(self):
         """ remove the account directory and reset this account configuration
-        to empty.  You need to add identities to reinitialize.
+        to empty.  You need to add accounts to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
         self.store = Store(self.dir)
@@ -167,14 +167,14 @@ class AccountManager(object):
         :rtype: unicode
         :returns: Autocrypt header with prefix and value (or empty string)
         """
-        if not self.list_identity_names():
-            raise NotInitialized("no identities configured")
-        ident = self.get_identity_from_emailadr(emailadr)
-        if ident is None:
+        if not self.list_account_names():
+            raise NotInitialized("no accounts configured")
+        account = self.get_account_from_emailadr(emailadr)
+        if account is None:
             return ""
         else:
-            assert ident.ownstate.keyhandle
-            return ident.make_ac_header(emailadr, headername=headername)
+            assert account.ownstate.keyhandle
+            return account.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg, delivto=None):
         """ process incoming mail message and store information
@@ -188,11 +188,11 @@ class AccountManager(object):
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
             assert delivto
-        ident = self.get_identity_from_emailadr(delivto)
-        if ident is None:
-            raise IdentityNotFound("no identity matches emails={}".format([delivto]))
+        account = self.get_account_from_emailadr(delivto)
+        if account is None:
+            raise AccountNotFound("no account matches emails={}".format([delivto]))
         From = mime.parse_email_addr(msg["From"])[1]
-        peerstate = ident.get_peerstate(From)
+        peerstate = account.get_peerstate(From)
         peerchain = peerstate.peerchain
 
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
@@ -203,7 +203,7 @@ class AccountManager(object):
         if d:
             if msg_date >= peerstate.autocrypt_timestamp:
                 keydata = b64decode(d["keydata"])
-                keyhandle = ident.bingpg.import_keydata(keydata)
+                keyhandle = account.bingpg.import_keydata(keydata)
                 peerchain.append_ac_entry(
                     msg_id=msg_id, msg_date=msg_date,
                     prefer_encrypt=d["prefer-encrypt"],
@@ -219,7 +219,7 @@ class AccountManager(object):
             msgid=msg_id,
             autocrypt_header=d,
             peerstate=peerstate,
-            identity=ident
+            account=account
         )
 
     def process_outgoing(self, msg):
@@ -235,7 +235,7 @@ class AccountManager(object):
         if "Autocrypt" not in msg:
             h = self.make_header(addr, headername="")
             if not h:
-                log_info("no identity associated with {}".format(addr))
+                log_info("no account associated with {}".format(addr))
             else:
                 msg["Autocrypt"] = h
                 log_info("Autocrypt header set for {!r}".format(addr))
@@ -244,20 +244,20 @@ class AccountManager(object):
         return msg, addr
 
 
-class Identity:
-    """ An Identity manages all Autocrypt settings (both own keys and
+class Account:
+    """ An Account manages all Autocrypt settings (both own keys and
     settings as well as per-peer ones derived from Autocrypt headers).
     """
 
     def __init__(self, store, name):
         """ shallo initializer. Call create() for initializing this
-        identity. exists() tells whether that has happened already. """
+        account. exists() tells whether that has happened already. """
         self.name = name
         self.store = store
         self.ownstate = self.store.get_ownstate(name)
 
     def __repr__(self):
-        return "Identity(name={})".format(self.name)
+        return "Account(name={})".format(self.name)
 
     def get_peerstate(self, addr):
         return self.store.get_peerstate(self.name, addr)
@@ -266,15 +266,15 @@ class Identity:
         return self.store.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
-        """ create all settings, keyrings etc for this identity.
+        """ create all settings, keyrings etc for this account.
 
-        :param name: name of this identity
+        :param name: name of this account
         :param email_regex: regular expression which matches all email addresses
-                            belonging to this identity.
-        :param keyhandle: key fingerprint or uid to use for this identity. If it is
+                            belonging to this account.
+        :param keyhandle: key fingerprint or uid to use for this account. If it is
                           None we generate a fresh Autocrypt compliant key.
         :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" keeps all key state inside the identity
+        :param gpgmode: "own" keeps all key state inside the account
                         directory under the account.  "system" will store keys
                         in the user's system GnuPG keyring.
         """
@@ -309,7 +309,7 @@ class Identity:
         return self.ownstate.ownchain.change_config(**kwargs)
 
     def delete(self):
-        self.store.remove_identity(self.name)
+        self.store.remove_account(self.name)
 
     @cached_property
     def bingpg(self):
@@ -333,7 +333,7 @@ class Identity:
         )
 
     def exists(self):
-        """ return True if the identity exists. """
+        """ return True if the account exists. """
         return self.ownstate.ownchain.latest_config() and \
             self.ownstate.ownchain.latest_keygen()
 
@@ -354,5 +354,5 @@ class Identity:
 class ProcessIncomingResult(object):
     msgid = attrib(type=six.text_type)
     peerstate = attrib()
-    identity = attrib(type=six.text_type)
+    account = attrib(type=six.text_type)
     autocrypt_header = attrib(type=six.text_type)

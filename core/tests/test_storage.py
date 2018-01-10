@@ -18,11 +18,11 @@ def chain_maker(tmpdir, bingpg_maker, counter):
 
     def maker(genesis=True):
         num = counter()
-        ident = "a{}@a.org".format(num)
-        cc = Chain(bs, ht, ident=ident)
+        account = "a{}@a.org".format(num)
+        cc = Chain(bs, ht, account=account)
         cc._bingpg = bingpg = bingpg_maker()
         if genesis:
-            cc._own_keyhandle = bingpg.gen_secret_key(ident)
+            cc._own_keyhandle = bingpg.gen_secret_key(account)
             cc.add_genesis(bingpg.get_public_keydata(cc._own_keyhandle))
         return cc
     return maker
@@ -32,7 +32,7 @@ class TestChain:
     def test_genesis(self, chain_maker, bingpg_maker):
         bingpg = bingpg_maker()
         cc1 = chain_maker(genesis=True)
-        cc2 = Chain(ident=cc1.ident, headtracker=cc1._ht, blockservice=cc1._bs)
+        cc2 = Chain(account=cc1.account, headtracker=cc1._ht, blockservice=cc1._bs)
         blocks1 = list(cc1.iter_blocks())
         blocks2 = list(cc2.iter_blocks())
         assert len(blocks1) == len(blocks2) == 1
@@ -47,7 +47,7 @@ class TestChain:
         cc1 = chain_maker(genesis=True)
         assert cc1.num_blocks() == 1
         cc2 = chain_maker(genesis=True)
-        cc1.add_oob_verify(email=cc2.ident, cid=cc2.get_head_block().cid)
+        cc1.add_oob_verify(email=cc2.account, cid=cc2.get_head_block().cid)
         assert cc1.num_blocks() == 2
         cc2_genesis_cid = cc2.get_genesis_block().cid
         assert not cc1.is_oob_verified_block(cc2_genesis_cid[:-1])

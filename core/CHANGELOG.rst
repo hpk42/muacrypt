@@ -15,7 +15,7 @@
   versions aren ot compatible enough to gpg's crypto.
 
 - change "sendmail" and "process-outoing" commands to not add autocrypt
-  headers if no identity can be determined for a mail.
+  headers if no account can be determined for a mail.
 
 - add first version of "claimchain" code which py-autocrypt is to
   use for its internal key management.  Claimchains are an append-only

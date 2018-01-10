@@ -11,10 +11,10 @@ import subprocess
 import six
 import click
 from .cmdline_utils import (
-    get_account, MyGroup, MyCommandUnknownOptions,
+    get_account_manager, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
-from .account import AccountManager  # , IdentityNotFound
+from .account import AccountManager  # , AccountNotFound
 from .bingpg import find_executable
 from . import mime
 from .bot import bot_reply
@@ -30,40 +30,40 @@ from .bot import bot_reply
 def autocrypt_main(context, basedir):
     """access and manage Autocrypt keys, options, headers."""
     basedir = os.path.abspath(os.path.expanduser(basedir))
-    context.account = AccountManager(basedir)
+    context.account_manager = AccountManager(basedir)
 
 
 @mycommand()
 @click.option("--replace", default=False, is_flag=True,
               help="delete muacrypt state directory before attempting init")
-@click.option("--no-identity", default=False, is_flag=True,
-              help="initializing without creating a default identity")
+@click.option("--no-account", default=False, is_flag=True,
+              help="initializing without creating a default account")
 @click.pass_context
-def init(ctx, replace, no_identity):
+def init(ctx, replace, no_account):
     """init muacrypt state.
 
     By default this command creates account state in a directory with
-    a default "catch-all" identity which matches all email addresses
+    a default "catch-all" account which matches all email addresses
     and uses default settings.  If you want to have more fine-grained
     control (which gpg binary to use, which existing key to use, if to
-    use an existing system key ring ...) specify "--no-identity".
+    use an existing system key ring ...) specify "--no-account".
     """
-    account = ctx.parent.account
-    if account.exists():
+    account_manager = ctx.parent.account_manager
+    basedir = account_manager.dir
+    if account_manager.exists():
         if not replace:
-            out_red("account exists at {} and --replace was not specified".format(
-                    account.dir))
+            out_red("account exists at {} and --replace was not specified".format(basedir))
             ctx.exit(1)
         else:
-            out_red("deleting account directory: {}".format(account.dir))
-            account.remove()
-    if not os.path.isdir(account.dir):
-        os.mkdir(account.dir)
-    account.init()
-    click.echo("account directory initialized: {}".format(account.dir))
-    if not no_identity:
-        account.add_identity(u"default")
-    _status(account)
+            out_red("deleting account directory: {}".format(basedir))
+            account_manager.remove()
+    if not os.path.isdir(basedir):
+        os.mkdir(basedir)
+    account_manager.init()
+    click.echo("account directory initialized: {}".format(basedir))
+    if not no_account:
+        account_manager.add_account(u"default")
+    _status(account_manager)
 
 
 option_use_key = click.option(
@@ -74,7 +74,7 @@ option_use_key = click.option(
 option_use_system_keyring = click.option(
     "--use-system-keyring", default=False, is_flag=True, help= # NOQA
     "use system keyring for all secret/public keys instead of storing "
-    "keyring state inside our account identity directory.")
+    "keyring state inside our account directory.")
 
 option_gpgbin = click.option(
     "--gpgbin", default="gpg", type=str, metavar="FILENAME", help= # NOQA
@@ -83,7 +83,7 @@ option_gpgbin = click.option(
 
 option_email_regex = click.option(
     "--email-regex", default=".*", type=str, help= # NOQA
-    "regex for matching all email addresses belonging to this identity.")
+    "regex for matching all email addresses belonging to this account.")
 
 option_prefer_encrypt = click.option(
     "--prefer-encrypt", default='nopreference',
@@ -91,22 +91,22 @@ option_prefer_encrypt = click.option(
     help="modify prefer-encrypt setting, default is to not change it.")
 
 
-@mycommand("add-identity")
-@click.argument("identity_name", type=str, required=True)
+@mycommand("add-account")
+@click.argument("account_name", type=str, required=True)
 @option_use_key
 @option_use_system_keyring
 @option_gpgbin
 @option_email_regex
 @click.pass_context
-def add_identity(ctx, identity_name, use_system_keyring,
+def add_account(ctx, account_name, use_system_keyring,
                  use_key, gpgbin, email_regex):
-    """add an identity to this account.
+    """add an account to this account.
 
-    An identity requires an identity_name which is used to show, modify and delete it.
+    An account requires an account_name which is used to show, modify and delete it.
 
     Of primary importance is the "email_regex" which you typically
     set to a plain email address.   It is used when incoming or outgoing mails
-    need to be associated with this identity.
+    need to be associated with this account.
 
     Instead of generating a key (the default operation) you may specify an
     existing key with --use-key=keyhandle where keyhandle may be
@@ -115,64 +115,62 @@ def add_identity(ctx, identity_name, use_system_keyring,
     your existing keys.  All incoming muacrypt keys will thus be stored in
     the system key ring instead of an own keyring.
     """
-    account = get_account(ctx)
-    ident = account.add_identity(
-        identity_name, keyhandle=use_key, gpgbin=gpgbin,
+    account_manager = get_account_manager(ctx)
+    account = account_manager.add_account(
+        account_name, keyhandle=use_key, gpgbin=gpgbin,
         gpgmode="system" if use_system_keyring else "own", email_regex=email_regex
     )
-    click.echo("identity added: '{}'".format(ident.name))
-    _status_identity(ident)
+    click.echo("account added: '{}'".format(account.name))
+    _status_account(account)
 
 
-@mycommand("mod-identity")
-@click.argument("identity_name", type=str, required=True)
+@mycommand("mod-account")
+@click.argument("account_name", type=str, required=True)
 @option_use_key
 @option_gpgbin
 @option_email_regex
 @option_prefer_encrypt
 @click.pass_context
-def mod_identity(ctx, identity_name, use_key, gpgbin, email_regex, prefer_encrypt):
-    """modify properties of an existing identity.
-
-    An identity requires an identity_name.
+def mod_account(ctx, account_name, use_key, gpgbin, email_regex, prefer_encrypt):
+    """modify properties of an existing account.
 
     Any specified option replaces the existing one.
     """
-    account = get_account(ctx)
-    changed, ident = account.mod_identity(
-        identity_name, keyhandle=use_key, gpgbin=gpgbin,
+    account_manager = get_account_manager(ctx)
+    changed, account = account_manager.mod_account(
+        account_name, keyhandle=use_key, gpgbin=gpgbin,
         email_regex=email_regex, prefer_encrypt=prefer_encrypt,
     )
     s = " NOT " if not changed else " "
-    click.echo("identity{}modified: '{}'".format(s, ident.name))
-    _status_identity(ident)
+    click.echo("account{}modified: '{}'".format(s, account.name))
+    _status_account(account)
 
 
-@mycommand("del-identity")
-@click.argument("identity_name", type=str, required=True)
+@mycommand("del-account")
+@click.argument("account_name", type=str, required=True)
 @click.pass_context
-def del_identity(ctx, identity_name):
-    """delete an identity, its keys and all state.
+def del_account(ctx, account_name):
+    """delete an account, its keys and all state.
 
     Make sure you have a backup of your whole account directory first.
     """
-    account = get_account(ctx)
-    account.del_identity(identity_name)
-    click.echo("identity deleted: {!r}".format(identity_name))
-    _status(account)
+    account_manager = get_account_manager(ctx)
+    account_manager.del_account(account_name)
+    click.echo("account deleted: {!r}".format(account_name))
+    _status(account_manager)
 
 
 @mycommand("test-email")
 @click.argument("emailadr", type=str, required=True)
 @click.pass_context
 def test_email(ctx, emailadr):
-    """test which identity an email belongs to.
+    """test which account an email belongs to.
 
-    Fail if no identity matches.
+    Fail if no account matches.
     """
-    account = get_account(ctx)
-    ident = account.get_identity_from_emailadr(emailadr, raising=True)
-    click.echo(ident.name)
+    account_manager = get_account_manager(ctx)
+    account = account_manager.get_account_from_emailadr(emailadr, raising=True)
+    click.echo(account.name)
 
 
 @mycommand("make-header")
@@ -180,8 +178,8 @@ def test_email(ctx, emailadr):
 @click.pass_context
 def make_header(ctx, emailadr):
     """print Autocrypt header for an emailadr. """
-    account = get_account(ctx)
-    click.echo(account.make_header(emailadr))
+    account_manager = get_account_manager(ctx)
+    click.echo(account_manager.make_header(emailadr))
 
 
 @mycommand("set-prefer-encrypt")
@@ -190,12 +188,13 @@ def make_header(ctx, emailadr):
 @click.pass_context
 def set_prefer_encrypt(ctx, value):
     """print or set prefer-encrypted setting."""
-    account = get_account(ctx)
+    account_manager = get_account_manager(ctx)
+    account = account_manager.get_account()
     if value is None:
-        click.echo(account.get_identity().config.prefer_encrypt)
+        click.echo(account.config.prefer_encrypt)
     else:
         value = six.text_type(value)
-        account.get_identity().set_prefer_encrypt(value)
+        account.config.set_prefer_encrypt(value)
         click.echo("set prefer-encrypt to %r" % value)
 
 
@@ -203,15 +202,15 @@ def set_prefer_encrypt(ctx, value):
 @click.pass_context
 def process_incoming(ctx):
     """parse Autocrypt headers from stdin mail. """
-    account = get_account(ctx)
+    account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    r = account.process_incoming(msg)
+    r = account_manager.process_incoming(msg)
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
         msg = "found: " + str(r.peerstate)
     else:
         msg = "no Autocrypt header found"
-    click.echo("processed mail for identity '{}', {}".format(
-               r.identity.name, msg))
+    click.echo("processed mail for account '{}', {}".format(
+               r.account.name, msg))
 
 
 @mycommand("process-outgoing")
@@ -224,9 +223,9 @@ def process_outgoing(ctx):
     If the mail from stdin contains an Autocrypt header we keep it
     for the outgoing message and do not add one.
     """
-    account = get_account(ctx)
+    account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    msg, emailadr = account.process_outgoing(msg)
+    msg, emailadr = account_manager.process_outgoing(msg)
     click.echo(msg.as_string())
 
 
@@ -245,10 +244,10 @@ def sendmail(ctx, args):
     "sendmail" program.
     """
     assert args
-    account = get_account(ctx)
+    account_manager = get_account_manager(ctx)
     args = list(args)
     msg = mime.parse_message_from_file(sys.stdin)
-    msg, emailadr = account.process_outgoing(msg)
+    msg, emailadr = account_manager.process_outgoing(msg)
 
     input = msg.as_string()
     # with open("/tmp/mail", "w") as f:
@@ -268,63 +267,62 @@ def sendmail(ctx, args):
         ctx.exit(ret)
 
 
-id_option = click.option(
-    "--id", default=u"default", metavar="identity",
-    help="perform lookup through this identity")
+account_option = click.option(
+    "-a", "--account", default=u"default", metavar="name",
+    help="perform lookup through this account")
 
 
 @mycommand("export-public-key")
-@id_option
+@account_option
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
-def export_public_key(ctx, id, keyhandle_or_email):
+def export_public_key(ctx, account, keyhandle_or_email):
     """print public key of own or peer account."""
-    account = get_account(ctx)
-    ident = account.get_identity(id)
-    data = ident.export_public_key(keyhandle_or_email)
+    account = get_account_manager(ctx).get_account(account)
+    data = account.export_public_key(keyhandle_or_email)
     click.echo(data)
 
 
 @mycommand("export-secret-key")
-@id_option
+@account_option
 @click.pass_context
-def export_secret_key(ctx, id):
+def export_secret_key(ctx, account):
     """print secret key of own account."""
-    account = get_account(ctx)
-    ident = account.get_identity(id)
-    data = ident.export_secret_key()
+    account = get_account_manager(ctx).get_account(account)
+    data = account.export_secret_key()
     click.echo(data)
 
 
 @mycommand()
+@click.argument("account_name", type=str, required=False, default="default")
 @click.pass_context
-def status(ctx):
+def status(ctx, account_name):
     """print account info and status. """
-    account = get_account(ctx)
-    _status(account)
+    account_manager = get_account_manager(ctx)
+    _status(account_manager)
 
 
-def _status(account):
-    click.echo("account-dir: " + account.dir)
-    identities = account.list_identities()
-    if not identities:
-        out_red("no identities configured")
+def _status(account_manager):
+    click.echo("account-dir: " + account_manager.dir)
+    accounts = account_manager.list_accounts()
+    if not accounts:
+        out_red("no accounts configured")
         return
-    for ident in account.list_identities():
-        _status_identity(ident)
+    for account in accounts:
+        _status_account(account)
 
 
-def _status_identity(ident):
-    ic = ident.ownstate
+def _status_account(account):
+    ic = account.ownstate
     click.echo("")
-    click.secho("identity: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
+    click.secho("account: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
 
     def kecho(name, value):
         click.echo("  {:16s} {}".format(name + ":", value))
 
     kecho("email_regex", ic.email_regex)
     if ic.gpgmode == "own":
-        kecho("gpgmode", "{} [home: {}]".format(ic.gpgmode, ident.bingpg.homedir))
+        kecho("gpgmode", "{} [home: {}]".format(ic.gpgmode, account.bingpg.homedir))
     else:
         kecho("gpgmode", ic.gpgmode)
     if os.sep not in ic.gpgbin:
@@ -333,23 +331,23 @@ def _status_identity(ident):
     else:
         kecho("gpgbin", ic.gpgbin)
 
-    kecho("prefer-encrypt", ident.ownstate.prefer_encrypt)
+    kecho("prefer-encrypt", account.ownstate.prefer_encrypt)
 
     # print info on key including uids
-    keyinfos = ident.bingpg.list_public_keyinfos(ident.ownstate.keyhandle)
+    keyinfos = account.bingpg.list_public_keyinfos(account.ownstate.keyhandle)
     uids = set()
     for k in keyinfos:
         uids.update(k.uids)
-    kecho("own-keyhandle", ident.ownstate.keyhandle)
+    kecho("own-keyhandle", account.ownstate.keyhandle)
     for uid in uids:
         kecho("^^ uid", uid)
 
     # print info on peers
-    peernames = ident.get_peername_list()
+    peernames = account.get_peername_list()
     if peernames:
         click.echo("  ----peers-----")
         for name in peernames:
-            pi = ident.get_peerstate(name)
+            pi = account.get_peerstate(name)
             click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
                        to=pi.addr, keyhandle=pi.public_keyhandle,
                        bytes=len(pi.public_keydata),
@@ -360,9 +358,9 @@ def _status_identity(ident):
 
 autocrypt_main.add_command(init)
 autocrypt_main.add_command(status)
-autocrypt_main.add_command(add_identity)
-autocrypt_main.add_command(mod_identity)
-autocrypt_main.add_command(del_identity)
+autocrypt_main.add_command(add_account)
+autocrypt_main.add_command(mod_account)
+autocrypt_main.add_command(del_account)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)

@@ -245,14 +245,14 @@ class DirCache:
 
 
 @pytest.fixture
-def account(account_maker):
-    """ return an uninitialized Autocrypt account. """
-    return account_maker(addid=False)
+def manager(manager_maker):
+    """ return an uninitialized MuacryptManager instance. """
+    return manager_maker(addid=False)
 
 
 @pytest.fixture
-def account_maker(tmpdir, gpgpath):
-    """ return a function which creates a new Autocrypt account, by default initialized.
+def manager_maker(tmpdir, gpgpath):
+    """ return a function which creates a new MuacryptManager account, by default initialized.
     pass init=False to the function to avoid initizialtion.
     """
     # we have to be careful to not generate too long paths
@@ -265,7 +265,7 @@ def account_maker(tmpdir, gpgpath):
         if init:
             mc.init()
             if addid:
-                mc.add_identity(gpgbin=gpgpath)
+                mc.add_account(gpgbin=gpgpath)
         return mc
     return maker
 

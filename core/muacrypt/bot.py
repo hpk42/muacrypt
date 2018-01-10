@@ -12,7 +12,7 @@ import traceback
 import contextlib
 from . import mime
 from .cmdline_utils import (
-    get_account, mycommand, click, trunc_string
+    get_account_manager, mycommand, click, trunc_string
 )
 
 
@@ -37,7 +37,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
     The reply message contains an Autocrypt header and details of what
     was found and understood from the incoming mail.
     """
-    account = get_account(ctx)
+    account = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     From = msg["From"]
 
@@ -70,14 +70,14 @@ def bot_reply(ctx, smtp, fallback_delivto):
             status = "found:\n" + str(r.peerstate)
         else:
             status = "no Autocrypt header found."
-        log("processed incoming mail for identity '{}', {}".format(
-            r.identity.name, status))
+        log("processed incoming mail for account '{}', {}".format(
+            r.account.name, status))
 
     log("\n")
     log("have a nice day, {}".format(delivto))
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
-        .format(r.identity.ownstate.keyhandle))
+        .format(r.account.ownstate.keyhandle))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],

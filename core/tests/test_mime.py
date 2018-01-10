@@ -2,7 +2,6 @@
 # vim:ts=4:sw=4:expandtab
 
 from __future__ import unicode_literals
-import pytest
 import six
 from muacrypt import mime
 from base64 import b64decode

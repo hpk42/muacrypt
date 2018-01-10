@@ -30,8 +30,8 @@ from .myattr import (
 
 
 class Store:
-    """ Persisting configuration, identity and
-     per-identity Autocrypt settings."""
+    """ Persisting configuration, account and
+     per-account Autocrypt settings."""
 
     _account_pat = "."
     _own_pat = "own:{id}"
@@ -51,41 +51,41 @@ class Store:
     def get_accountmanager_state(self):
         return AccountManagerState(self.get_accountmanager_chain())
 
-    def get_identity_names(self):
+    def get_account_names(self):
         return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
 
-    def get_num_peers(self, ident):
+    def get_num_peers(self, account):
         return len(self.get_peername_list())
 
-    def get_peername_list(self, id_name):
-        prefix = self._peer_pat.format(id=id_name, addr="")
+    def get_peername_list(self, account_name):
+        prefix = self._peer_pat.format(id=account_name, addr="")
         return sorted(self.heads._getheads(prefix=prefix))
 
-    def get_peerchain(self, id_name, addr):
+    def get_peerchain(self, account_name, addr):
         # XXX encode addr?
         assert addr.encode("ascii"), addr
-        head_name = self._peer_pat.format(id=id_name, addr=addr)
+        head_name = self._peer_pat.format(id=account_name, addr=addr)
         return PeerChain(self.blocks, self.heads, head_name)
 
-    def get_peerstate(self, id_name, addr):
-        return PeerState(self.get_peerchain(id_name, addr))
+    def get_peerstate(self, account_name, addr):
+        return PeerState(self.get_peerchain(account_name, addr))
 
-    def get_ownchain(self, id_name):
-        head_name = self._own_pat.format(id=id_name)
+    def get_ownchain(self, account_name):
+        head_name = self._own_pat.format(id=account_name)
         return OwnChain(self.blocks, self.heads, head_name)
 
-    def get_ownstate(self, id_name):
-        return OwnState(self.get_ownchain(id_name))
+    def get_ownstate(self, account_name):
+        return OwnState(self.get_ownchain(account_name))
 
-    def get_own_gpghome(self, id_name):
-        return os.path.join(self.dirpath, "gpg", id_name)
+    def get_own_gpghome(self, account_name):
+        return os.path.join(self.dirpath, "gpg", account_name)
 
-    def remove_identity(self, id_name):
-        def match_ident(key, value):
+    def remove_account(self, account_name):
+        def match_account(key, value):
             l = key.split(":", 2)
-            if l[0] in ("own", "peer") and l[1] == id_name:
+            if l[0] in ("own", "peer") and l[1] == account_name:
                 return True
-        self.heads.remove_if(match_ident)
+        self.heads.remove_if(match_account)
 
 
 # ===========================================================
@@ -110,10 +110,10 @@ class ChainBase(object):
     extra data.
     """
 
-    def __init__(self, blockservice, headtracker, ident):
+    def __init__(self, blockservice, headtracker, account):
         self._bs = blockservice
         self._ht = headtracker
-        self.ident = ident
+        self.account = account
 
     def dump(self):
         l = list(self.get_head_block())
@@ -128,7 +128,7 @@ class ChainBase(object):
         if head:
             head = head.cid
         block = self._bs.store_block(type, args, parent=head)
-        self._ht.upsert(self.ident, block.cid)
+        self._ht.upsert(self.account, block.cid)
         return block
 
     def append_entry(self, entry):
@@ -137,7 +137,7 @@ class ChainBase(object):
         return self.append_block(entry.TAG, args)
 
     def get_head_block(self):
-        head_cid = self._ht.get_head_cid(self.ident)
+        head_cid = self._ht.get_head_cid(self.account)
         if head_cid:
             return self._bs.get_block(head_cid)
 
@@ -186,7 +186,7 @@ class Chain(ChainBase):
     def is_oob_verified_block(self, cid):
         for block in self.iter_blocks(type="oob_verify"):
             email, _ = block.args
-            head_cid = self._ht.get_head_cid(ident=email)
+            head_cid = self._ht.get_head_cid(account=email)
             head_block = self._bs.get_block(head_cid)
             if head_block.contains_cid(cid):
                 return True
@@ -358,7 +358,7 @@ class PeerState(object):
 
     @property
     def addr(self):
-        return self.peerchain.ident.split(":", 2)[-1]
+        return self.peerchain.account.split(":", 2)[-1]
 
     @property
     def last_seen(self):
