@@ -1,30 +1,24 @@
 muacrypt: help mail agents manage automated encryption
 ======================================================
 
-.. note::
-
-    There is a `tentative name change consideration
-    <https://github.com/hpk42/py-autocrypt/issues/34>`_ for this project
-    which is to result in change of links, names.
-
-py-autocrypt provides a command line tool and a Python API to help
+muacrypt provides a command line tool and a Python API to help
 mail agents, both user and server-side, integrate and manage automated
-e-mail end-to-end encryption.
+e-mail end-to-end encryption with https://autocrypt.org.
 
 Aims and goals
 --------------
 
 - `Autocrypt Level 1 compliant functionality
-  <https://github.com/hpk42/py-autocrypt/milestone/1>`_ for use by mail user agents (MUAs)
+  <https://github.com/hpk42/muacrypt/milestone/1>`_ for use by mail user agents (MUAs)
 
 - `incrementally encrypted mailing lists with mailman3
-  <https://github.com/hpk42/py-autocrypt/issues/30>`_
+  <https://github.com/hpk42/muacrypt/issues/30>`_
 
 - support debugging error situations, easy deployment of fixes
 
 - implement `out-of-band verification
-  <https://github.com/hpk42/py-autocrypt/issues/29>`_, with
-  `claimchains variants <https://github.com/hpk42/py-autocrypt/issues/28>`_
+  <https://github.com/hpk42/muacrypt/issues/29>`_, with
+  `claimchains variants <https://github.com/hpk42/muacrypt/issues/28>`_
   and a `kappa-style architecture <http://milinda.pathirage.org/kappa-architecture.com/>`_.
 
 
