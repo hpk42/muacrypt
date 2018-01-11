@@ -358,13 +358,13 @@ def _status_account(account):
         click.echo("  ----peers-----")
         for name in peernames:
             pi = account.get_peerstate(name)
-            when = time.ctime(pi.last_seen) if pi.last_seen else "never"
+            # when = time.ctime(pi.last_seen) if pi.last_seen else "never"
             if pi.last_seen == pi.autocrypt_timestamp:
                 status = "last-was-autocrypt"
             elif pi.public_keyhandle:
                 status = "past-autocrypt"
             else:
-                status = "no-autocrypt-so-far"
+                continue
             click.echo("  {to}: last seen key {keyhandle}, status: {status}".format(
                        to=pi.addr, keyhandle=pi.public_keyhandle,
                        status=status))
