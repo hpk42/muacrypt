@@ -29,7 +29,6 @@ env:
     - TESTENV=lint
 
 script:
-  - cd core
   - gpg2 --version
   - echo $PATH
   - which gpg2
