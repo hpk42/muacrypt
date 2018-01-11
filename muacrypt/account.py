@@ -66,10 +66,15 @@ class AccountManager(object):
         assert self.accountmanager_state.version is None
         self.accountmanager_state.set_version("0.1")
 
+    def _ensure_init(self):
+        if not self.exists():
+            self.init()
+
     def exists(self):
         return self.accountmanager_state.version is not None
 
     def get_account(self, account_name="default", check=True):
+        self._ensure_init()
         assert account_name.isalnum(), account_name
         account = Account(self._states, account_name)
         if check and not account.exists():

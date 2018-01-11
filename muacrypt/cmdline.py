@@ -33,14 +33,12 @@ def autocrypt_main(context, basedir):
     context.account_manager = AccountManager(basedir)
 
 
-@mycommand()
-@click.option("--replace", default=False, is_flag=True,
-              help="delete muacrypt state directory before attempting init")
-@click.option("--no-account", default=False, is_flag=True,
-              help="initializing without creating a default account")
+@mycommand("destroy-all")
+@click.option("--yes", default=False, is_flag=True,
+              help="needs to be specified to actually destroy")
 @click.pass_context
-def init(ctx, replace, no_account):
-    """init muacrypt state.
+def destroy_all(ctx, yes):
+    """destroy all muacrypt state.
 
     By default this command creates account(s) state in a directory with
     a default "catch-all" account which matches all email addresses
@@ -48,22 +46,17 @@ def init(ctx, replace, no_account):
     control (which gpg binary to use, which existing key to use, if to
     use an existing system key ring ...) specify "--no-account".
     """
-    account_manager = get_account_manager(ctx, checkinit=False)
+    account_manager = get_account_manager(ctx)
+    if not yes:
+        out_red("specify --yes if you really want to destroy all state")
+        ctx.exit(1)
+
     basedir = account_manager.dir
     if account_manager.exists():
-        if not replace:
-            out_red("account exists at {} and --replace was not specified".format(basedir))
-            ctx.exit(1)
-        else:
-            out_red("deleting account directory: {}".format(basedir))
-            account_manager.remove()
-    if not os.path.isdir(basedir):
-        os.mkdir(basedir)
-    account_manager.init()
-    click.echo("account directory initialized: {}".format(basedir))
-    if not no_account:
-        account_manager.add_account(u"default")
-    _status(account_manager)
+        out_red("deleting directory: {}".format(basedir))
+        account_manager.remove()
+    else:
+        log_info("state directory empty: {}".format(basedir))
 
 
 option_use_key = click.option(
@@ -372,7 +365,6 @@ def _status_account(account):
         click.echo("  ---- no peers registered -----")
 
 
-autocrypt_main.add_command(init)
 autocrypt_main.add_command(status)
 autocrypt_main.add_command(add_account)
 autocrypt_main.add_command(mod_account)
@@ -385,3 +377,4 @@ autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 autocrypt_main.add_command(bot_reply)
+autocrypt_main.add_command(destroy_all)

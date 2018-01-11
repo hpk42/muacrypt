@@ -2,28 +2,6 @@
 subcommand reference |version|
 ------------------------------
 
-.. _`init`:
-
-init subcommand
-+++++++++++++++
-
-::
-
-  Usage: muacrypt init [OPTIONS]
-  
-    init muacrypt state.
-  
-    By default this command creates account(s) state in a directory with a
-    default "catch-all" account which matches all email addresses and uses
-    default settings.  If you want to have more fine-grained control (which
-    gpg binary to use, which existing key to use, if to use an existing system
-    key ring ...) specify "--no-account".
-  
-  Options:
-    --replace     delete muacrypt state directory before attempting init
-    --no-account  initializing without creating a default account
-    -h, --help    Show this message and exit.
-
 .. _`status`:
 
 status subcommand
@@ -253,4 +231,25 @@ bot-reply subcommand
     --fallback-delivto TEXT  assume delivery to the specified email address if
                              no delivered-to header is found.
     -h, --help               Show this message and exit.
+
+.. _`destroy-all`:
+
+destroy-all subcommand
+++++++++++++++++++++++
+
+::
+
+  Usage: muacrypt destroy-all [OPTIONS]
+  
+    destroy all muacrypt state.
+  
+    By default this command creates account(s) state in a directory with a
+    default "catch-all" account which matches all email addresses and uses
+    default settings.  If you want to have more fine-grained control (which
+    gpg binary to use, which existing key to use, if to use an existing system
+    key ring ...) specify "--no-account".
+  
+  Options:
+    --yes       needs to be specified to actually destroy
+    -h, --help  Show this message and exit.
 
