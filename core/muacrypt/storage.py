@@ -15,11 +15,10 @@ from __future__ import unicode_literals
 from __future__ import print_function
 
 import os
-from . import mime
 from .storage_fs import HeadTracker, BlockService
 from pprint import pprint
 from .myattr import (
-    v, attr, attrs, attrib, attrib_text, attrib_text, attrib_bytes,
+    v, attr, attrs, attrib, attrib_text, attrib_bytes,
     attrib_bytes_or_none, attrib_text_or_none, attrib_float,
 )
 
@@ -27,9 +26,9 @@ from .myattr import (
 # Store
 # =================================================
 
+
 class Store:
     """ Persisting Muacrypt and per-account settings."""
-
     _account_pat = "."
     _own_pat = "own:{id}"
     _oob_pat = "oob:{id}"
@@ -243,8 +242,6 @@ class PeerState(object):
         ))
 
 
-
-
 # ===========================================================
 # OwnState keeps track of own crypto settings
 # ===========================================================
@@ -253,6 +250,7 @@ def config_property(name):
     def get(self):
         return getattr(self._latest_config(), name)
     return property(get)
+
 
 @attr.s
 class KeygenEntry(object):
@@ -337,7 +335,7 @@ class VerificationEntry(object):
 
 @attrs
 class OOBState(object):
-    """Synthesized own state for an account. """
+    """Synthesized Out of Band verification state for an account. """
     _chain = attrib()
 
     def __str__(self):
@@ -356,6 +354,7 @@ class OOBState(object):
             public_keydata=public_keydata,
             origin="self",
         ))
+
     def append_peer_verification(self, addr, public_keydata):
         self._chain.append_entry(VerificationEntry(
             addr=addr,
@@ -364,11 +363,9 @@ class OOBState(object):
         ))
 
 
-
 # ===========================================================
 # AccountManagerState keeps track of account modifications
 # ===========================================================
-
 
 @attr.s
 class AConfigEntry(object):
@@ -378,9 +375,9 @@ class AConfigEntry(object):
 
 @attrs
 class AccountManagerState(object):
+    """Synthesized AccountManagerState. """
     _chain = attrib()
 
-    """Synthesized AccountManagerState. """
     def _latest_config(self):
         return self._chain.latest_entry_of(AConfigEntry)
 

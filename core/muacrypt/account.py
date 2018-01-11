@@ -15,7 +15,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from . import mime
 from .storage import Store
-from .myattr import attrib, attrib_text
+from .myattr import attrib_text
 import email.utils
 
 
@@ -79,7 +79,7 @@ class AccountManager(object):
         return self._store.get_account_names()
 
     def add_account(self, account_name="default", email_regex=None,
-                     keyhandle=None, gpgbin="gpg", gpgmode="own"):
+                    keyhandle=None, gpgbin="gpg", gpgmode="own"):
         """ add a named account to this account.
 
         :param account_name: name of this account
@@ -96,7 +96,7 @@ class AccountManager(object):
         if email_regex is None:
             email_regex = '.*'
         account.create(account_name, email_regex=email_regex, keyhandle=keyhandle,
-                     gpgbin=gpgbin, gpgmode=gpgmode)
+                       gpgbin=gpgbin, gpgmode=gpgmode)
         return account
 
     def mod_account(self, account_name="default", email_regex=None,
@@ -195,7 +195,6 @@ class AccountManager(object):
         :param msg: instance of a standard email Message.
         :rtype: PeerState
         """
-        from .cmdline_utils import log_info
         _, addr = mime.parse_email_addr(msg["From"])
         account = self.get_account_from_emailadr(addr)
         if account is not None:

@@ -99,7 +99,7 @@ option_prefer_encrypt = click.option(
 @option_email_regex
 @click.pass_context
 def add_account(ctx, account_name, use_system_keyring,
-                 use_key, gpgbin, email_regex):
+                use_key, gpgbin, email_regex):
     """add an account to this account.
 
     An account requires an account_name which is used to show, modify and delete it.
@@ -193,7 +193,7 @@ def make_header(ctx, emailadr):
 @click.argument("value", default=None, required=False,
                 type=click.Choice(["notset", "yes", "no"]))
 @click.pass_context
-def set_prefer_encrypt(ctx, value):
+def set_prefer_encrypt(ctx, account, value):
     """print or set prefer-encrypted setting."""
     account = get_account(ctx, account)
     if value is None:
