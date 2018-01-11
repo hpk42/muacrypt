@@ -258,8 +258,7 @@ class Account:
                 raise ValueError("no secret key for {!r}".format(keyhandle))
         keydata = self.bingpg.get_secret_keydata(keyhandle)
         self.ownstate.append_keygen(
-            entry_date=time.time(), keyhandle=keyhandle,
-            keydata=keydata,
+            keyhandle=keyhandle, keydata=keydata,
         )
 
     def modify(self, email_regex=None, keyhandle=None, gpgbin=None, prefer_encrypt=None):

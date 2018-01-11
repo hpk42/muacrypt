@@ -278,7 +278,6 @@ class PeerState(object):
 @attr.s
 class KeygenEntry(object):
     TAG = "keygen"
-    entry_date = attrib_float()
     keydata = attrib_bytes_or_none()
     keyhandle = attrib_text_or_none()
 
@@ -294,8 +293,11 @@ class OwnConfigEntry(object):
 
 
 class OwnChain(ChainBase):
-    def append_keygen(self, **kwargs):
-        return self.append_entry(KeygenEntry(**kwargs))
+    def append_keygen(self, keydata, keyhandle):
+        return self.append_entry(KeygenEntry(
+            keydata=keydata,
+            keyhandle=keyhandle
+        ))
 
     def latest_keygen(self):
         return self.latest_entry_of(KeygenEntry)
