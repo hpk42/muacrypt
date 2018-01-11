@@ -19,8 +19,8 @@ from . import mime
 from .storage_fs import HeadTracker, BlockService
 from pprint import pprint
 from .myattr import (
-    v, attr, attrs, attrib, attrib_text, attrib_text_or_none,
-    attrib_bytes_or_none, attrib_float,
+    v, attr, attrs, attrib, attrib_text, attrib_text, attrib_bytes,
+    attrib_bytes_or_none, attrib_text_or_none, attrib_float,
 )
 
 # ==================================================
@@ -147,14 +147,12 @@ class ChainBase(object):
                 if type is None or x.type == type:
                     yield x
 
-    def iter_entries(self, types):
-        if not isinstance(types, (list, tuple)):
-            tags = {types.TAG: types}
-        else:
-            tags = dict((x.TAG, x) for x in types)
+    def iter_entries(self, entryclass=None):
+        assert entryclass is None or hasattr(entryclass, "TAG")
+        tag = getattr(entryclass, "TAG", None)
         for block in self.iter_blocks():
-            if block and block.type in tags:
-                yield tags[block.type](*block.args)
+            if block and (tag is None or block.type == tag):
+                yield entryclass(*block.args)
 
     def latest_entry_of(self, entryclass):
         for entry in self.iter_entries(entryclass):
@@ -202,40 +200,38 @@ def shortrepr(obj):
 # ===========================================================
 
 @attr.s
-class MsgEntryAC(EntryBase):
-    TAG = "msgac"
+class MsgEntry(EntryBase):
+    TAG = "msg"
     msg_id = attrib_text()
     msg_date = attrib_float()
     prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
-    keydata = attrib_bytes_or_none()
-    keyhandle = attrib_text_or_none()
-
-
-@attr.s
-class MsgEntryNOAC(EntryBase):
-    TAG = "msgno"
-    msg_id = attrib_text()
-    msg_date = attrib_float()
+    keydata = attrib_bytes()
+    keyhandle = attrib_text()
 
 
 class PeerChain(ChainBase):
     def latest_ac_entry(self):
         """ Return latest message with Autocrypt header. """
-        return self.latest_entry_of(MsgEntryAC)
+        for entry in self.iter_entries(MsgEntry):
+            if entry.keydata:
+                return entry
 
     def latest_msg_entry(self):
         """ Return latest message with or without Autocrypt header. """
-        return self.latest_entry_of((MsgEntryAC, MsgEntryNOAC))
+        return self.latest_entry_of(MsgEntry)
 
-    def append_ac_entry(self, **kwargs):
+    def append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
         """append an Autocrypt message entry. """
-        entry = MsgEntryAC(**kwargs)
-        return self.append_entry(entry)
+        return self.append_entry(MsgEntry(
+            msg_id=msg_id, msg_date=msg_date, prefer_encrypt=prefer_encrypt,
+            keydata=keydata, keyhandle=keyhandle))
 
-    def append_noac_entry(self, **kwargs):
+    def append_noac_entry(self, msg_id, msg_date):
         """append a non-Autocrypt message entry. """
-        entry = MsgEntryNOAC(**kwargs)
-        return self.append_entry(entry)
+        return self.append_entry(MsgEntry(
+            msg_id=msg_id, msg_date=msg_date,
+            prefer_encrypt="nopreference", keyhandle="", keydata=b""
+        ))
 
 
 @attrs
@@ -275,7 +271,7 @@ class PeerState(object):
             self._peerchain.append_ac_entry(
                 msg_id=msg_id, msg_date=effective_date,
                 prefer_encrypt=parsed_autocrypt_header["prefer-encrypt"],
-                keydata=keydata, keyhandle=keyhandle
+                keydata=keydata or b'', keyhandle=keyhandle or '',
             )
         else:
             if effective_date > self.last_seen:
