@@ -33,6 +33,7 @@ class Store:
 
     _account_pat = "."
     _own_pat = "own:{id}"
+    _oob_pat = "oob:{id}"
     _peer_pat = "peer:{id}:{addr}"
 
     def __init__(self, dirpath):
@@ -77,6 +78,13 @@ class Store:
 
     def get_own_gpghome(self, account_name):
         return os.path.join(self.dirpath, "gpg", account_name)
+
+    def get_oobchain(self, account_name):
+        head_name = self._oob_pat.format(id=account_name)
+        return OOBChain(self.blocks, self.heads, head_name)
+
+    def get_oobstate(self, account_name):
+        return OOBState(self.get_oobchain(account_name))
 
     def remove_account(self, account_name):
         def match_account(key, value):
@@ -135,6 +143,9 @@ class ChainBase(object):
     def num_blocks(self):
         return len(list(self.iter_blocks()))
 
+    def __len__(self):
+        return len(list(self.iter_blocks()))
+
     def append_entry(self, entry):
         args = attr.astuple(entry)
         self.new_head_block(entry.TAG, args)
@@ -149,32 +160,6 @@ class ChainBase(object):
     def latest_entry_of(self, entryclass):
         for entry in self.iter_entries(entryclass):
             return entry
-
-
-class Chain(ChainBase):
-    def add_genesis(self, keydata):
-        assert not self.get_head_block(), "already have a genesis block"
-        assert isinstance(keydata, bytes)
-        ascii_keydata = mime.encode_binary_keydata(keydata)
-        self.new_head_block("genesis", [ascii_keydata])
-
-    def get_genesis_block(self):
-        head = self.get_head_block()
-        block = head.get_last_parent()
-        assert block.type == "genesis"
-        return block
-
-    def add_oob_verify(self, email, cid):
-        assert self.get_head_block()
-        self.new_head_block("oob_verify", [email, cid])
-
-    def is_oob_verified_block(self, cid):
-        for block in self.iter_blocks(type="oob_verify"):
-            email, _ = block.args
-            head_cid = self._ht.get_head_cid(email)
-            head_block = self._bs.get_block(head_cid)
-            if head_block.contains_cid(cid):
-                return True
 
 
 def shortrepr(obj):
@@ -270,9 +255,14 @@ class PeerState(object):
 
 
 
-# ===========================================
+# ===========================================================
 # OwnChain keeps track of own crypto settings
-# ===========================================
+# ===========================================================
+
+def config_property(name):
+    def get(self):
+        return getattr(self._ownchain.latest_config(), name)
+    return property(get)
 
 @attr.s
 class KeygenEntry(object):
@@ -318,12 +308,6 @@ class OwnChain(ChainBase):
             return True
 
 
-def config_property(name):
-    def get(self):
-        return getattr(self._ownchain.latest_config(), name)
-    return property(get)
-
-
 @attrs
 class OwnState(object):
     """Synthesized own state for an account. """
@@ -363,9 +347,56 @@ class OwnState(object):
         return self._ownchain.latest_config() and self._ownchain.latest_keygen()
 
 
-# =================================================
+# ===========================================================
+# OOBChain keeps track of out-of-band verifications
+# ===========================================================
+
+@attr.s
+class VerificationEntry(object):
+    TAG = "oobverify"
+    addr = attrib_text()
+    public_keydata = attrib_bytes()
+    origin = attrib(validator=v.in_(["self", "peer"]))
+
+
+class OOBChain(ChainBase):
+    pass
+
+
+@attrs
+class OOBState(object):
+    """Synthesized own state for an account. """
+    _oobchain = attrib()
+
+    def __str__(self):
+        return "OOBState key={keyhandle}".format(
+            keyhandle=self.keyhandle,
+        )
+
+    def get_verification(self, addr):
+        for entry in self._oobchain.iter_entries(VerificationEntry):
+            if addr == entry.addr:
+                return entry
+
+
+    def append_self_verification(self, addr, public_keydata):
+        self._oobchain.append_entry(VerificationEntry(
+            addr=addr,
+            public_keydata=public_keydata,
+            origin="self",
+        ))
+    def append_peer_verification(self, addr, public_keydata):
+        self._oobchain.append_entry(VerificationEntry(
+            addr=addr,
+            public_keydata=public_keydata,
+            origin="peer",
+        ))
+
+
+
+# ===========================================================
 # AccountManagerChain keeps track of account modifications
-# =================================================
+# ===========================================================
 
 @attr.s
 class AConfigEntry(object):
