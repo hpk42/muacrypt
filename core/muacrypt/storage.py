@@ -90,16 +90,6 @@ class Store:
 # Chain base classes and helpers
 # ===========================================================
 
-def config_property(name):
-    def get(self):
-        return getattr(self._ownchain.latest_config(), name)
-    return property(get)
-
-
-class EntryBase(object):
-    pass
-
-
 class ChainBase(object):
     """ A Chain maintains an append-only log where each entry
     in the chain has its own content-based address so that chains
@@ -130,7 +120,7 @@ class ChainBase(object):
         return block
 
     def append_entry(self, entry):
-        assert isinstance(entry, EntryBase)
+        assert isinstance(entry, object)
         args = attr.astuple(entry)
         return self.append_block(entry.TAG, args)
 
@@ -200,7 +190,7 @@ def shortrepr(obj):
 # ===========================================================
 
 @attr.s
-class MsgEntry(EntryBase):
+class MsgEntry(object):
     TAG = "msg"
     msg_id = attrib_text()
     msg_date = attrib_float()
@@ -286,7 +276,7 @@ class PeerState(object):
 # ===========================================
 
 @attr.s
-class KeygenEntry(EntryBase):
+class KeygenEntry(object):
     TAG = "keygen"
     entry_date = attrib_float()
     keydata = attrib_bytes_or_none()
@@ -294,7 +284,7 @@ class KeygenEntry(EntryBase):
 
 
 @attr.s
-class OwnConfigEntry(EntryBase):
+class OwnConfigEntry(object):
     TAG = "cfg"
     prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
     name = attrib_text()
@@ -325,6 +315,12 @@ class OwnChain(ChainBase):
         if new_entry != entry:
             self.append_entry(new_entry)
             return True
+
+
+def config_property(name):
+    def get(self):
+        return getattr(self._ownchain.latest_config(), name)
+    return property(get)
 
 
 @attrs
@@ -371,7 +367,7 @@ class OwnState(object):
 # =================================================
 
 @attr.s
-class AConfigEntry(EntryBase):
+class AConfigEntry(object):
     TAG = "acfg"
     version = attrib_text()
 
