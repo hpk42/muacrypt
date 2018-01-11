@@ -231,8 +231,18 @@ def process_outgoing(ctx):
     """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    msg, emailadr = account_manager.process_outgoing(msg)
-    click.echo(msg.as_string())
+    r = account_manager.process_outgoing(msg)
+    dump_info_outgoing_result(r)
+    click.echo(r.msg.as_string())
+
+
+def dump_info_outgoing_result(r):
+    if r.added_autocrypt:
+        log_info("Autocrypt header set for {!r}".format(r.addr))
+    elif r.had_autocrypt:
+        log_info("Found existing Autocrypt: {}...".format(r.had_autocrypt[:35]))
+    elif r.account is None:
+        log_info("No Account associated with addr={!r}".format(r.addr))
 
 
 @click.command(cls=MyCommandUnknownOptions)
@@ -253,7 +263,8 @@ def sendmail(ctx, args):
     account_manager = get_account_manager(ctx)
     args = list(args)
     msg = mime.parse_message_from_file(sys.stdin)
-    msg, emailadr = account_manager.process_outgoing(msg)
+    r = account_manager.process_outgoing(msg)
+    dump_info_outgoing_result(r)
 
     input = msg.as_string()
     # with open("/tmp/mail", "w") as f:
@@ -308,11 +319,12 @@ def status(ctx, account_name):
 
 def _status(account_manager):
     click.echo("account-dir: " + account_manager.dir)
-    accounts = account_manager.list_accounts()
-    if not accounts:
+    names = account_manager.list_account_names()
+    if not names:
         out_red("no accounts configured")
         return
-    for account in accounts:
+    for name in names:
+        account = account_manager.get_account(name)
         _status_account(account)
         click.echo("")
 

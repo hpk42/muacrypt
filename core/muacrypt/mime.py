@@ -55,7 +55,10 @@ def get_target_emailadr(msg):
 
 def parse_email_addr(string):
     """ return a (prefix, emailadr) tuple. """
-    return email.utils.parseaddr(string)
+    prefix, emailadr = email.utils.parseaddr(string)
+    if isinstance(emailadr, bytes):
+        emailadr = six.text_type(emailadr)
+    return prefix, emailadr
 
 
 def parse_message_from_file(fp):

@@ -143,7 +143,7 @@ class TestAccountManager:
         assert account.bingpg.get_secret_keydata(account.ownstate.keyhandle)
         assert str(account)
         manager.del_account("office")
-        assert not manager.list_accounts()
+        assert not manager.list_account_names()
         assert not manager.get_account_from_emailadr("office@example.org")
 
     def test_add_existing_key(self, manager_maker, datadir, gpgpath, monkeypatch):

@@ -15,6 +15,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from . import mime
 from .storage import Store
+from .myattr import attrib, attrib_text
 import email.utils
 
 
@@ -50,7 +51,8 @@ class AccountNotFound(AccountException):
 class AccountManager(object):
     """ Each AccountManager manages one or more Accounts
     which in turn perform processing of incoming and outgoing
-    mails and keep all Autocrypt related state in append-only logs.
+    mails and keep all Autocrypt related state separated on
+    a per-account basis.
     """
     def __init__(self, dir):
         """ Initialize multi-account configuration.
@@ -79,9 +81,6 @@ class AccountManager(object):
 
     def list_account_names(self):
         return self.store.get_account_names()
-
-    def list_accounts(self):
-        return [self.get_account(x) for x in self.list_account_names()]
 
     def add_account(self, account_name="default", email_regex=None,
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
@@ -135,7 +134,8 @@ class AccountManager(object):
 
     def get_account_from_emailadr(self, emailadr, raising=False):
         """ get account for a given email address. """
-        for account in self.list_accounts():
+        for name in self.list_account_names():
+            account = self.get_account(name)
             if re.match(account.ownstate.email_regex, emailadr):
                 return account
         if raising:
@@ -171,7 +171,7 @@ class AccountManager(object):
         """
         if not self.list_account_names():
             raise NotInitialized("no accounts configured")
-        account = self.get_account_from_emailadr(emailadr)
+        account = self.get_account_from_emailadr(emailadr, raising=True)
         if account is None:
             return ""
         else:
@@ -188,9 +188,7 @@ class AccountManager(object):
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
             assert delivto
-        account = self.get_account_from_emailadr(delivto)
-        if account is None:
-            raise AccountNotFound("no account matches email-adr {}".format(delivto))
+        account = self.get_account_from_emailadr(delivto, raising=True)
         return account.process_incoming(msg)
 
     def process_outgoing(self, msg):
@@ -203,16 +201,13 @@ class AccountManager(object):
         """
         from .cmdline_utils import log_info
         _, addr = mime.parse_email_addr(msg["From"])
-        if "Autocrypt" not in msg:
-            h = self.make_header(addr, headername="")
-            if not h:
-                log_info("no account associated with {}".format(addr))
-            else:
-                msg["Autocrypt"] = h
-                log_info("Autocrypt header set for {!r}".format(addr))
+        account = self.get_account_from_emailadr(addr)
+        if account is not None:
+            return account.process_outgoing(msg)
         else:
-            log_info("Found existing Autocrypt: {}...".format(msg["Autocrypt"][:35]))
-        return msg, addr
+            return ProcessOutgoingResult(
+                account=None, msg=msg, addr=addr,
+                had_autocrypt=None, added_autocrypt=None)
 
 
 class Account:
@@ -351,11 +346,35 @@ class Account:
             account=self,
         )
 
+    def process_outgoing(self, msg):
+        """ add Autocrypt header to outgoing message.
+        :type msg: email.message.Message
+        :param msg: outgoing message in mime format.
+        :rtype: ProcessOutgoingResult
+        """
+        _, addr = mime.parse_email_addr(msg.get("From"))
+        if "Autocrypt" in msg:
+            added_autocrypt = None
+        else:
+            msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr, "")
+        return ProcessOutgoingResult(
+            msg=msg, account=self, addr=addr,
+            added_autocrypt=added_autocrypt, had_autocrypt=msg["Autocrypt"]
+        )
 
 
 @attrs
 class ProcessIncomingResult(object):
-    msgid = attrib(type=six.text_type)
+    msgid = attrib_text()
     peerstate = attrib()
     account = attrib(type=six.text_type)
-    autocrypt_header = attrib(type=six.text_type)
+    autocrypt_header = attrib()
+
+
+@attrs
+class ProcessOutgoingResult(object):
+    msg = attrib(type=email.message.Message)
+    account = attrib(type=six.text_type)
+    addr = attrib_text()
+    added_autocrypt = attrib()
+    had_autocrypt = attrib()
