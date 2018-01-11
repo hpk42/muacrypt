@@ -98,10 +98,10 @@ class ChainBase(object):
     extra data.
     """
 
-    def __init__(self, blockservice, headtracker, account):
+    def __init__(self, blockservice, headtracker, chain_name):
         self._bs = blockservice
         self._ht = headtracker
-        self.account = account
+        self.chain_name = chain_name
 
     def dump(self):
         l = list(self.get_head_block())
@@ -116,15 +116,11 @@ class ChainBase(object):
         if head:
             head = head.cid
         block = self._bs.store_block(type, args, parent=head)
-        self._ht.upsert(self.account, block.cid)
+        self._ht.upsert(self.chain_name, block.cid)
         return block
 
-    def append_entry(self, entry):
-        args = attr.astuple(entry)
-        self.new_head_block(entry.TAG, args)
-
     def get_head_block(self):
-        head_cid = self._ht.get_head_cid(self.account)
+        head_cid = self._ht.get_head_cid(self.chain_name)
         if head_cid:
             return self._bs.get_block(head_cid)
 
@@ -136,6 +132,13 @@ class ChainBase(object):
                 if type is None or x.type == type:
                     yield x
 
+    def num_blocks(self):
+        return len(list(self.iter_blocks()))
+
+    def append_entry(self, entry):
+        args = attr.astuple(entry)
+        self.new_head_block(entry.TAG, args)
+
     def iter_entries(self, entryclass=None):
         assert entryclass is None or hasattr(entryclass, "TAG")
         tag = getattr(entryclass, "TAG", None)
@@ -146,9 +149,6 @@ class ChainBase(object):
     def latest_entry_of(self, entryclass):
         for entry in self.iter_entries(entryclass):
             return entry
-
-    def num_blocks(self):
-        return len(list(self.iter_blocks()))
 
 
 class Chain(ChainBase):
@@ -171,7 +171,7 @@ class Chain(ChainBase):
     def is_oob_verified_block(self, cid):
         for block in self.iter_blocks(type="oob_verify"):
             email, _ = block.args
-            head_cid = self._ht.get_head_cid(account=email)
+            head_cid = self._ht.get_head_cid(email)
             head_block = self._bs.get_block(head_cid)
             if head_block.contains_cid(cid):
                 return True
@@ -235,7 +235,7 @@ class PeerState(object):
 
     @property
     def addr(self):
-        return self._peerchain.account.split(":", 2)[-1]
+        return self._peerchain.chain_name.split(":", 2)[-1]
 
     @property
     def last_seen(self):
