@@ -179,10 +179,8 @@ class AccountManager(object):
             return account.make_ac_header(emailadr, headername=headername)
 
     def process_incoming(self, msg, delivto=None):
-        """ process incoming mail message and store information
-        from any Autocrypt header for the From/Autocrypt peer
-        which created the message.
-
+        """ match account for incoming mail message
+        and defer to account.process_incoming.
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
         :rtype: PeerState
@@ -192,30 +190,8 @@ class AccountManager(object):
             assert delivto
         account = self.get_account_from_emailadr(delivto)
         if account is None:
-            raise AccountNotFound("no account matches emails={}".format([delivto]))
-        From = mime.parse_email_addr(msg["From"])[1]
-        peerstate = account.get_peerstate(From)
-        peerchain = peerstate.peerchain
-
-        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
-        msg_id = six.text_type(msg["Message-Id"])
-        d = mime.parse_one_ac_header_from_msg(msg)
-        if d.get("addr") != From:
-            d = {}
-            keydata = keyhandle = None,
-        else:
-            keydata = b64decode(d["keydata"])
-            keyhandle = account.bingpg.import_keydata(keydata)
-        peerstate.update_from_msg(
-            msg_id=msg_id, effective_date=msg_date,
-            parsed_autocrypt_header=d, keydata=keydata, keyhandle=keyhandle,
-        )
-        return ProcessIncomingResult(
-            msgid=msg_id,
-            autocrypt_header=d,
-            peerstate=peerstate,
-            account=account
-        )
+            raise AccountNotFound("no account matches email-adr {}".format(delivto))
+        return account.process_incoming(msg)
 
     def process_outgoing(self, msg):
         """ process outgoing mail message and add Autocrypt
@@ -343,6 +319,38 @@ class Account:
     def export_secret_key(self):
         """ return armored public key for this account. """
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
+
+    def process_incoming(self, msg):
+        """ process incoming mail message and store information
+        from any Autocrypt header for the From/Autocrypt peer
+        which created the message.
+
+        :type msg: email.message.Message
+        :param msg: instance of a standard email Message.
+        :rtype: PeerState
+        """
+        From = mime.parse_email_addr(msg["From"])[1]
+        peerstate = self.get_peerstate(From)
+        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
+        msg_id = six.text_type(msg["Message-Id"])
+        d = mime.parse_one_ac_header_from_msg(msg)
+        if d.get("addr") != From:
+            d = {}
+            keydata = keyhandle = None,
+        else:
+            keydata = b64decode(d["keydata"])
+            keyhandle = self.bingpg.import_keydata(keydata)
+        peerstate.update_from_msg(
+            msg_id=msg_id, effective_date=msg_date,
+            parsed_autocrypt_header=d, keydata=keydata, keyhandle=keyhandle,
+        )
+        return ProcessIncomingResult(
+            msgid=msg_id,
+            autocrypt_header=d,
+            peerstate=peerstate,
+            account=self,
+        )
+
 
 
 @attrs
