@@ -43,11 +43,11 @@ class Store:
         self.heads = HeadTracker(os.path.join(dirpath, "heads"))
         self.blocks = BlockService(blockdir)
 
-    def get_accountmanager_chain(self):
+    def get__accountmanager_chain(self):
         return AccountManagerChain(self.blocks, self.heads, self._account_pat)
 
     def get_accountmanager_state(self):
-        return AccountManagerState(self.get_accountmanager_chain())
+        return AccountManagerState(self.get__accountmanager_chain())
 
     def get_account_names(self):
         return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
@@ -92,7 +92,7 @@ class Store:
 
 def config_property(name):
     def get(self):
-        return getattr(self.ownchain.latest_config(), name)
+        return getattr(self._ownchain.latest_config(), name)
     return property(get)
 
 
@@ -238,6 +238,53 @@ class PeerChain(ChainBase):
         return self.append_entry(entry)
 
 
+@attrs
+class PeerState(object):
+    """Synthesized Autocrypt state from parsing messages from a peer. """
+    _peerchain = attrib()
+
+    def __str__(self):
+        return "PeerState addr={addr} key={keyhandle}".format(
+            addr=self.addr, keyhandle=self.public_keyhandle
+        )
+
+    @property
+    def addr(self):
+        return self._peerchain.account.split(":", 2)[-1]
+
+    @property
+    def last_seen(self):
+        return getattr(self._peerchain.latest_msg_entry(), "msg_date", 0.0)
+
+    @property
+    def autocrypt_timestamp(self):
+        return getattr(self._peerchain.latest_ac_entry(), "msg_date", 0.0)
+
+    @property
+    def public_keyhandle(self):
+        return getattr(self._peerchain.latest_ac_entry(), "keyhandle", None)
+
+    @property
+    def public_keydata(self):
+        return getattr(self._peerchain.latest_ac_entry(), "keydata", None)
+
+    # methods which modify/add state
+    def update_from_msg(self, msg_id, effective_date, parsed_autocrypt_header,
+                        keydata, keyhandle):
+        if parsed_autocrypt_header and effective_date >= self.autocrypt_timestamp:
+            self._peerchain.append_ac_entry(
+                msg_id=msg_id, msg_date=effective_date,
+                prefer_encrypt=parsed_autocrypt_header["prefer-encrypt"],
+                keydata=keydata, keyhandle=keyhandle
+            )
+        else:
+            if effective_date > self.last_seen:
+                self._peerchain.append_noac_entry(
+                    msg_id=msg_id, msg_date=effective_date,
+                )
+
+
+
 # ===========================================
 # OwnChain keeps track of own crypto settings
 # ===========================================
@@ -285,6 +332,46 @@ class OwnChain(ChainBase):
             return True
 
 
+@attrs
+class OwnState(object):
+    """Synthesized own state for an account. """
+    _ownchain = attrib()
+
+    def __str__(self):
+        return "OwnState key={keyhandle}".format(
+            keyhandle=self.keyhandle,
+        )
+    uuid = config_property("uuid")
+    name = config_property("name")
+    email_regex = config_property("email_regex")
+    gpgmode = config_property("gpgmode")
+    gpgbin = config_property("gpgbin")
+    prefer_encrypt = config_property("prefer_encrypt")
+
+    @property
+    def keyhandle(self):
+        return self._ownchain.latest_keygen().keyhandle
+
+    def exists(self):
+        return self.uuid
+
+    # methods which modify/add state
+    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin, uuid):
+        return self._ownchain.new_config(
+            name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
+            gpgmode=gpgmode, gpgbin=gpgbin, uuid=uuid,
+        )
+
+    def change_config(self, **kwargs):
+        return self._ownchain.change_config(**kwargs)
+
+    def append_keygen(self, **kwargs):
+        return self._ownchain.append_keygen(**kwargs)
+
+    def is_configured(self):
+        return self._ownchain.latest_config() and self._ownchain.latest_keygen()
+
+
 # =================================================
 # AccountManagerChain keeps track of account modifications
 # =================================================
@@ -306,86 +393,15 @@ class AccountManagerChain(ChainBase):
 
 @attrs
 class AccountManagerState(object):
-    """ Read-Only synthesized AccountManagerState view. """
-    accountmanager_chain = attrib()
+    """Synthesized AccountManagerState. """
+    _accountmanager_chain = attrib()
 
     @property
     def version(self):
-        return getattr(self.accountmanager_chain.latest_config(), "version", None)
+        return getattr(self._accountmanager_chain.latest_config(), "version", None)
 
     def __str__(self):
         return "AccountManagerState version={version}".format(version=self.version)
 
-
-@attrs
-class OwnState(object):
-    """ Read-Only synthesized view on OwnState which contains
-    our own account state. """
-    ownchain = attrib()
-
-    def __str__(self):
-        return "OwnState key={keyhandle}".format(
-            keyhandle=self.keyhandle,
-        )
-
-    uuid = config_property("uuid")
-    name = config_property("name")
-    email_regex = config_property("email_regex")
-    gpgmode = config_property("gpgmode")
-    gpgbin = config_property("gpgbin")
-    prefer_encrypt = config_property("prefer_encrypt")
-
-    @property
-    def keyhandle(self):
-        return self.ownchain.latest_keygen().keyhandle
-
-    def exists(self):
-        return self.uuid
-
-
-@attrs
-class PeerState(object):
-    """ Read-Only synthesized view on PeerChains which link all
-    message parsing results for a given peer. """
-    peerchain = attrib()
-
-    def __str__(self):
-        return "PeerState addr={addr} key={keyhandle}".format(
-            addr=self.addr, keyhandle=self.public_keyhandle
-        )
-
-    @property
-    def addr(self):
-        return self.peerchain.account.split(":", 2)[-1]
-
-    @property
-    def last_seen(self):
-        return getattr(self.peerchain.latest_msg_entry(), "msg_date", 0.0)
-
-    @property
-    def autocrypt_timestamp(self):
-        return getattr(self.peerchain.latest_ac_entry(), "msg_date", 0.0)
-
-    @property
-    def public_keyhandle(self):
-        return getattr(self.peerchain.latest_ac_entry(), "keyhandle", None)
-
-    @property
-    def public_keydata(self):
-        return getattr(self.peerchain.latest_ac_entry(), "keydata", None)
-
-    # methods which modify/add state
-    def update_from_msg(self, msg_id, effective_date, parsed_autocrypt_header,
-                        keydata, keyhandle):
-        if parsed_autocrypt_header and effective_date >= self.autocrypt_timestamp:
-            self.peerchain.append_ac_entry(
-                msg_id=msg_id, msg_date=effective_date,
-                prefer_encrypt=parsed_autocrypt_header["prefer-encrypt"],
-                keydata=keydata, keyhandle=keyhandle
-            )
-        else:
-            if effective_date > self.last_seen:
-                self.peerchain.append_noac_entry(
-                    msg_id=msg_id, msg_date=effective_date,
-                )
-
+    def set_version(self, version):
+        return self._accountmanager_chain.set_version(version)

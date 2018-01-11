@@ -49,11 +49,7 @@ class AccountNotFound(AccountException):
 
 
 class AccountManager(object):
-    """ Each AccountManager manages one or more Accounts
-    which in turn perform processing of incoming and outgoing
-    mails and keep all Autocrypt related state separated on
-    a per-account basis.
-    """
+    """ Manage multiple accounts and route in/out messages to the appropriate account. """
     def __init__(self, dir):
         """ Initialize multi-account configuration.
 
@@ -62,25 +58,25 @@ class AccountManager(object):
              directory in which muacrypt will store state.
         """
         self.dir = dir
-        self.store = Store(dir)
-        self.accountmanager_state = self.store.get_accountmanager_state()
+        self._store = Store(dir)
+        self.accountmanager_state = self._store.get_accountmanager_state()
 
     def init(self):
         assert self.accountmanager_state.version is None
-        self.accountmanager_state.accountmanager_chain.set_version("0.1")
+        self.accountmanager_state.set_version("0.1")
 
     def exists(self):
         return self.accountmanager_state.version is not None
 
     def get_account(self, account_name="default", check=True):
         assert account_name.isalnum(), account_name
-        account = Account(self.store, account_name)
+        account = Account(self._store, account_name)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
         return account
 
     def list_account_names(self):
-        return self.store.get_account_names()
+        return self._store.get_account_names()
 
     def add_account(self, account_name="default", email_regex=None,
                      keyhandle=None, gpgbin="gpg", gpgmode="own"):
@@ -146,8 +142,8 @@ class AccountManager(object):
         to empty.  You need to add accounts to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
-        self.store = Store(self.dir)
-        self.accountmanager_state = self.store.get_accountmanager_state()
+        self._store = Store(self.dir)
+        self.accountmanager_state = self._store.get_accountmanager_state()
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -219,17 +215,17 @@ class Account:
         """ shallo initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
         self.name = name
-        self.store = store
-        self.ownstate = self.store.get_ownstate(name)
+        self._store = store
+        self.ownstate = self._store.get_ownstate(name)
 
     def __repr__(self):
         return "Account(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        return self.store.get_peerstate(self.name, addr)
+        return self._store.get_peerstate(self.name, addr)
 
     def get_peername_list(self):
-        return self.store.get_peername_list(self.name)
+        return self._store.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this account.
@@ -245,7 +241,7 @@ class Account:
                         in the user's system GnuPG keyring.
         """
         assert gpgmode in ("own", "system")
-        self.ownstate.ownchain.new_config(
+        self.ownstate.new_config(
             uuid=six.text_type(uuid.uuid4().hex),
             name=name,
             email_regex=email_regex,
@@ -261,7 +257,7 @@ class Account:
             if keyhandle is None:
                 raise ValueError("no secret key for {!r}".format(keyhandle))
         keydata = self.bingpg.get_secret_keydata(keyhandle)
-        self.ownstate.ownchain.append_keygen(
+        self.ownstate.append_keygen(
             entry_date=time.time(), keyhandle=keyhandle,
             keydata=keydata,
         )
@@ -272,16 +268,16 @@ class Account:
             kwargs["email_regex"] = email_regex
         if prefer_encrypt is not None:
             kwargs["prefer_encrypt"] = prefer_encrypt
-        return self.ownstate.ownchain.change_config(**kwargs)
+        return self.ownstate.change_config(**kwargs)
 
     def delete(self):
-        self.store.remove_account(self.name)
+        self._store.remove_account(self.name)
 
     @cached_property
     def bingpg(self):
         gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = self.store.get_own_gpghome(self.name)
+            gpghome = self._store.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:
@@ -300,8 +296,7 @@ class Account:
 
     def exists(self):
         """ return True if the account exists. """
-        return self.ownstate.ownchain.latest_config() and \
-            self.ownstate.ownchain.latest_keygen()
+        return self.ownstate.is_configured()
 
     def export_public_key(self, keyhandle=None):
         """ return armored public key of this account or the one
