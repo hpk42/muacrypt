@@ -27,7 +27,6 @@ from .myattr import (
 # Store
 # =================================================
 
-
 class Store:
     """ Persisting Muacrypt and per-account settings."""
 
@@ -44,11 +43,9 @@ class Store:
         self.heads = HeadTracker(os.path.join(dirpath, "heads"))
         self.blocks = BlockService(blockdir)
 
-    def get__accountmanager_chain(self):
-        return AccountManagerChain(self.blocks, self.heads, self._account_pat)
-
     def get_accountmanager_state(self):
-        return AccountManagerState(self.get__accountmanager_chain())
+        chain = Chain(self.blocks, self.heads, self._account_pat)
+        return AccountManagerState(chain)
 
     def get_account_names(self):
         return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
@@ -60,31 +57,25 @@ class Store:
         prefix = self._peer_pat.format(id=account_name, addr="")
         return sorted(self.heads._getheads(prefix=prefix))
 
-    def get_peerchain(self, account_name, addr):
+    def get_peerstate(self, account_name, addr):
         # XXX encode addr?
         assert addr.encode("ascii"), addr
         head_name = self._peer_pat.format(id=account_name, addr=addr)
-        return PeerChain(self.blocks, self.heads, head_name)
-
-    def get_peerstate(self, account_name, addr):
-        return PeerState(self.get_peerchain(account_name, addr))
-
-    def get_ownchain(self, account_name):
-        head_name = self._own_pat.format(id=account_name)
-        return OwnChain(self.blocks, self.heads, head_name)
+        chain = Chain(self.blocks, self.heads, head_name)
+        return PeerState(chain)
 
     def get_ownstate(self, account_name):
-        return OwnState(self.get_ownchain(account_name))
+        head_name = self._own_pat.format(id=account_name)
+        chain = Chain(self.blocks, self.heads, head_name)
+        return OwnState(chain)
 
     def get_own_gpghome(self, account_name):
         return os.path.join(self.dirpath, "gpg", account_name)
 
-    def get_oobchain(self, account_name):
-        head_name = self._oob_pat.format(id=account_name)
-        return OOBChain(self.blocks, self.heads, head_name)
-
     def get_oobstate(self, account_name):
-        return OOBState(self.get_oobchain(account_name))
+        head_name = self._oob_pat.format(id=account_name)
+        chain = Chain(self.blocks, self.heads, head_name)
+        return OOBState(chain)
 
     def remove_account(self, account_name):
         def match_account(key, value):
@@ -98,7 +89,7 @@ class Store:
 # Chain base classes and helpers
 # ===========================================================
 
-class ChainBase(object):
+class Chain(object):
     """ A Chain maintains an append-only log where each entry
     in the chain has its own content-based address so that chains
     can cross-reference entries from the same or other chains. Each entry in a chain
@@ -140,9 +131,6 @@ class ChainBase(object):
                 if type is None or x.type == type:
                     yield x
 
-    def num_blocks(self):
-        return len(list(self.iter_blocks()))
-
     def __len__(self):
         return len(list(self.iter_blocks()))
 
@@ -183,35 +171,10 @@ class MsgEntry(object):
     keyhandle = attrib_text()
 
 
-class PeerChain(ChainBase):
-    def latest_ac_entry(self):
-        """ Return latest message with Autocrypt header. """
-        for entry in self.iter_entries(MsgEntry):
-            if entry.keydata:
-                return entry
-
-    def latest_msg_entry(self):
-        """ Return latest message with or without Autocrypt header. """
-        return self.latest_entry_of(MsgEntry)
-
-    def append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
-        """append an Autocrypt message entry. """
-        self.append_entry(MsgEntry(
-            msg_id=msg_id, msg_date=msg_date, prefer_encrypt=prefer_encrypt,
-            keydata=keydata, keyhandle=keyhandle))
-
-    def append_noac_entry(self, msg_id, msg_date):
-        """append a non-Autocrypt message entry. """
-        self.append_entry(MsgEntry(
-            msg_id=msg_id, msg_date=msg_date,
-            prefer_encrypt="nopreference", keyhandle="", keydata=b""
-        ))
-
-
 @attrs
 class PeerState(object):
     """Synthesized Autocrypt state from parsing messages from a peer. """
-    _peerchain = attrib()
+    _chain = attrib()
 
     def __str__(self):
         return "PeerState addr={addr} key={keyhandle}".format(
@@ -220,48 +183,72 @@ class PeerState(object):
 
     @property
     def addr(self):
-        return self._peerchain.chain_name.split(":", 2)[-1]
+        return self._chain.chain_name.split(":", 2)[-1]
 
     @property
     def last_seen(self):
-        return getattr(self._peerchain.latest_msg_entry(), "msg_date", 0.0)
+        return getattr(self._latest_msg_entry(), "msg_date", 0.0)
 
     @property
     def autocrypt_timestamp(self):
-        return getattr(self._peerchain.latest_ac_entry(), "msg_date", 0.0)
+        return getattr(self._latest_ac_entry(), "msg_date", 0.0)
 
     @property
     def public_keyhandle(self):
-        return getattr(self._peerchain.latest_ac_entry(), "keyhandle", None)
+        return getattr(self._latest_ac_entry(), "keyhandle", None)
 
     @property
     def public_keydata(self):
-        return getattr(self._peerchain.latest_ac_entry(), "keydata", None)
+        return getattr(self._latest_ac_entry(), "keydata", None)
+
+    def _latest_ac_entry(self):
+        """ Return latest message with Autocrypt header. """
+        for entry in self._chain.iter_entries(MsgEntry):
+            if entry.keydata:
+                return entry
+
+    def _latest_msg_entry(self):
+        """ Return latest message with or without Autocrypt header. """
+        return self._chain.latest_entry_of(MsgEntry)
 
     # methods which modify/add state
     def update_from_msg(self, msg_id, effective_date, parsed_autocrypt_header,
                         keydata, keyhandle):
         if parsed_autocrypt_header and effective_date >= self.autocrypt_timestamp:
-            self._peerchain.append_ac_entry(
+            self._append_ac_entry(
                 msg_id=msg_id, msg_date=effective_date,
                 prefer_encrypt=parsed_autocrypt_header["prefer-encrypt"],
                 keydata=keydata or b'', keyhandle=keyhandle or '',
             )
         else:
             if effective_date > self.last_seen:
-                self._peerchain.append_noac_entry(
+                self._append_noac_entry(
                     msg_id=msg_id, msg_date=effective_date,
                 )
+
+    def _append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
+        """append an Autocrypt message entry. """
+        self._chain.append_entry(MsgEntry(
+            msg_id=msg_id, msg_date=msg_date, prefer_encrypt=prefer_encrypt,
+            keydata=keydata, keyhandle=keyhandle))
+
+    def _append_noac_entry(self, msg_id, msg_date):
+        """append a non-Autocrypt message entry. """
+        self._chain.append_entry(MsgEntry(
+            msg_id=msg_id, msg_date=msg_date,
+            prefer_encrypt="nopreference", keyhandle="", keydata=b""
+        ))
+
 
 
 
 # ===========================================================
-# OwnChain keeps track of own crypto settings
+# OwnState keeps track of own crypto settings
 # ===========================================================
 
 def config_property(name):
     def get(self):
-        return getattr(self._ownchain.latest_config(), name)
+        return getattr(self._latest_config(), name)
     return property(get)
 
 @attr.s
@@ -281,37 +268,10 @@ class OwnConfigEntry(object):
     gpgbin = attrib_text()
 
 
-class OwnChain(ChainBase):
-    def append_keygen(self, keydata, keyhandle):
-        self.append_entry(KeygenEntry(
-            keydata=keydata,
-            keyhandle=keyhandle
-        ))
-
-    def latest_keygen(self):
-        return self.latest_entry_of(KeygenEntry)
-
-    def latest_config(self):
-        return self.latest_entry_of(OwnConfigEntry)
-
-    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin):
-        self.append_entry(OwnConfigEntry(
-            name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
-            gpgmode=gpgmode, gpgbin=gpgbin,
-        ))
-
-    def change_config(self, **kwargs):
-        entry = self.latest_config()
-        new_entry = attr.evolve(entry, **kwargs)
-        if new_entry != entry:
-            self.append_entry(new_entry)
-            return True
-
-
 @attrs
 class OwnState(object):
     """Synthesized own state for an account. """
-    _ownchain = attrib()
+    _chain = attrib()
 
     def __str__(self):
         return "OwnState key={keyhandle}".format(
@@ -325,26 +285,39 @@ class OwnState(object):
 
     @property
     def keyhandle(self):
-        return self._ownchain.latest_keygen().keyhandle
+        return self._latest_keygen().keyhandle
 
     def exists(self):
         return self.name
 
+    def _latest_keygen(self):
+        return self._chain.latest_entry_of(KeygenEntry)
+
+    def _latest_config(self):
+        return self._chain.latest_entry_of(OwnConfigEntry)
+
     # methods which modify/add state
     def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin):
-        return self._ownchain.new_config(
+        self._chain.append_entry(OwnConfigEntry(
             name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
             gpgmode=gpgmode, gpgbin=gpgbin,
-        )
+        ))
 
     def change_config(self, **kwargs):
-        return self._ownchain.change_config(**kwargs)
+        entry = self._latest_config()
+        new_entry = attr.evolve(entry, **kwargs)
+        if new_entry != entry:
+            self._chain.append_entry(new_entry)
+            return True
 
-    def append_keygen(self, **kwargs):
-        return self._ownchain.append_keygen(**kwargs)
+    def append_keygen(self, keydata, keyhandle):
+        self._chain.append_entry(KeygenEntry(
+            keydata=keydata,
+            keyhandle=keyhandle
+        ))
 
     def is_configured(self):
-        return self._ownchain.latest_config() and self._ownchain.latest_keygen()
+        return self._latest_config() and self._latest_keygen()
 
 
 # ===========================================================
@@ -359,14 +332,10 @@ class VerificationEntry(object):
     origin = attrib(validator=v.in_(["self", "peer"]))
 
 
-class OOBChain(ChainBase):
-    pass
-
-
 @attrs
 class OOBState(object):
     """Synthesized own state for an account. """
-    _oobchain = attrib()
+    _chain = attrib()
 
     def __str__(self):
         return "OOBState key={keyhandle}".format(
@@ -374,19 +343,18 @@ class OOBState(object):
         )
 
     def get_verification(self, addr):
-        for entry in self._oobchain.iter_entries(VerificationEntry):
+        for entry in self._chain.iter_entries(VerificationEntry):
             if addr == entry.addr:
                 return entry
 
-
     def append_self_verification(self, addr, public_keydata):
-        self._oobchain.append_entry(VerificationEntry(
+        self._chain.append_entry(VerificationEntry(
             addr=addr,
             public_keydata=public_keydata,
             origin="self",
         ))
     def append_peer_verification(self, addr, public_keydata):
-        self._oobchain.append_entry(VerificationEntry(
+        self._chain.append_entry(VerificationEntry(
             addr=addr,
             public_keydata=public_keydata,
             origin="peer",
@@ -395,8 +363,9 @@ class OOBState(object):
 
 
 # ===========================================================
-# AccountManagerChain keeps track of account modifications
+# AccountManagerState keeps track of account modifications
 # ===========================================================
+
 
 @attr.s
 class AConfigEntry(object):
@@ -404,26 +373,21 @@ class AConfigEntry(object):
     version = attrib_text()
 
 
-class AccountManagerChain(ChainBase):
-    def set_version(self, version):
-        assert not self.latest_config()
-        self.append_entry(AConfigEntry(version=version))
-
-    def latest_config(self):
-        return self.latest_entry_of(AConfigEntry)
-
-
 @attrs
 class AccountManagerState(object):
+    _chain = attrib()
+
     """Synthesized AccountManagerState. """
-    _accountmanager_chain = attrib()
+    def _latest_config(self):
+        return self._chain.latest_entry_of(AConfigEntry)
 
     @property
     def version(self):
-        return getattr(self._accountmanager_chain.latest_config(), "version", None)
+        return getattr(self._latest_config(), "version", None)
 
     def __str__(self):
         return "AccountManagerState version={version}".format(version=self.version)
 
     def set_version(self, version):
-        return self._accountmanager_chain.set_version(version)
+        assert not self._latest_config()
+        self._chain.append_entry(AConfigEntry(version=version))
