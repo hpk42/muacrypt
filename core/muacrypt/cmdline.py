@@ -24,7 +24,7 @@ from .bot import bot_reply
 @click.option("--basedir", type=click.Path(),
               default=click.get_app_dir("muacrypt"),
               envvar="MUACRYPT_BASEDIR",
-              help="directory where muacrypt state is stored")
+              help="directory where muacrypt state is statesd")
 @click.version_option()
 @click.pass_context
 def autocrypt_main(context, basedir):
@@ -112,7 +112,7 @@ def add_account(ctx, account_name, use_system_keyring,
     existing key with --use-key=keyhandle where keyhandle may be
     something for which gpg finds it with 'gpg --list-secret-keys keyhandle'.
     Typically you will then also specify --use-system-keyring to make use of
-    your existing keys.  All incoming muacrypt keys will thus be stored in
+    your existing keys.  All incoming muacrypt keys will thus be statesd in
     the system key ring instead of an own keyring.
     """
     account_manager = get_account_manager(ctx)

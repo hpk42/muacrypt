@@ -14,7 +14,7 @@ import uuid
 import time
 from .bingpg import cached_property, BinGPG
 from . import mime
-from .storage import Store
+from .states import States
 from .myattr import attrib_text
 import email.utils
 
@@ -55,11 +55,11 @@ class AccountManager(object):
 
         :type dir: unicode
         :param dir:
-             directory in which muacrypt will store state.
+             directory in which muacrypt will states state.
         """
         self.dir = dir
-        self._store = Store(dir)
-        self.accountmanager_state = self._store.get_accountmanager_state()
+        self._states = States(dir)
+        self.accountmanager_state = self._states.get_accountmanager_state()
 
     def init(self):
         assert self.accountmanager_state.version is None
@@ -70,13 +70,13 @@ class AccountManager(object):
 
     def get_account(self, account_name="default", check=True):
         assert account_name.isalnum(), account_name
-        account = Account(self._store, account_name)
+        account = Account(self._states, account_name)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
         return account
 
     def list_account_names(self):
-        return self._store.get_account_names()
+        return self._states.get_account_names()
 
     def add_account(self, account_name="default", email_regex=None,
                     keyhandle=None, gpgbin="gpg", gpgmode="own"):
@@ -88,7 +88,7 @@ class AccountManager(object):
         :param keyhandle: key fingerprint or uid to use for this account.
         :param gpgbin: basename of or full path to gpg binary
         :param gpgmode: "own" (default) keeps all key state inside the account
-                        directory under the account.  "system" will store keys
+                        directory under the account.  "system" will states keys
                         in the user's system gnupg keyring.
         """
         account = self.get_account(account_name, check=False)
@@ -112,7 +112,7 @@ class AccountManager(object):
         :param keyhandle: key fingerprint or uid to use for this account.
         :param gpgbin: basename of or full path to gpg binary
         :param gpgmode: "own" keeps all key state inside the account
-                        directory under the account.  "system" will store keys
+                        directory under the account.  "system" will states keys
                         in the user's system gnupg keyring.
         :returns: Account instance
         """
@@ -142,8 +142,8 @@ class AccountManager(object):
         to empty.  You need to add accounts to reinitialize.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
-        self._store = Store(self.dir)
-        self.accountmanager_state = self._store.get_accountmanager_state()
+        self._states = States(self.dir)
+        self.accountmanager_state = self._states.get_accountmanager_state()
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
@@ -210,21 +210,21 @@ class Account:
     settings as well as per-peer ones derived from Autocrypt headers).
     """
 
-    def __init__(self, store, name):
+    def __init__(self, states, name):
         """ shallo initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
         self.name = name
-        self._store = store
-        self.ownstate = self._store.get_ownstate(name)
+        self._states = states
+        self.ownstate = self._states.get_ownstate(name)
 
     def __repr__(self):
         return "Account(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        return self._store.get_peerstate(self.name, addr)
+        return self._states.get_peerstate(self.name, addr)
 
     def get_peername_list(self):
-        return self._store.get_peername_list(self.name)
+        return self._states.get_peername_list(self.name)
 
     def create(self, name, email_regex, keyhandle, gpgbin, gpgmode):
         """ create all settings, keyrings etc for this account.
@@ -236,7 +236,7 @@ class Account:
                           None we generate a fresh Autocrypt compliant key.
         :param gpgbin: basename of or full path to gpg binary
         :param gpgmode: "own" keeps all key state inside the account
-                        directory under the account.  "system" will store keys
+                        directory under the account.  "system" will states keys
                         in the user's system GnuPG keyring.
         """
         assert gpgmode in ("own", "system")
@@ -269,13 +269,13 @@ class Account:
         return self.ownstate.change_config(**kwargs)
 
     def delete(self):
-        self._store.remove_account(self.name)
+        self._states.remove_account(self.name)
 
     @cached_property
     def bingpg(self):
         gpgmode = self.ownstate.gpgmode
         if gpgmode == "own":
-            gpghome = self._store.get_own_gpghome(self.name)
+            gpghome = self._states.get_own_gpghome(self.name)
         elif gpgmode == "system":
             gpghome = None
         else:
@@ -309,7 +309,7 @@ class Account:
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
     def process_incoming(self, msg):
-        """ process incoming mail message and store information
+        """ process incoming mail message and states information
         from any Autocrypt header for the From/Autocrypt peer
         which created the message.
 

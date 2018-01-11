@@ -55,14 +55,14 @@ def _testcache_bingpg_(request, get_next_cache, monkeypatch):
         next_cache = get_next_cache(basekey)
         if self.homedir and next_cache.exists():
             logging.debug("restoring homedir {}".format(self.homedir))
-            return next_cache.restore(self.homedir)
+            return next_cache.restates(self.homedir)
         else:
             if self.homedir is None:
                 assert "GNUPGHOME" in os.environ
             ret = old_gen_secret_key(self, emailadr)
             if self.homedir is not None:
                 if os.path.exists(self.homedir):
-                    next_cache.store(self.homedir, ret)
+                    next_cache.states(self.homedir, ret)
             return ret
 
     monkeypatch.setattr(BinGPG, "gen_secret_key", gen_secret_key)
@@ -224,7 +224,7 @@ class DirCache:
             self.cache.get(self.key, dummy) != dummy and \
             self.backup_path.exists()
 
-    def store(self, path, ret):
+    def states(self, path, ret):
         if self.backup_path.exists():
             self.backup_path.remove()
         else:
@@ -237,7 +237,7 @@ class DirCache:
         shutil.copytree(path, self.backup_path.strpath, ignore=ignore)
         self.cache.set(self.key, ret)
 
-    def restore(self, path):
+    def restates(self, path):
         if os.path.exists(path):
             shutil.rmtree(path)
         shutil.copytree(self.backup_path.strpath, path)

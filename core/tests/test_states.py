@@ -1,17 +1,17 @@
 from __future__ import unicode_literals, print_function
 
 import pytest
-from muacrypt.storage import Store
+from muacrypt.states import States
 
 
 @pytest.fixture
-def store(tmpdir):
-    return Store(tmpdir.strpath)
+def states(tmpdir):
+    return States(tmpdir.strpath)
 
 
 class TestOOB:
-    def test_basic_verifications(self, store):
-        oobstate = store.get_oobstate("account1")
+    def test_basic_verifications(self, states):
+        oobstate = states.get_oobstate("account1")
         assert not oobstate.get_verification(addr="a@a.org")
 
         oobstate.append_self_verification(addr="a@a.org", public_keydata=b'123')
@@ -23,12 +23,12 @@ class TestOOB:
 
 
 class TestPeerState:
-    def test_empty(self, store):
-        peerstate = store.get_peerstate("id1", "name1@123")
+    def test_empty(self, states):
+        peerstate = states.get_peerstate("id1", "name1@123")
         assert not peerstate._latest_msg_entry()
 
-    def test_add_ac_and_not_ac(self, store):
-        peerstate = store.get_peerstate("id1", "name1@123")
+    def test_add_ac_and_not_ac(self, states):
+        peerstate = states.get_peerstate("id1", "name1@123")
         peerstate._append_ac_entry(
             msg_id='hello', msg_date=17.0, prefer_encrypt='nopreference',
             keydata=b'123', keyhandle='4567'

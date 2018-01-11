@@ -13,8 +13,8 @@ Autocrypt Python API Reference
 .. autosummary::
 
    muacrypt.account
-   muacrypt.storage
-   muacrypt.storage_fs
+   muacrypt.states
+   muacrypt.chainstore
    muacrypt.bingpg
    muacrypt.cmdline
    muacrypt.bot
@@ -26,23 +26,24 @@ account module
 .. automodule:: muacrypt.account
     :members:
 
+states module
+-----------------
+
+.. automodule:: muacrypt.states
+    :members:
+
+chainstore module
+------------------
+
+.. automodule:: muacrypt.chainstore
+    :members:
+
 cmdline module
 ---------------
 
 .. automodule:: muacrypt.cmdline
     :members:
 
-storage module
---------------
-
-.. automodule:: muacrypt.storage
-    :members:
-
-storage_fs module
------------------
-
-.. automodule:: muacrypt.storage_fs
-    :members:
 
 bot module
 ----------

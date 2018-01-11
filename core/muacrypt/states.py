@@ -1,33 +1,27 @@
 """
-Storage layer which mainly provides the Store class through which
-all application state is persistet.  The Store uses
-Kappa architecture http://milinda.pathirage.org/kappa-architecture.com/
-i.e. all changes are added to append-only logs ("chains") and they contain
-immutable entries ("claims") that may cross-reference other entries (even
+All States kept by muacrypt are managed through this module.
+This module follows the Kappa architecture style
+(http://milinda.pathirage.org/kappa-architecture.com/)
+i.e. all state changes are added to append-only chains and they contain
+immutable entries that may cross-reference other entries (even
 from other chains). The linking between entries is done using
-crytographic hashes.  The HeadTracker keeps track of named "heads"
-which can be queried through the Store class.  Both the current
-BlockService and the HeadTracker use the file system for
-persistent storage.
+crytographic hashes.
 """
-
-from __future__ import unicode_literals
-from __future__ import print_function
+from __future__ import unicode_literals, print_function
 
 import os
-from .storage_fs import HeadTracker, BlockService
-from pprint import pprint
+from .chainstore import HeadTracker, BlockService, Chain
 from .myattr import (
     v, attr, attrs, attrib, attrib_text, attrib_bytes,
     attrib_bytes_or_none, attrib_text_or_none, attrib_float,
 )
 
 # ==================================================
-# Store
+# States
 # =================================================
 
 
-class Store:
+class States:
     """ Persisting Muacrypt and per-account settings."""
     _account_pat = "."
     _own_pat = "own:{id}"
@@ -39,33 +33,36 @@ class Store:
         blockdir = os.path.join(dirpath, "blocks")
         if not os.path.exists(blockdir):
             os.makedirs(blockdir)
-        self.heads = HeadTracker(os.path.join(dirpath, "heads"))
-        self.blocks = BlockService(blockdir)
+        self._heads = HeadTracker(os.path.join(dirpath, "heads"))
+        self._blocks = BlockService(blockdir)
+
+    def _makechain(self, headname):
+        return Chain(self._blocks, self._heads, headname)
 
     def get_accountmanager_state(self):
-        chain = Chain(self.blocks, self.heads, self._account_pat)
+        chain = self._makechain(self._account_pat)
         return AccountManagerState(chain)
 
     def get_account_names(self):
-        return sorted(self.heads._getheads(prefix=self._own_pat.format(id="")))
+        return sorted(self._heads._getheads(prefix=self._own_pat.format(id="")))
 
     def get_num_peers(self, account):
         return len(self.get_peername_list())
 
     def get_peername_list(self, account_name):
         prefix = self._peer_pat.format(id=account_name, addr="")
-        return sorted(self.heads._getheads(prefix=prefix))
+        return sorted(self._heads._getheads(prefix=prefix))
 
     def get_peerstate(self, account_name, addr):
         # XXX encode addr?
         assert addr.encode("ascii"), addr
         head_name = self._peer_pat.format(id=account_name, addr=addr)
-        chain = Chain(self.blocks, self.heads, head_name)
+        chain = self._makechain(head_name)
         return PeerState(chain)
 
     def get_ownstate(self, account_name):
         head_name = self._own_pat.format(id=account_name)
-        chain = Chain(self.blocks, self.heads, head_name)
+        chain = self._makechain(head_name)
         return OwnState(chain)
 
     def get_own_gpghome(self, account_name):
@@ -73,7 +70,7 @@ class Store:
 
     def get_oobstate(self, account_name):
         head_name = self._oob_pat.format(id=account_name)
-        chain = Chain(self.blocks, self.heads, head_name)
+        chain = self._makechain(head_name)
         return OOBState(chain)
 
     def remove_account(self, account_name):
@@ -81,87 +78,12 @@ class Store:
             l = key.split(":", 2)
             if l[0] in ("own", "peer") and l[1] == account_name:
                 return True
-        self.heads.remove_if(match_account)
-
-
-# ===========================================================
-# Chain base classes and helpers
-# ===========================================================
-
-
-class ChainStore(object):
-    def __init__(self, blockservice, headtracker, head_name):
-        self._bs = blockservice
-        self._ht = headtracker
-        self.head_name = head_name
-
-    def dump(self):
-        l = list(self.get_head_block())
-        for x in reversed(l):
-            pprint("{} {}: {}".format(x.timestamp, x.type, shortrepr(x.args)))
-
-    def iter_blocks(self, type=None):
-        """ yields blocks from head to root for this chain. """
-        head_block = self.get_head_block()
-        if head_block:
-            for x in head_block:
-                if type is None or x.type == type:
-                    yield x
-
-    def new_head_block(self, type, args):
-        head = self.get_head_block()
-        if head:
-            head = head.cid
-        block = self._bs.store_block(type, args, parent=head)
-        self._ht.upsert(self.head_name, block.cid)
-        return block
-
-    def get_head_block(self):
-        head_cid = self._ht.get_head_cid(self.head_name)
-        if head_cid:
-            return self._bs.get_block(head_cid)
-
-
-class Chain(object):
-    """ A Chain maintains an append-only log where each entry
-    in the chain has its own content-based address so that chains
-    can cross-reference entries from the same or other chains. Each entry in a chain
-    carries a timestamp and a parent CID (block hash) and type-specific
-    extra data.
-    """
-    def __init__(self, blockservice, headtracker, chain_name):
-        self._chainstore = ChainStore(blockservice, headtracker, chain_name)
-        self.name = chain_name
-
-    def __len__(self):
-        return len(list(self.iter_entries()))
-
-    def append_entry(self, entry):
-        args = attr.astuple(entry)
-        self._chainstore.new_head_block(entry.TAG, args)
-
-    def iter_entries(self, entryclass=None):
-        assert entryclass is None or hasattr(entryclass, "TAG")
-        tag = getattr(entryclass, "TAG", None)
-        for block in self._chainstore.iter_blocks():
-            if block and (tag is None or block.type == tag):
-                yield entryclass(*block.args)
-
-    def latest_entry_of(self, entryclass):
-        for entry in self.iter_entries(entryclass):
-            return entry
-
-
-def shortrepr(obj):
-    r = repr(obj)
-    if len(r) > 50:
-        r = r[:23] + "..." + r[-23:]
-    return r
-
+        self._heads.remove_if(match_account)
 
 # ===========================================================
-# PeerChains for keeping track of incoming messages per peer
+# PeerState for keeping track of incoming messages per peer
 # ===========================================================
+
 
 @attr.s
 class MsgEntry(object):
