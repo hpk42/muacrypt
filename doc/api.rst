@@ -15,10 +15,10 @@ Autocrypt Python API Reference
    muacrypt.account
    muacrypt.states
    muacrypt.chainstore
+   muacrypt.mime
    muacrypt.bingpg
    muacrypt.cmdline
    muacrypt.bot
-   muacrypt.mime
 
 account module
 --------------
@@ -38,19 +38,6 @@ chainstore module
 .. automodule:: muacrypt.chainstore
     :members:
 
-cmdline module
----------------
-
-.. automodule:: muacrypt.cmdline
-    :members:
-
-
-bot module
-----------
-
-.. automodule:: muacrypt.bot
-    :members:
-
 mime module
 -----------
 
@@ -62,3 +49,16 @@ bingpg module
 
 .. automodule:: muacrypt.bingpg
     :members:
+
+cmdline module
+---------------
+
+.. automodule:: muacrypt.cmdline
+    :members:
+
+bot module
+----------
+
+.. automodule:: muacrypt.bot
+    :members:
+

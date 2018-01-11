@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
-""" AccountManager and Identities for processing mail. """
+"""Account management and processing of incoming / outgoing mails on a
+per-account basis. """
 
 from __future__ import unicode_literals
 

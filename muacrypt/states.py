@@ -1,6 +1,6 @@
 """
-All States kept by muacrypt are managed through this module.
-This module follows the Kappa architecture style
+All muacrypt states are managed through this module.
+We follow the Kappa architecture style
 (http://milinda.pathirage.org/kappa-architecture.com/)
 i.e. all state changes are added to append-only chains and they contain
 immutable entries that may cross-reference other entries (even
@@ -197,9 +197,8 @@ class OwnState(object):
     _chain = attrib()
 
     def __str__(self):
-        return "OwnState key={keyhandle}".format(
-            keyhandle=self.keyhandle,
-        )
+        return "OwnState key={}".format(self.keyhandle)
+
     name = config_property("name")
     email_regex = config_property("email_regex")
     gpgmode = config_property("gpgmode")
@@ -259,11 +258,6 @@ class VerificationEntry(object):
 class OOBState(object):
     """Synthesized Out of Band verification state for an account. """
     _chain = attrib()
-
-    def __str__(self):
-        return "OOBState key={keyhandle}".format(
-            keyhandle=self.keyhandle,
-        )
 
     def get_verification(self, addr):
         for entry in self._chain.iter_entries(VerificationEntry):

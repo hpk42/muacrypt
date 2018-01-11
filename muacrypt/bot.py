@@ -2,7 +2,7 @@
 # vim:ts=4:sw=4:expandtab
 
 """
-cmdline mail bot subcommand to receive and answer with Autocrypt related
+Bot command line subcommand to receive and answer with Autocrypt related
 information for mails to bot@autocrypt.org
 """
 from __future__ import print_function
