@@ -331,7 +331,7 @@ def _status(account_manager):
 
 def _status_account(account):
     ic = account.ownstate
-    click.secho("account: '{}' uuid {}".format(ic.name, ic.uuid), bold=True)
+    click.secho("account: {!r}".format(ic.name), bold=True)
 
     def kecho(name, value):
         click.echo("  {:16s} {}".format(name + ":", value))

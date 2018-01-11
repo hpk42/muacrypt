@@ -66,7 +66,7 @@ def test_exports_and_status_plain(mycmd):
     check_ascii(out)
     out = mycmd.run_ok(["status"], """
         account-dir:*
-        *account*default*uuid*
+        *account*default*
         *prefer-encrypt*nopreference*
         *own-keyhandle:*
     """)

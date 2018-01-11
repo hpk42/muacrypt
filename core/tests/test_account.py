@@ -137,7 +137,6 @@ class TestAccountManager:
         account = manager.get_account_from_emailadr("office@example.org")
         assert account.ownstate.prefer_encrypt == "nopreference"
         assert account.ownstate.email_regex == regex
-        assert account.ownstate.uuid
         assert account.ownstate.keyhandle
         assert account.bingpg.get_public_keydata(account.ownstate.keyhandle)
         assert account.bingpg.get_secret_keydata(account.ownstate.keyhandle)

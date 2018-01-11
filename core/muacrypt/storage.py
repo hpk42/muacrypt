@@ -301,7 +301,6 @@ class KeygenEntry(EntryBase):
 class OwnConfigEntry(EntryBase):
     TAG = "cfg"
     prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
-    uuid = attrib_text()
     name = attrib_text()
     email_regex = attrib_text()
     gpgmode = attrib(validator=v.in_(['system', 'own']))
@@ -318,10 +317,10 @@ class OwnChain(ChainBase):
     def latest_config(self):
         return self.latest_entry_of(OwnConfigEntry)
 
-    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin, uuid):
+    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin):
         self.append_entry(OwnConfigEntry(
             name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
-            gpgmode=gpgmode, gpgbin=gpgbin, uuid=uuid,
+            gpgmode=gpgmode, gpgbin=gpgbin,
         ))
 
     def change_config(self, **kwargs):
@@ -341,7 +340,6 @@ class OwnState(object):
         return "OwnState key={keyhandle}".format(
             keyhandle=self.keyhandle,
         )
-    uuid = config_property("uuid")
     name = config_property("name")
     email_regex = config_property("email_regex")
     gpgmode = config_property("gpgmode")
@@ -353,13 +351,13 @@ class OwnState(object):
         return self._ownchain.latest_keygen().keyhandle
 
     def exists(self):
-        return self.uuid
+        return self.name
 
     # methods which modify/add state
-    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin, uuid):
+    def new_config(self, name, prefer_encrypt, email_regex, gpgmode, gpgbin):
         return self._ownchain.new_config(
             name=name, prefer_encrypt=prefer_encrypt, email_regex=email_regex,
-            gpgmode=gpgmode, gpgbin=gpgbin, uuid=uuid,
+            gpgmode=gpgmode, gpgbin=gpgbin,
         )
 
     def change_config(self, **kwargs):

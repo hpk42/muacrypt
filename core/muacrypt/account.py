@@ -242,7 +242,6 @@ class Account:
         """
         assert gpgmode in ("own", "system")
         self.ownstate.new_config(
-            uuid=six.text_type(uuid.uuid4().hex),
             name=name,
             email_regex=email_regex,
             gpgbin=gpgbin,
@@ -250,7 +249,8 @@ class Account:
             prefer_encrypt="nopreference"
         )
         if keyhandle is None:
-            emailadr = "{}@uuid.muacrypt.org".format(self.ownstate.uuid)
+            random_id = six.text_type(uuid.uuid4().hex)
+            emailadr = "{}@random.muacrypt.org".format(random_id)
             keyhandle = self.bingpg.gen_secret_key(emailadr)
         else:
             keyhandle = self.bingpg.get_secret_keyhandle(keyhandle)
