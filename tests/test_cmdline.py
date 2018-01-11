@@ -85,7 +85,7 @@ class TestProcessIncoming:
         mycmd.run_ok(["process-incoming"], """
             *processed*account1*no*Autocrypt*header*
         """, input=msg.as_string())
-
+        mycmd.run_ok(["status"])
 
 class TestAccountCommands:
     def test_add_list_del_account(self, mycmd):

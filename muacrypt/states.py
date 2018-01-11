@@ -119,11 +119,11 @@ class PeerState(object):
 
     @property
     def public_keyhandle(self):
-        return getattr(self._latest_ac_entry(), "keyhandle", None)
+        return getattr(self._latest_ac_entry(), "keyhandle", '')
 
     @property
     def public_keydata(self):
-        return getattr(self._latest_ac_entry(), "keydata", None)
+        return getattr(self._latest_ac_entry(), "keydata", b'')
 
     def _latest_ac_entry(self):
         """ Return latest message with Autocrypt header. """

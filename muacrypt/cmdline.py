@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import os
 import sys
+import time
 import subprocess
 import six
 import click
@@ -357,10 +358,16 @@ def _status_account(account):
         click.echo("  ----peers-----")
         for name in peernames:
             pi = account.get_peerstate(name)
-            click.echo("  {to}: key {keyhandle} [{bytes:d} bytes] {attrs}".format(
+            when = time.ctime(pi.last_seen) if pi.last_seen else "never"
+            if pi.last_seen == pi.autocrypt_timestamp:
+                status = "last-was-autocrypt"
+            elif pi.public_keyhandle:
+                status = "past-autocrypt"
+            else:
+                status = "no-autocrypt-so-far"
+            click.echo("  {to}: last seen key {keyhandle}, status: {status}".format(
                        to=pi.addr, keyhandle=pi.public_keyhandle,
-                       bytes=len(pi.public_keydata),
-                       attrs=""))
+                       status=status))
     else:
         click.echo("  ---- no peers registered -----")
 
