@@ -15,7 +15,8 @@ def output_one(cmd):
 
     header("+", "{} subcommand".format(cmd))
 
-    print("**{}**:".format(cmd))
+    #print("**{}**::".format(cmd))
+    print("::")
     print("")
 
     out = proc_output(["muacrypt", cmd, "-h"])

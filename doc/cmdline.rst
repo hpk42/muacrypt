@@ -23,14 +23,14 @@ After :ref:`installation` let's see what sub commands we have::
 
     $ muacrypt
     Usage: muacrypt [OPTIONS] COMMAND [ARGS]...
-    
+
       access and manage Autocrypt keys, options, headers.
-    
+
     Options:
       --basedir PATH  directory where muacrypt state is statesd
       --version       Show the version and exit.
       -h, --help      Show this message and exit.
-    
+
     Commands:
       init               init muacrypt state.
       status             print account info and status.
@@ -61,9 +61,9 @@ in its own directory::
       own-keyhandle:   393C404CF381342D
       ^^ uid:           <c641519ea4894b6389fdad807beb1f92@random.muacrypt.org>
       ---- no peers registered -----
-    
 
-This created a default identity: a new secret key and a UUID and a few settings.
+
+This created a default identity: a new secret key and a few settings.
 If you rather like autocrypt to use your system keyring so that all incoming
 keys are available there, see syskeyring_ but this will modify state on
 your existing keyring.
@@ -80,7 +80,7 @@ Let's check out account info again with the ``status`` subcommand::
       own-keyhandle:   393C404CF381342D
       ^^ uid:           <c641519ea4894b6389fdad807beb1f92@random.muacrypt.org>
       ---- no peers registered -----
-    
+
 
 This shows our own keyhandle of our Autocrypt OpenPGP key.
 
@@ -117,7 +117,7 @@ Getting our own public encryption key in armored format::
     $ muacrypt export-public-key
     -----BEGIN PGP PUBLIC KEY BLOCK-----
     Version: GnuPG v1
-    
+
     mQENBFpXV2YBCADLgPVMJyLhR+49OEQnHoU40rlJPth6R6dMI+QQPrhSlyM9MeUT
     dVpL+Bl+HTF7eAlX9glii0fQJpWW0zEahtT2pMxLnJoexSlc23OLOaHqXjlpcljc
     z4FbOdx/kxU2qEcMUAcNuc28eSVmcnIiSG7DIyKxh7/ExM5tlCC8D52uWXnyRetk
@@ -146,7 +146,7 @@ Getting our own public encryption key in armored format::
     PYnvvRLl
     =baOj
     -----END PGP PUBLIC KEY BLOCK-----
-    
+
 
 .. _syskeyring:
 

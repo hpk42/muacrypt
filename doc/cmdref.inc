@@ -7,7 +7,7 @@ subcommand reference |version|
 init subcommand
 +++++++++++++++
 
-**init**:
+::
 
   Usage: muacrypt init [OPTIONS]
   
@@ -29,7 +29,7 @@ init subcommand
 status subcommand
 +++++++++++++++++
 
-**status**:
+::
 
   Usage: muacrypt status [OPTIONS] [ACCOUNT_NAME]
   
@@ -43,7 +43,7 @@ status subcommand
 add-account subcommand
 ++++++++++++++++++++++
 
-**add-account**:
+::
 
   Usage: muacrypt add-account [OPTIONS] ACCOUNT_NAME
   
@@ -80,7 +80,7 @@ add-account subcommand
 mod-account subcommand
 ++++++++++++++++++++++
 
-**mod-account**:
+::
 
   Usage: muacrypt mod-account [OPTIONS] ACCOUNT_NAME
   
@@ -107,7 +107,7 @@ mod-account subcommand
 del-account subcommand
 ++++++++++++++++++++++
 
-**del-account**:
+::
 
   Usage: muacrypt del-account [OPTIONS] ACCOUNT_NAME
   
@@ -123,7 +123,7 @@ del-account subcommand
 process-incoming subcommand
 +++++++++++++++++++++++++++
 
-**process-incoming**:
+::
 
   Usage: muacrypt process-incoming [OPTIONS]
   
@@ -137,7 +137,7 @@ process-incoming subcommand
 process-outgoing subcommand
 +++++++++++++++++++++++++++
 
-**process-outgoing**:
+::
 
   Usage: muacrypt process-outgoing [OPTIONS]
   
@@ -155,7 +155,7 @@ process-outgoing subcommand
 sendmail subcommand
 +++++++++++++++++++
 
-**sendmail**:
+::
 
   Usage: muacrypt sendmail [OPTIONS] [ARGS]...
   
@@ -177,7 +177,7 @@ sendmail subcommand
 test-email subcommand
 +++++++++++++++++++++
 
-**test-email**:
+::
 
   Usage: muacrypt test-email [OPTIONS] EMAILADR
   
@@ -193,7 +193,7 @@ test-email subcommand
 make-header subcommand
 ++++++++++++++++++++++
 
-**make-header**:
+::
 
   Usage: muacrypt make-header [OPTIONS] EMAILADR
   
@@ -207,7 +207,7 @@ make-header subcommand
 export-public-key subcommand
 ++++++++++++++++++++++++++++
 
-**export-public-key**:
+::
 
   Usage: muacrypt export-public-key [OPTIONS] [KEYHANDLE_OR_EMAIL]
   
@@ -222,7 +222,7 @@ export-public-key subcommand
 export-secret-key subcommand
 ++++++++++++++++++++++++++++
 
-**export-secret-key**:
+::
 
   Usage: muacrypt export-secret-key [OPTIONS]
   
@@ -237,7 +237,7 @@ export-secret-key subcommand
 bot-reply subcommand
 ++++++++++++++++++++
 
-**bot-reply**:
+::
 
   Usage: muacrypt bot-reply [OPTIONS]
   
