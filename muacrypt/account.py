@@ -185,7 +185,7 @@ class AccountManager(object):
         and defer to account.process_incoming.
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerState
+        :rtype: ProcessIncomingResult
         """
         if delivto is None:
             _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
@@ -199,7 +199,7 @@ class AccountManager(object):
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerState
+        :rtype: ProcessOutgoingResult
         """
         _, addr = mime.parse_email_addr(msg["From"])
         account = self.get_account_from_emailadr(addr)
