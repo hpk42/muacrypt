@@ -111,7 +111,7 @@ class ChainBase(object):
     def is_empty(self):
         return not self.get_head_block()
 
-    def append_block(self, type, args):
+    def new_head_block(self, type, args):
         head = self.get_head_block()
         if head:
             head = head.cid
@@ -120,9 +120,8 @@ class ChainBase(object):
         return block
 
     def append_entry(self, entry):
-        assert isinstance(entry, object)
         args = attr.astuple(entry)
-        return self.append_block(entry.TAG, args)
+        self.new_head_block(entry.TAG, args)
 
     def get_head_block(self):
         head_cid = self._ht.get_head_cid(self.account)
@@ -157,7 +156,7 @@ class Chain(ChainBase):
         assert not self.get_head_block(), "already have a genesis block"
         assert isinstance(keydata, bytes)
         ascii_keydata = mime.encode_binary_keydata(keydata)
-        self.append_block("genesis", [ascii_keydata])
+        self.new_head_block("genesis", [ascii_keydata])
 
     def get_genesis_block(self):
         head = self.get_head_block()
@@ -167,7 +166,7 @@ class Chain(ChainBase):
 
     def add_oob_verify(self, email, cid):
         assert self.get_head_block()
-        self.append_block("oob_verify", [email, cid])
+        self.new_head_block("oob_verify", [email, cid])
 
     def is_oob_verified_block(self, cid):
         for block in self.iter_blocks(type="oob_verify"):
@@ -212,13 +211,13 @@ class PeerChain(ChainBase):
 
     def append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
         """append an Autocrypt message entry. """
-        return self.append_entry(MsgEntry(
+        self.append_entry(MsgEntry(
             msg_id=msg_id, msg_date=msg_date, prefer_encrypt=prefer_encrypt,
             keydata=keydata, keyhandle=keyhandle))
 
     def append_noac_entry(self, msg_id, msg_date):
         """append a non-Autocrypt message entry. """
-        return self.append_entry(MsgEntry(
+        self.append_entry(MsgEntry(
             msg_id=msg_id, msg_date=msg_date,
             prefer_encrypt="nopreference", keyhandle="", keydata=b""
         ))
@@ -294,7 +293,7 @@ class OwnConfigEntry(object):
 
 class OwnChain(ChainBase):
     def append_keygen(self, keydata, keyhandle):
-        return self.append_entry(KeygenEntry(
+        self.append_entry(KeygenEntry(
             keydata=keydata,
             keyhandle=keyhandle
         ))
@@ -377,7 +376,7 @@ class AConfigEntry(object):
 class AccountManagerChain(ChainBase):
     def set_version(self, version):
         assert not self.latest_config()
-        return self.append_entry(AConfigEntry(version=version))
+        self.append_entry(AConfigEntry(version=version))
 
     def latest_config(self):
         return self.latest_entry_of(AConfigEntry)
