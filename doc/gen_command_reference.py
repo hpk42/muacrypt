@@ -18,9 +18,9 @@ def output_one(cmd):
     print("**{}**:".format(cmd))
     print("")
 
-    out = proc_output(["autocrypt", cmd, "-h"])
-    if cmd == "mod-identity":
-        out = out.replace("[notset|yes|no]", " " * 15)
+    out = proc_output(["muacrypt", cmd, "-h"])
+    if cmd == "mod-account":
+        out = out.replace("[nopreference|mutual", " " * 15)
     for line in out.splitlines():
         print("  " + line)
     print ("")
@@ -36,7 +36,7 @@ def header(underchar, msg):
 if __name__ == "__main__":
     header("-", "subcommand reference |version|")
 
-    x = proc_output(["autocrypt"])
+    x = proc_output(["muacrypt"])
     lines = x.splitlines()
     for i, line in enumerate(lines):
         if "Commands:" in line:

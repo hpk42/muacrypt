@@ -9,20 +9,20 @@ init subcommand
 
 **init**:
 
-  Usage: autocrypt init [OPTIONS]
+  Usage: muacrypt init [OPTIONS]
   
-    init autocrypt account state.
+    init muacrypt state.
   
-    By default this command creates account state in a directory with a
-    default "catch-all" identity which matches all email addresses and uses
+    By default this command creates account(s) state in a directory with a
+    default "catch-all" account which matches all email addresses and uses
     default settings.  If you want to have more fine-grained control (which
     gpg binary to use, which existing key to use, if to use an existing system
-    key ring ...) specify "--no-identity".
+    key ring ...) specify "--no-account".
   
   Options:
-    --replace      delete autocrypt account directory before attempting init
-    --no-identity  initializing without creating a default identity
-    -h, --help     Show this message and exit.
+    --replace     delete muacrypt state directory before attempting init
+    --no-account  initializing without creating a default account
+    -h, --help    Show this message and exit.
 
 .. _`status`:
 
@@ -31,63 +31,60 @@ status subcommand
 
 **status**:
 
-  Usage: autocrypt status [OPTIONS]
+  Usage: muacrypt status [OPTIONS] [ACCOUNT_NAME]
   
-    print account and identity info.
+    print account info and status.
   
   Options:
     -h, --help  Show this message and exit.
 
-.. _`add-identity`:
+.. _`add-account`:
 
-add-identity subcommand
-+++++++++++++++++++++++
+add-account subcommand
+++++++++++++++++++++++
 
-**add-identity**:
+**add-account**:
 
-  Usage: autocrypt add-identity [OPTIONS] IDENTITY_NAME
+  Usage: muacrypt add-account [OPTIONS] ACCOUNT_NAME
   
-    add an identity to this account.
+    add a named account.
   
-    An identity requires an identity_name which is used to show, modify and
+    An account requires an account_name which is used to show, modify and
     delete it.
   
     Of primary importance is the "email_regex" which you typically set to a
     plain email address.   It is used when incoming or outgoing mails need to
-    be associated with this identity.
+    be associated with this account.
   
-    Instead of generating a key (the default operation) you may specify an
-    existing key with --use-key=keyhandle where keyhandle may be something for
-    which gpg finds it with 'gpg --list-secret-keys keyhandle'. Typically you
-    will then also specify --use-system-keyring to make use of your existing
-    keys.  All incoming autocrypt keys will thus be stored in the system key
-    ring instead of an own keyring.
+    Instead of generating an Autocrypt-compliant key (the default operation)
+    you may specify an existing key with --use-key=keyhandle where keyhandle
+    may be something for which gpg finds it with 'gpg --list-secret-keys
+    keyhandle'. Typically you will then also specify --use-system-keyring to
+    make use of your existing keys.  All incoming muacrypt keys will thus be
+    statesd in the system key ring instead of an own keyring.
   
   Options:
     --use-key KEYHANDLE   use specified secret key which must be findable
                           through the specified keyhandle (e.g. email, keyid,
                           fingerprint)
     --use-system-keyring  use system keyring for all secret/public keys instead
-                          of storing keyring state inside our account identity
-                          directory.
+                          of storing keyring state inside our account directory.
     --gpgbin FILENAME     use specified gpg filename. If it is a simple name it
                           is looked up on demand through the system's PATH.
     --email-regex TEXT    regex for matching all email addresses belonging to
-                          this identity.
+                          this account.
     -h, --help            Show this message and exit.
 
-.. _`mod-identity`:
+.. _`mod-account`:
 
-mod-identity subcommand
-+++++++++++++++++++++++
+mod-account subcommand
+++++++++++++++++++++++
 
-**mod-identity**:
+**mod-account**:
 
-  Usage: autocrypt mod-identity [OPTIONS] IDENTITY_NAME
+  Usage: muacrypt mod-account [OPTIONS] ACCOUNT_NAME
   
-    modify properties of an existing identity.
-  
-    An identity requires an identity_name.
+    modify properties of an existing account.
   
     Any specified option replaces the existing one.
   
@@ -99,22 +96,22 @@ mod-identity subcommand
                                     simple name it is looked up on demand
                                     through the system's PATH.
     --email-regex TEXT              regex for matching all email addresses
-                                    belonging to this identity.
-    --prefer-encrypt                
+                                    belonging to this account.
+    --prefer-encrypt                ]
                                     modify prefer-encrypt setting, default is to
                                     not change it.
     -h, --help                      Show this message and exit.
 
-.. _`del-identity`:
+.. _`del-account`:
 
-del-identity subcommand
-+++++++++++++++++++++++
+del-account subcommand
+++++++++++++++++++++++
 
-**del-identity**:
+**del-account**:
 
-  Usage: autocrypt del-identity [OPTIONS] IDENTITY_NAME
+  Usage: muacrypt del-account [OPTIONS] ACCOUNT_NAME
   
-    delete an identity, its keys and all state.
+    delete an account, its keys and all state.
   
     Make sure you have a backup of your whole account directory first.
   
@@ -128,9 +125,9 @@ process-incoming subcommand
 
 **process-incoming**:
 
-  Usage: autocrypt process-incoming [OPTIONS]
+  Usage: muacrypt process-incoming [OPTIONS]
   
-    parse autocrypt headers from stdin mail.
+    parse Autocrypt headers from stdin mail.
   
   Options:
     -h, --help  Show this message and exit.
@@ -142,9 +139,9 @@ process-outgoing subcommand
 
 **process-outgoing**:
 
-  Usage: autocrypt process-outgoing [OPTIONS]
+  Usage: muacrypt process-outgoing [OPTIONS]
   
-    add autocrypt header for outgoing mail.
+    add Autocrypt header for outgoing mail.
   
     We process mail from stdin by adding an Autocrypt header and send the
     resulting message to stdout. If the mail from stdin contains an Autocrypt
@@ -160,7 +157,7 @@ sendmail subcommand
 
 **sendmail**:
 
-  Usage: autocrypt sendmail [OPTIONS] [ARGS]...
+  Usage: muacrypt sendmail [OPTIONS] [ARGS]...
   
     as process-outgoing but submit to sendmail binary.
   
@@ -182,11 +179,11 @@ test-email subcommand
 
 **test-email**:
 
-  Usage: autocrypt test-email [OPTIONS] EMAILADR
+  Usage: muacrypt test-email [OPTIONS] EMAILADR
   
-    test which identity an email belongs to.
+    test which account an email belongs to.
   
-    Fail if no identity matches.
+    Fail if no account matches.
   
   Options:
     -h, --help  Show this message and exit.
@@ -198,9 +195,9 @@ make-header subcommand
 
 **make-header**:
 
-  Usage: autocrypt make-header [OPTIONS] EMAILADR
+  Usage: muacrypt make-header [OPTIONS] EMAILADR
   
-    print autocrypt header for an emailadr.
+    print Autocrypt header for an emailadr.
   
   Options:
     -h, --help  Show this message and exit.
@@ -212,13 +209,13 @@ export-public-key subcommand
 
 **export-public-key**:
 
-  Usage: autocrypt export-public-key [OPTIONS] [KEYHANDLE_OR_EMAIL]
+  Usage: muacrypt export-public-key [OPTIONS] [KEYHANDLE_OR_EMAIL]
   
     print public key of own or peer account.
   
   Options:
-    --id identity  perform lookup through this identity
-    -h, --help     Show this message and exit.
+    -a, --account name  perform lookup through this account
+    -h, --help          Show this message and exit.
 
 .. _`export-secret-key`:
 
@@ -227,11 +224,33 @@ export-secret-key subcommand
 
 **export-secret-key**:
 
-  Usage: autocrypt export-secret-key [OPTIONS]
+  Usage: muacrypt export-secret-key [OPTIONS]
   
-    print secret key of own autocrypt account.
+    print secret key of own account.
   
   Options:
-    --id identity  perform lookup through this identity
-    -h, --help     Show this message and exit.
+    -a, --account name  perform lookup through this account
+    -h, --help          Show this message and exit.
+
+.. _`bot-reply`:
+
+bot-reply subcommand
+++++++++++++++++++++
+
+**bot-reply**:
+
+  Usage: muacrypt bot-reply [OPTIONS]
+  
+    reply to stdin mail as a bot.
+  
+    This command will generate a reply message and send it to stdout by
+    default. The reply message contains an Autocrypt header and details of
+    what was found and understood from the incoming mail.
+  
+  Options:
+    --smtp host,port         host and port where the reply should be instead of
+                             to stdout.
+    --fallback-delivto TEXT  assume delivery to the specified email address if
+                             no delivered-to header is found.
+    -h, --help               Show this message and exit.
 

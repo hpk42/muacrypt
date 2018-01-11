@@ -1,5 +1,5 @@
 
-Autocrypt command line docs
+muacrypt command line docs
 ===========================
 
 .. note::
@@ -8,10 +8,10 @@ Autocrypt command line docs
     against gpg, gpg2, python2 and python3, the sub commands are subject
     to change during the ``0.x`` releases.
 
-The py-autocrypt command line tool helps to manage Autocrypt information
-for incoming and outgoing mails.  It follows and implements the `Autocrypt
-spec <autocryptspec>`_ and some additional means to make working with it
-convenient.
+The ``muacrypt`` command line tool helps to manage Autocrypt information
+for incoming and outgoing mails for one or more accounts.  It follows
+and implements the `Autocrypt spec <autocryptspec>`_ which defines
+header interpretation.
 
 
 .. contents::
@@ -21,47 +21,47 @@ getting started, playing around
 
 After :ref:`installation` let's see what sub commands we have::
 
-    $ autocrypt
-    Usage: autocrypt [OPTIONS] COMMAND [ARGS]...
-
+    $ muacrypt
+    Usage: muacrypt [OPTIONS] COMMAND [ARGS]...
+    
       access and manage Autocrypt keys, options, headers.
-
+    
     Options:
-      --basedir PATH  directory where autocrypt account state is stored
+      --basedir PATH  directory where muacrypt state is statesd
       --version       Show the version and exit.
       -h, --help      Show this message and exit.
-
+    
     Commands:
-      init               init autocrypt account state.
-      status             print account and identity info.
-      add-identity       add an identity to this account.
-      mod-identity       modify properties of an existing identity.
-      del-identity       delete an identity, its keys and all state.
-      process-incoming   parse autocrypt headers from stdin mail.
-      process-outgoing   add autocrypt header for outgoing mail.
+      init               init muacrypt state.
+      status             print account info and status.
+      add-account        add an account to this account.
+      mod-account        modify properties of an existing account.
+      del-account        delete an account, its keys and all state.
+      process-incoming   parse Autocrypt headers from stdin mail.
+      process-outgoing   add Autocrypt header for outgoing mail.
       sendmail           as process-outgoing but submit to sendmail...
-      test-email         test which identity an email belongs to.
-      make-header        print autocrypt header for an emailadr.
+      test-email         test which account an email belongs to.
+      make-header        print Autocrypt header for an emailadr.
       export-public-key  print public key of own or peer account.
-      export-secret-key  print secret key of own autocrypt account.
+      export-secret-key  print secret key of own account.
       bot-reply          reply to stdin mail as a bot.
 
 For getting started we only need a few commands, first of all we will initialize
 our Autocrypt account.  By default Autocrypt only creates and modifies files and state
 in its own directory::
 
-    $ autocrypt init
-    account directory initialized: /tmp/home/.config/autocrypt
-    account-dir: /tmp/home/.config/autocrypt
-
-    identity: 'default' uuid 64ee038effa649f8a82c22e4d2ec15a4
+    $ muacrypt init
+    account directory initialized: /tmp/home/.config/muacrypt
+    account-dir: /tmp/home/.config/muacrypt
+    account: u'default'
       email_regex:     .*
-      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
+      gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/default]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   D67E0166618D4146
-      ^^ uid:           <64ee038effa649f8a82c22e4d2ec15a4@uuid.autocrypt.org>
+      own-keyhandle:   393C404CF381342D
+      ^^ uid:           <c641519ea4894b6389fdad807beb1f92@random.muacrypt.org>
       ---- no peers registered -----
+    
 
 This created a default identity: a new secret key and a UUID and a few settings.
 If you rather like autocrypt to use your system keyring so that all incoming
@@ -70,17 +70,17 @@ your existing keyring.
 
 Let's check out account info again with the ``status`` subcommand::
 
-    $ autocrypt status
-    account-dir: /tmp/home/.config/autocrypt
-
-    identity: 'default' uuid 64ee038effa649f8a82c22e4d2ec15a4
+    $ muacrypt status
+    account-dir: /tmp/home/.config/muacrypt
+    account: u'default'
       email_regex:     .*
-      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/default/gpghome]
+      gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/default]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   D67E0166618D4146
-      ^^ uid:           <64ee038effa649f8a82c22e4d2ec15a4@uuid.autocrypt.org>
+      own-keyhandle:   393C404CF381342D
+      ^^ uid:           <c641519ea4894b6389fdad807beb1f92@random.muacrypt.org>
       ---- no peers registered -----
+    
 
 This shows our own keyhandle of our Autocrypt OpenPGP key.
 
@@ -88,65 +88,65 @@ Let's generate a static email Autocrypt header which
 you could add to your email configuration (substitute
 ``a@example.org`` with your email address)::
 
-    $ autocrypt make-header a@example.org
+    $ muacrypt make-header a@example.org
     Autocrypt: addr=a@example.org; keydata=
-      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
+      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
 
 Getting our own public encryption key in armored format::
 
-    $ autocrypt export-public-key
+    $ muacrypt export-public-key
     -----BEGIN PGP PUBLIC KEY BLOCK-----
     Version: GnuPG v1
-
-    mQENBFlLz1UBCADM2iM+Nqm8YtHEJYPXBhACycBOalFJAqZzMYUA46xGTop/jBdd
-    wgRvNh+ClhQL7HxHE+bpfAE0Y1GBfw3PEI/rQGSyY7VhhH6nt7vTHCCYIRP64nfk
-    K/PyRzGGT0AtS40fHc2DZ3kQxG7c9krprbmx5fPwudgYzXDY+da7PwNxu9lJyPAj
-    HIfnEsEsxPvTpcChhUs5euifT2sIzJF82UAs0oXqoAAk4G8JF2nZqCILQgkoKlAu
-    EJhw1IjRkOQr19J5UkLKgucNQoOnjJ4HvPdmEt02uqzNXrmUMWl+4YtbXjmaZ3dM
-    E6KiH1KbUdTPIhIIVREUnoywslTc+pt5jDEnABEBAAG0NiA8NjRlZTAzOGVmZmE2
-    NDlmOGE4MmMyMmU0ZDJlYzE1YTRAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIA
-    IgUCWUvPVQIbAwYLCQgHAwIGFQgCCQoLBBYCAwECHgECF4AACgkQ1n4BZmGNQUZl
-    RQgAr4ZK+0hZ6v65AHu+lw5xa5fIMpSCn6anI59VetBur7PbZBIlW5z0jbWW13d+
-    OsS0VW7Uuo07XXzWqc+rpsREpsBa+daWQdi7p/ahLiyd6mhNz8WdI+dod/NLmZuD
-    EGllypjveHmbmRreaqIevf5rW6UHhNMReGU91+xHZcbhsqNDYBO/jiUK6EglRtzG
-    JJuiJcE3+C/Kqu352OkJQdLDXngkmN2JQsosOmMqIrtPZtVsDHdhljMOOXumbH+G
-    0nJoNNJX25JviTKdAgaYIcJI5ncEEGVZ6cffN1hPZeM++MvHgnuZ15aWq1cNUXGa
-    h27rn/u6pSyKqP0Zq/7RVde+/rkBDQRZS89VAQgA5m0ZWf8entimetIOwWj78FZx
-    ZldLcZnNKbPiM5sIztTcC2l3my0pfIzDxs9/PIj3EE/+u1xPMKWjmU0rh4KRqM1/
-    V7TRbRNOCQhc68OQ3f0yQmeu/B971XHxcslfRm5iV14RFNxbDjyx5OIUDSjNy4QB
-    fmMlp1RL81l03Bgv2kalSOPCradEV1eXCE1KSHFu89D6kDjZCZCyd4C+45+T8Hdr
-    NfF9txy2Lu9quqiiklJDQ3R08ct4WAxMdf5cP/rTdAjRS1ikNR9GwwsHDHnfjVTl
-    z5nknsPl9bTtfIRmRR1ijUQaqONRMESYyY9Aq8f0kuhJOdD4y5CccaKBrxti9QAR
-    AQABiQEfBBgBAgAJBQJZS89VAhsMAAoJENZ+AWZhjUFGyfEH/AiFHmaU8XqDJFTk
-    PJX2cfNf8QDPHYio7M++Z15w9y5bp9OU5Amrh8N0Lp+rgv262KqED/7FhvMCAljC
-    IF9tk42y/b7jS1hg/qzXfN3wdEbwx1PVqmyZap4PEUXCL97JAjjY+J7D3Yd7LQME
-    N10GdehnWJzuACndx5q2pmkh8u2oHu3Y+XnRUXHm8LMCIrQFx3VTzH0BaWm9kwqV
-    HeAqWpD1tOI0kKZx3MVaCcDI7N1JdBwNNqmgBdNhESGUwYd6nHb6tN9c3kGlNfxd
-    Ns1v0yXh8B1PwJsTBZPbkC3Clx2Sv8FtIICO+e/2pc0PtAtdFARraeeYWgowzzQK
-    ZLe/rWc=
-    =RDVW
+    
+    mQENBFpXV2YBCADLgPVMJyLhR+49OEQnHoU40rlJPth6R6dMI+QQPrhSlyM9MeUT
+    dVpL+Bl+HTF7eAlX9glii0fQJpWW0zEahtT2pMxLnJoexSlc23OLOaHqXjlpcljc
+    z4FbOdx/kxU2qEcMUAcNuc28eSVmcnIiSG7DIyKxh7/ExM5tlCC8D52uWXnyRetk
+    NryEyMag3CVmQAmz3wi03yGczFFG7Lh9eUaBuKH1iudRoDnICdfF9565rfss8Ipp
+    udOAGPHXlrDyStcz1P/Sx5XVjNWEQa3keGPtL+dD4B4Vhe2VfCaelZL/Vq1jQvCY
+    Quls5nGmbJxoxWGv7HawlGHe4fn4yA7MYV5RABEBAAG0NyA8YzY0MTUxOWVhNDg5
+    NGI2Mzg5ZmRhZDgwN2JlYjFmOTJAcmFuZG9tLm11YWNyeXB0Lm9yZz6JATgEEwEC
+    ACIFAlpXV2YCGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEDk8QEzzgTQt
+    2HEIAK4pi2u4Rbni6x0LQaAT06a+pGDPe3taIyMmapa4GU43Jk2mKzbMzJtqh6kP
+    S4fh9hoPqnopsRxBSTT+aMVcMSNFihDwbJwQ9GAbZL6O4C3MhdXAsQXq8l1R1WGK
+    caQHnknLKTUTMrzPg2yJ3UlUI0Pijt19Sy94F8+N23TjiG2Q9tDLDjsvGNAf5K66
+    JPlTVF30OYhj+03cHApV4ysavCQuuQ+4gmCe9LsETr6S7qWqG6L0lYNMFWqQZ6/R
+    mvRx8gWua+6QpEBhhdo9cF5WiIOAPCd29Xhbq5eIZVXVIBo9dXdAH+rNaUodzs4q
+    va+SlunjD/bKIlDDLi4YOwfIqN65AQ0EWldXZgEIALKRMzCY8XnBn2uMijo2FKKf
+    mzl8J9t79pXVL//UnrJUT9DSbtY2pDIxWiDxg3CJ4yQkupBwLdPPExqSStAqrtyQ
+    8sdpKO27pocwYUTaqB7Uf4o/LngkY6JhuivezmUA03+f9ymfwFtTfTy2naA5rXxW
+    GpaaPVGcNjj5a/dXULBF2Iuhzdp3xoQ/4zL/B8oo9FS/YfU2Z56fUTgNC/jCtsWl
+    neHJOeV1iD1DILl64rVVxyk/+W6CbtEPxUtvbsfHadyqpeNcsyYvbSzyKFLTUakF
+    2OPpsXn6g3SEamCSiso5EMjFqo2/EQETPQ6M84dsIpwzuVLy6HohJ8UeYCwL9/EA
+    EQEAAYkBHwQYAQIACQUCWldXZgIbDAAKCRA5PEBM84E0LRMCB/9W/ZiOe7cKTGup
+    m6VYVztZ2zaNoVA17vVuMq8CU8xF91l1HyO+EtHBO9ahbgl0UEVXzu2KqXL+7QiV
+    I697NwAo/PMlNlJOSfUiLKTj5EjOhY9M/crk1y7b0S+9+mHjOrSW4MLzeNXGZFx2
+    AEnaMhoJ1iyi85jOKzxU4bXbnLHDWOnxI5TZBnyyIgrKhOznTrlHQ8F9BaIV+ji0
+    5O4sUtKnpsLPeFG9Wnk58FUrTH0ZRsfjzRqjvcYe11B5MPsZK/2HlcOk9wbmHy6O
+    aM+YS2RfRbz/CiYeg+JFivY5qkwyZMz8NeB+YuLcH/g8fsnCnEY4YZLfXpIbED0F
+    PYnvvRLl
+    =baOj
     -----END PGP PUBLIC KEY BLOCK-----
-
+    
 
 .. _syskeyring:
 
@@ -175,34 +175,33 @@ Let's run gpg to create this Autocrypt type 1 key::
     gpg: keyring `/tmp/home/.gnupg/secring.gpg' created
     gpg: keyring `/tmp/home/.gnupg/pubring.gpg' created
     ..+++++
-    ..........+++++
+    .+++++
     ...+++++
-    ...+++++
+    ....+++++
     gpg: /tmp/home/.gnupg/trustdb.gpg: trustdb created
-    gpg: key 4415EEF7 marked as ultimately trusted
+    gpg: key 8930A133 marked as ultimately trusted
 
 We now have a key generated in the system key ring and
 can initialize autocrypt using this key.  First, for our
 playing purposes, we recreate the account directory and
 make sure no default identity is generated::
 
-    $ autocrypt init --no-identity --replace
-    deleting account directory: /tmp/home/.config/autocrypt
-    account directory initialized: /tmp/home/.config/autocrypt
-    account-dir: /tmp/home/.config/autocrypt
-    no identities configured
+    $ muacrypt init --no-account --replace
+    deleting account directory: /tmp/home/.config/muacrypt
+    account directory initialized: /tmp/home/.config/muacrypt
+    account-dir: /tmp/home/.config/muacrypt
+    no accounts configured
 
 and then we add a default identity tied to the key we want to use from the system keyring::
 
-    $ autocrypt add-identity default --use-system-keyring --use-key test@autocrypt.org
-    identity added: 'default'
-
-    identity: 'default' uuid 969736e569dc442ab92597fd05e8373c
+    $ muacrypt add-account default --use-system-keyring --use-key test@autocrypt.org
+    account added: 'default'
+    account: u'default'
       email_regex:     .*
       gpgmode:         system
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   F81E1B474415EEF7
+      own-keyhandle:   283388AA8930A133
       ^^ uid:           <test@autocrypt.org>
       ---- no peers registered -----
 
@@ -216,10 +215,10 @@ from the same folder you may want to look ingo identities_.
 
 .. _identities:
 
-Using separate identities
--------------------------
+Using separate accounts
+-----------------------
 
-You may want to create separate identities with your account:
+You may want to create separate accounts:
 
 - if you receive mails to alias email addresses in the same folder
   and want to keep them separate, unlinkable for people who read your mails
@@ -229,41 +228,40 @@ You may want to create separate identities with your account:
   instead of tweaking your Mail program's config to deal with different
   Autocrypt accounts.
 
-With py-autocrypt you can manage identities in a fine-grained manner. Each identity:
+You can manage accounts in a fine-grained manner. Each account:
 
 - keeps its autocrypt state in a directory under the account directory.
 
 - is defined by a name, a regular expression for matching mail addresses
   and an encryption private/public key pair and prefer-encrypt settings.
 
-- stores Autocrypt header information from incoming mails
+- updates Autocrypt peer state from incoming mails
   if its regex matches the ``Delivered-To`` address.
 
 - adds Autocrypt headers to outgoing mails if its regex matches
   the "From" header.
 
-In order to manage identities in a fine grained manner you need
+In order to manage account in a fine grained manner you need
 to delete the default identity or to re-initialize your Autocrypt
 account::
 
-    $ autocrypt init --no-identity --replace
-    deleting account directory: /tmp/home/.config/autocrypt
-    account directory initialized: /tmp/home/.config/autocrypt
-    account-dir: /tmp/home/.config/autocrypt
-    no identities configured
+    $ muacrypt init --no-account --replace
+    deleting account directory: /tmp/home/.config/muacrypt
+    account directory initialized: /tmp/home/.config/muacrypt
+    account-dir: /tmp/home/.config/muacrypt
+    no accounts configured
 
-You can then add an example identity::
+You can then add a "home" account::
 
-    $ autocrypt add-identity home --email-regex '(alice|wonder)@testsuite.autocrypt.org'
-    identity added: 'home'
-
-    identity: 'home' uuid 1d3bb960f1b347bda83dc3773211a791
+    $ muacrypt add-account home --email-regex '(alice|wonder)@testsuite.autocrypt.org'
+    account added: 'home'
+    account: u'home'
       email_regex:     (alice|wonder)@testsuite.autocrypt.org
-      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/home/gpghome]
+      gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/home]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   23117137B89DE0FB
-      ^^ uid:           <1d3bb960f1b347bda83dc3773211a791@uuid.autocrypt.org>
+      own-keyhandle:   226C3BA0386BD352
+      ^^ uid:           <5bba2196129a4efa83aa247e65aee998@random.muacrypt.org>
       ---- no peers registered -----
 
 This creates an decryption/encryption key pair and ties it to the name
@@ -272,36 +270,41 @@ This creates an decryption/encryption key pair and ties it to the name
 
 And now let's create another identity::
 
-    $ autocrypt add-identity wonder --email-regex='alice@wunderland.example.org'
-    identity added: 'wonder'
-
-    identity: 'wonder' uuid abebb96743964765af8706f45a4cae76
+    $ muacrypt add-account wonder --email-regex='alice@wunderland.example.org'
+    account added: 'wonder'
+    account: u'wonder'
       email_regex:     alice@wunderland.example.org
-      gpgmode:         own [home: /tmp/home/.config/autocrypt/id/wonder/gpghome]
+      gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/wonder]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   20367F911DD2CA72
-      ^^ uid:           <abebb96743964765af8706f45a4cae76@uuid.autocrypt.org>
+      own-keyhandle:   594AD32DA5286DF8
+      ^^ uid:           <effeae17649b4b1282e73285be4126d9@random.muacrypt.org>
       ---- no peers registered -----
 
 We have now configured our Autocrypt account with two identities.
 Let's test if Autocrypt matches our ``wonder`` address correctly::
 
-    $ autocrypt test-email alice@wunderland.example.org
+    $ muacrypt test-email alice@wunderland.example.org
     wonder
 
 then one of our ``home`` ones::
 
-    $ autocrypt test-email wonder@testsuite.autocrypt.org
+    $ muacrypt test-email wonder@testsuite.autocrypt.org
     home
 
 Looks good. Let's modify our ``home`` identity to signal to its peers
 that it prefers receiving encrypted mails::
 
-    $ autocrypt mod-identity home --prefer-encrypt=mutual
-    Usage: autocrypt mod-identity [OPTIONS] IDENTITY_NAME
-
-    Error: Invalid value for "--prefer-encrypt": invalid choice: yes. (choose from nopreference, mutual)
+    $ muacrypt mod-account home --prefer-encrypt=mutual
+    account modified: 'home'
+    account: u'home'
+      email_regex:     (alice|wonder)@testsuite.autocrypt.org
+      gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/home]
+      gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
+      prefer-encrypt:  mutual
+      own-keyhandle:   226C3BA0386BD352
+      ^^ uid:           <5bba2196129a4efa83aa247e65aee998@random.muacrypt.org>
+      ---- no peers registered -----
 
 This new ``prefer-encrypt: mutual`` setting tells our peers that we prefer
 to receive encrypted mails.  This setting will cause processing of
@@ -309,29 +312,29 @@ outgoing mails from the home address to add a header indicating that we
 want to receive encrypted mails if the other side also wants encrypted mails.
 We can check the setting works with the `make-header`_ subcommand::
 
-    $ autocrypt make-header wonder@testsuite.autocrypt.org
-    Autocrypt: addr=wonder@testsuite.autocrypt.org; keydata=
-      mQENBFlLz1kBCADd4K43W/x/im2sASRoURw9Pxa2uz+aiebGQnuz6+fOJMmcJl2MRIsQVh6vKpPuOh
-      qE9JLGqgxbgv9oaC97RgY00JCeabXHAsE0OY9AXsyaGmur1BLp0kV4IE+sqHZWtqudT/F+7FDxdkMN
-      +Zsv4Ek5w6iLBkNleD3XJB58pFJNelhOrUaJEgVcxwvblx05tXerC2nIgjSclirND8EfXGV499E+lF
-      jcmmDMt+OvLSg5U/dB4u9k3seThlWItT+zqHjl+m1sSK0rKq7p+lfMkqFNIAlGVcU/TG+QbgfhfoLC
-      r28M1+M36ydmDZMHmvf1wunKd02rF8deVc5Nl8PxBDCpABEBAAG0NiA8MWQzYmI5NjBmMWIzNDdiZG
-      E4M2RjMzc3MzIxMWE3OTFAdXVpZC5hdXRvY3J5cHQub3JnPokBOAQTAQIAIgUCWUvPWQIbAwYLCQgH
-      AwIGFQgCCQoLBBYCAwECHgECF4AACgkQIxFxN7id4PuIUAf/aJEJQcBTnpwYkT57NjM74LUTGEmE8E
-      lvclRpj+b/+SBbECMMyLbUgklk3do8K2mmWdei12tJtsBSXvFy1ZB0JWZ5PXSLcy8CAAJGtp2GShvC
-      3z4x7WDfgMX/HJgMfexUIL8Q+kUwPuRVo5CU+Po0l3E/huSpmRoGEJMeZGAtI07F9OxffYBcEsKI4q
-      fzug3ID9wDZQoX2zNZB/9998BhZI1d0e2/acnux7aedDsMxu3sAj/kVd8WRifPxW2//L+oqhP6/s+H
-      8vo1jHIOUFyFMfNLzeU1+puyKmRMNM13tFjC9gCJ/pskieI1DMtMVA4LNdNF9fRGbEg1lSrg6zaZ5r
-      kBDQRZS89ZAQgAtmeWmxdYh8O1kkgp/wJL/GGKKPHMxJnuXO+rFecW4j/S3u1dmU84Z5Iz1o31Py9b
-      aOM2xv3ylbqTnLINNqf+2BjXbVRyTf3vuXIOxwbsMRcZmI+tOdc+CDIjceq5Hr7jWCTT9diBiMSCmE
-      fSLyWykAZpBINbmgmXTk53wRsn6WoiU6CGGs1fOn5gcKQWgzHDPX7764XEOM9ShJgGMYLYfESyrJbK
-      /c3f49mh2TN4u+6l27KHxCWt/bC+FcADYeS+b/YvVz0vNlmgx+0SCXDq0V9VA4tWPDhewDTK/E5itU
-      iH2UUJg0WYZRT3yWwleQuKu+ctQnrOEYIUOeWwkEzicwARAQABiQEfBBgBAgAJBQJZS89ZAhsMAAoJ
-      ECMRcTe4neD7e8IIAJQh5oNB0CkYnMn6uSBp2ePF9hId8SIIflSX6vHCbLt394VByb3VNeQgfZ3oRk
-      1ZzPHAPnEw7OoV5momM5JoR8lset3vt5LJamUcNCuQsjgZwD5pfhrJO5qgfARaKskTtAX8/2oKDznI
-      HDFFtAhAd45cegE4UL5fkNQzQat0z84jAiSk+F6cCdGpFPaLApMoQTOLmnGfk9KSIORu/7fsvw3m9f
-      76m1/UKCwJRPGaIwIOgTaXfhzUM/pyXFp/JoHJchKaLBbbJimfwNvzUj3YkUm4O57qnHF07tXnojSN
-      rCGPzrHYIP092Sm2w1V54VV3q0aVpF/P6UCna7SNWDzxiEg=
+    $ muacrypt make-header wonder@testsuite.autocrypt.org
+    Autocrypt: addr=wonder@testsuite.autocrypt.org; prefer-encrypt=mutual; keydata=
+      mQENBFpXV2kBCACyUMe98nKWShAptfPg+IhNH2htwR84lNFy3nFnCwD0G0oqUSfyAoyaAsGxTnXM+i
+      +t8WL3o1hk5IT5Iza0MkDH1c5J99STIcQWC+fkwBKHNhl19lpU/aMDA3075vN5l0cjxPtDn01vosPA
+      Z5cOMqCvuF09erI9pG0uBwL2mVD9Wr4Cctnt8D4LRRIzrfett1TVu93rtAIxAuasTJAWLB+0j+L3MQ
+      86uQgSc9FM7JNOFDd7W394m2Vq27guCpMw9jO6dZyqdssHr45fLW9mQK8OEuFbcLKU0kAkXxIdJzZN
+      tABwyF3m3jY6ksQa7oKNA5PrQcB0JVHy8rXcoriNGiehABEBAAG0NyA8NWJiYTIxOTYxMjlhNGVmYT
+      gzYWEyNDdlNjVhZWU5OThAcmFuZG9tLm11YWNyeXB0Lm9yZz6JATgEEwECACIFAlpXV2kCGwMGCwkI
+      BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJECJsO6A4a9NSnpEIAJdo3ah+2M/eAjzlosCEnJeLvBdGzn
+      fl6WOPjpP5MndG5l/IQo4BSCEYlpS6I6WzpglA2ut7FiTfcwvnP6Cy0b4uTKDfYPBEDa83ogcyllFG
+      xdzCvzhQTzwzX3i9Pc6OOOaIvLlr7owMySpXI+Fy5JcFUAI59oEpcGWFsMgzS5iaVE0Yd5RjQWtm/C
+      Yl21t/5h+eBdz8XOjeiNAs9H4jbKYqxNdCoF5+z0X83hTnnUckPgaeTfJX5nK7NJJ2ruUuk2Y1XtMl
+      pOwJStKhjEs2YcpVl3cDjvM+Ur+EBvxw/vdF7ppTkX0XzABDVUeEfQF487Ika8pM4hNOldz+9/und5
+      a5AQ0EWldXaQEIAOCHrgB/AMvL9tY5w96/zw7+XiTNwQejx5ySIeU/52NwkBQ5rAc+Zy+H2xwyBL9L
+      IZZ3yI6CKHQKkd5H4dVgsxeOQc7nQArHYuDqZKUyWas3VMWE0mT53fMbGCPmYiYfqSCAi1KD50Zu3p
+      ts0oJzTvEmVEPnahDW/rDbq4uTZKT1lticR27KsiemFzbH3h317NaTGfv8E8/2RH8wftIlcS7Pca3s
+      e3TOM0Bysj7cOkCcTNtj5OgllmY/pAb22O+wR6v97GLnVwQhu0tazf31IVgjmii1M+sS8sChYbpp2E
+      l4V+Pdc5sqwWSB4G5uKmJoEmzKzV4ebRgcdENpiw3beh8AEQEAAYkBHwQYAQIACQUCWldXaQIbDAAK
+      CRAibDugOGvTUo21B/9DFffXzROonKSmQlOU80fwmSqsqHef9YsTHWPeYnIMI0yF4UNaueFrVbQmZ8
+      Kkp6P1E4RavrUQ/4uwtJ+haGER9DIw2zTJvh55eGmcwH9M85bIzsd4MLgmSsT3xL7mcRObxt2qzhhe
+      dsY/IxtyaoZ6O/f+5nA4sKHvfAX3bJV8+IVI46U5yvSOASNGG36rrmX/Z5mORWtwPyjlXmo1R4poM7
+      wHy/MycS6EEkogGCmsq50TdS5+R/Qlu+zVdbq7WmMxmZVZbJzkBA/duN4LNuEY+WKrhJYfdbrYfhJa
+      7FGQgGD7eNtetEUFXpuRmiIvh+2dWZTP3kHoMj1ob/fOj2+D
 
 When you pipe a message with a From-address matching Alice's home addresses into
 the `process-outgoing`_ subcommand will add this header. By using the sendmail_

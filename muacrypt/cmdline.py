@@ -42,7 +42,7 @@ def autocrypt_main(context, basedir):
 def init(ctx, replace, no_account):
     """init muacrypt state.
 
-    By default this command creates account state in a directory with
+    By default this command creates account(s) state in a directory with
     a default "catch-all" account which matches all email addresses
     and uses default settings.  If you want to have more fine-grained
     control (which gpg binary to use, which existing key to use, if to
@@ -100,7 +100,7 @@ option_prefer_encrypt = click.option(
 @click.pass_context
 def add_account(ctx, account_name, use_system_keyring,
                 use_key, gpgbin, email_regex):
-    """add an account to this account.
+    """add a named account.
 
     An account requires an account_name which is used to show, modify and delete it.
 
@@ -108,8 +108,8 @@ def add_account(ctx, account_name, use_system_keyring,
     set to a plain email address.   It is used when incoming or outgoing mails
     need to be associated with this account.
 
-    Instead of generating a key (the default operation) you may specify an
-    existing key with --use-key=keyhandle where keyhandle may be
+    Instead of generating an Autocrypt-compliant key (the default operation) you may
+    specify an existing key with --use-key=keyhandle where keyhandle may be
     something for which gpg finds it with 'gpg --list-secret-keys keyhandle'.
     Typically you will then also specify --use-system-keyring to make use of
     your existing keys.  All incoming muacrypt keys will thus be statesd in
