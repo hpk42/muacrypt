@@ -1,8 +1,14 @@
-0.8.0.dev1
+0.8.0.dev4
 ----------
 
 - moved repo to hpk42/py-autocrypt and refined entry pages to link
   to new IRC channel and mailing list and describe the aims.
+
+- removed "init" subcommand.  you can now directly use "add-account".
+
+- completely revamped internal storage to use append-only logs.
+  all state changes (and in particular Autocrypt header processing)
+  is tracked in immutable entries.
 
 
 0.7.0
