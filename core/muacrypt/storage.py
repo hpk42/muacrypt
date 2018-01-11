@@ -89,39 +89,17 @@ class Store:
 # Chain base classes and helpers
 # ===========================================================
 
-class Chain(object):
-    """ A Chain maintains an append-only log where each entry
-    in the chain has its own content-based address so that chains
-    can cross-reference entries from the same or other chains. Each entry in a chain
-    carries a timestamp and a parent CID (block hash) and type-specific
-    extra data.
-    """
 
-    def __init__(self, blockservice, headtracker, chain_name):
+class ChainStore(object):
+    def __init__(self, blockservice, headtracker, head_name):
         self._bs = blockservice
         self._ht = headtracker
-        self.chain_name = chain_name
+        self.head_name = head_name
 
     def dump(self):
         l = list(self.get_head_block())
         for x in reversed(l):
             pprint("{} {}: {}".format(x.timestamp, x.type, shortrepr(x.args)))
-
-    def is_empty(self):
-        return not self.get_head_block()
-
-    def new_head_block(self, type, args):
-        head = self.get_head_block()
-        if head:
-            head = head.cid
-        block = self._bs.store_block(type, args, parent=head)
-        self._ht.upsert(self.chain_name, block.cid)
-        return block
-
-    def get_head_block(self):
-        head_cid = self._ht.get_head_cid(self.chain_name)
-        if head_cid:
-            return self._bs.get_block(head_cid)
 
     def iter_blocks(self, type=None):
         """ yields blocks from head to root for this chain. """
@@ -131,17 +109,42 @@ class Chain(object):
                 if type is None or x.type == type:
                     yield x
 
+    def new_head_block(self, type, args):
+        head = self.get_head_block()
+        if head:
+            head = head.cid
+        block = self._bs.store_block(type, args, parent=head)
+        self._ht.upsert(self.head_name, block.cid)
+        return block
+
+    def get_head_block(self):
+        head_cid = self._ht.get_head_cid(self.head_name)
+        if head_cid:
+            return self._bs.get_block(head_cid)
+
+
+class Chain(object):
+    """ A Chain maintains an append-only log where each entry
+    in the chain has its own content-based address so that chains
+    can cross-reference entries from the same or other chains. Each entry in a chain
+    carries a timestamp and a parent CID (block hash) and type-specific
+    extra data.
+    """
+    def __init__(self, blockservice, headtracker, chain_name):
+        self._chainstore = ChainStore(blockservice, headtracker, chain_name)
+        self.name = chain_name
+
     def __len__(self):
-        return len(list(self.iter_blocks()))
+        return len(list(self.iter_entries()))
 
     def append_entry(self, entry):
         args = attr.astuple(entry)
-        self.new_head_block(entry.TAG, args)
+        self._chainstore.new_head_block(entry.TAG, args)
 
     def iter_entries(self, entryclass=None):
         assert entryclass is None or hasattr(entryclass, "TAG")
         tag = getattr(entryclass, "TAG", None)
-        for block in self.iter_blocks():
+        for block in self._chainstore.iter_blocks():
             if block and (tag is None or block.type == tag):
                 yield entryclass(*block.args)
 
@@ -183,7 +186,7 @@ class PeerState(object):
 
     @property
     def addr(self):
-        return self._chain.chain_name.split(":", 2)[-1]
+        return self._chain.name.split(":", 2)[-1]
 
     @property
     def last_seen(self):

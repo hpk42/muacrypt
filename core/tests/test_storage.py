@@ -25,7 +25,7 @@ class TestOOB:
 class TestPeerState:
     def test_empty(self, store):
         peerstate = store.get_peerstate("id1", "name1@123")
-        assert peerstate._chain.is_empty()
+        assert not peerstate._latest_msg_entry()
 
     def test_add_ac_and_not_ac(self, store):
         peerstate = store.get_peerstate("id1", "name1@123")
