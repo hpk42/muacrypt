@@ -9,128 +9,114 @@ from muacrypt.account import AccountManager, NotInitialized
 from muacrypt import mime
 
 
-def test_account_header_defaults(manager_maker):
-    account_manager = manager_maker(init=False)
-    addr = "hello@xyz.org"
-    with pytest.raises(NotInitialized):
-        account_manager.make_header(addr)
-    account_manager.init()
-    account = account_manager.add_account()
-    assert account.ownstate.gpgmode == "own"
-    h = account_manager.make_header(addr)
-    d = mime.parse_one_ac_header_from_string(h)
-    assert d["addr"] == addr
-    key = account.bingpg.get_public_keydata(account.ownstate.keyhandle, b64=True)
-    assert d["keydata"] == key
-    assert d["prefer-encrypt"] == "nopreference"
-    assert d["type"] == "1"
+class TestAccount:
+    def test_export_keys(self, account_maker, datadir):
+        acc = account_maker()
+        assert acc.export_public_key()
+        assert acc.export_secret_key()
 
+    def test_parse_incoming_mail_broken_ac_header(self, account_maker):
+        addr = "a@a.org"
+        ac1 = account_maker()
+        msg = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"], Autocrypt="Autocrypt: to=123; key=12312k3")
+        r = ac1.process_incoming(msg)
+        assert not r.autocrypt_header
 
-def test_account_handling(tmpdir):
-    tmpdir = tmpdir.strpath
-    mc = AccountManager(tmpdir)
-    assert not mc.exists()
-    mc.init()
-    assert mc.exists()
-    mc.remove()
-    assert not mc.exists()
+    def test_parse_incoming_mails_replace(self, account_maker):
+        ac1, ac2, ac3 = account_maker(), account_maker(), account_maker()
+        addr = "alice@a.org"
+        msg1 = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"],
+            Autocrypt=ac2.make_ac_header(addr, headername=""))
+        r = ac1.process_incoming(msg1)
+        assert r.peerstate.public_keyhandle == ac2.ownstate.keyhandle
+        msg2 = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"],
+            Autocrypt=ac3.make_ac_header(addr, headername=""))
+        r2 = ac1.process_incoming(msg2)
+        assert r2.peerstate.public_keyhandle == ac3.ownstate.keyhandle
 
+    def test_parse_incoming_mails_effective_date(self, account_maker, monkeypatch):
+        fixed_time = time.time()
+        later_date = 'Thu, 16 Feb 2050 15:00:00 -0000'
+        monkeypatch.setattr(time, "time", lambda: fixed_time)
+        account = account_maker()
+        addr = "alice@a.org"
+        msg1 = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"], Date=later_date,
+            Autocrypt=account.make_ac_header(addr, ''),
+        )
+        r = account.process_incoming(msg1)
+        assert r.peerstate.last_seen == fixed_time
 
-def test_account_parse_incoming_mail_broken_ac_header(manager_maker):
-    addr = "a@a.org"
-    ac2 = manager_maker()
-    msg = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt="Autocrypt: to=123; key=12312k3")
-    r = ac2.process_incoming(msg)
-    assert not r.autocrypt_header
+    def test_parse_incoming_mails_replace_by_date(self, account_maker):
+        ac1, ac2, ac3 = account_maker(), account_maker(), account_maker()
+        addr = "alice@a.org"
+        msg2 = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"], Autocrypt=ac3.make_ac_header(addr, ''),
+            Date='Thu, 16 Feb 2017 15:00:00 -0000')
+        msg1 = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"], Autocrypt=ac2.make_ac_header(addr, ''),
+            Date='Thu, 16 Feb 2017 13:00:00 -0000')
+        r = ac1.process_incoming(msg2)
+        assert r.account.get_peerstate(addr).public_keyhandle == ac3.ownstate.keyhandle
+        r2 = ac1.process_incoming(msg1)
+        assert r2.peerstate.public_keyhandle == \
+            ac3.ownstate.keyhandle
+        msg3 = mime.gen_mail_msg(
+            From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
+            Date='Thu, 16 Feb 2017 17:00:00 -0000')
+        r = ac1.process_incoming(msg3)
+        assert not r.autocrypt_header
+        assert r.peerstate.last_seen > r.peerstate.autocrypt_timestamp
 
+    def test_get_peer_keyhandle(self, account_maker, datadir):
+        msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
+        ac1 = account_maker()
+        ac1.process_incoming(msg)
+        ps = ac1.get_peerstate("alice@testsuite.autocrypt.org")
+        assert ps.public_keyhandle == 'BAFC533CD993BD7F'
 
-def test_account_parse_incoming_mail_and_raw_encrypt(manager_maker):
-    addr = "a@a.org"
-    ac1 = manager_maker()
-    ac2 = manager_maker()
-    msg = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac1.make_header(addr, headername=""))
-    r = ac2.process_incoming(msg)
-    assert r.peerstate.addr == addr
-    account2 = ac2.get_account()
-    account1 = ac1.get_account()
-    enc = account2.bingpg.encrypt(data=b"123", recipients=[r.peerstate.public_keyhandle])
-    data, descr_info = account1.bingpg.decrypt(enc)
-    assert data == b"123"
-
-
-def test_account_parse_incoming_mails_replace(manager_maker):
-    ac1 = manager_maker()
-    ac2 = manager_maker()
-    ac3 = manager_maker()
-    addr = "alice@a.org"
-    msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(addr, headername=""))
-    r = ac1.process_incoming(msg1)
-    account2 = ac2.get_account_from_emailadr(addr)
-    assert r.peerstate.public_keyhandle == account2.ownstate.keyhandle
-    msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(addr, headername=""))
-    r2 = ac1.process_incoming(msg2)
-    assert r2.peerstate.public_keyhandle == ac3.get_account().ownstate.keyhandle
-
-
-def test_account_parse_incoming_mails_effective_date(manager_maker, monkeypatch):
-    manager = manager_maker()
-    fixed_time = time.time()
-    later_date = 'Thu, 16 Feb 2050 15:00:00 -0000'
-    monkeypatch.setattr(time, "time", lambda: fixed_time)
-    addr = "alice@a.org"
-    msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Date=later_date,
-        Autocrypt=manager.make_header(addr, headername=""))
-    r = manager.process_incoming(msg1)
-    assert r.peerstate.last_seen == fixed_time
-
-
-def test_account_parse_incoming_mails_replace_by_date(manager_maker):
-    ac1 = manager_maker()
-    ac2 = manager_maker()
-    ac3 = manager_maker()
-    addr = "alice@a.org"
-    msg2 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac3.make_header(addr, headername=""),
-        Date='Thu, 16 Feb 2017 15:00:00 -0000')
-    msg1 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Autocrypt=ac2.make_header(addr, headername=""),
-        Date='Thu, 16 Feb 2017 13:00:00 -0000')
-    r = ac1.process_incoming(msg2)
-    assert r.account.get_peerstate(addr).public_keyhandle == \
-        ac3.get_account().ownstate.keyhandle
-    r2 = ac1.process_incoming(msg1)
-    assert r2.peerstate.public_keyhandle == \
-        ac3.get_account().ownstate.keyhandle
-    msg3 = mime.gen_mail_msg(
-        From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
-        Date='Thu, 16 Feb 2017 17:00:00 -0000')
-    r = ac1.process_incoming(msg3)
-    assert not r.autocrypt_header
-    assert r.peerstate.last_seen > r.peerstate.autocrypt_timestamp
-
-
-def test_account_export_public_key(manager_maker, datadir):
-    manager = manager_maker()
-    account = manager.get_account()
-    msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))
-    r = manager.process_incoming(msg)
-    assert r.account.name == account.name
-    assert r.account.export_public_key(r.peerstate.public_keyhandle)
+    def test_parse_incoming_mail_and_raw_encrypt(self, account_maker):
+        ac1, ac2 = account_maker(), account_maker()
+        addr = "a@a.org"
+        msg = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"],
+            Autocrypt=ac1.make_ac_header(addr, headername=""))
+        r = ac2.process_incoming(msg)
+        assert r.peerstate.addr == addr
+        enc = ac2.bingpg.encrypt(data=b"123", recipients=[r.peerstate.public_keyhandle])
+        data, descr_info = ac1.bingpg.decrypt(enc)
+        assert data == b"123"
 
 
 class TestAccountManager:
+    def test_account_handling(self, tmpdir):
+        tmpdir = tmpdir.strpath
+        mc = AccountManager(tmpdir)
+        assert not mc.exists()
+        mc.init()
+        assert mc.exists()
+        mc.remove()
+        assert not mc.exists()
+
+    def test_account_header_defaults(self, manager_maker):
+        account_manager = manager_maker(init=False)
+        addr = "hello@xyz.org"
+        with pytest.raises(NotInitialized):
+            account_manager.make_header(addr)
+        account_manager.init()
+        account = account_manager.add_account()
+        assert account.ownstate.gpgmode == "own"
+        h = account_manager.make_header(addr)
+        d = mime.parse_one_ac_header_from_string(h)
+        assert d["addr"] == addr
+        key = account.bingpg.get_public_keydata(account.ownstate.keyhandle, b64=True)
+        assert d["keydata"] == key
+        assert d["prefer-encrypt"] == "nopreference"
+        assert d["type"] == "1"
+
     def test_add_one_and_check_defaults(self, manager):
         regex = "(office|work)@example.org"
         manager.add_account("office", regex)

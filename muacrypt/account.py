@@ -75,7 +75,6 @@ class AccountManager(object):
 
     def get_account(self, account_name="default", check=True):
         self._ensure_init()
-        assert account_name.isalnum(), account_name
         account = Account(self._states, account_name)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
@@ -217,8 +216,9 @@ class Account:
     """
 
     def __init__(self, states, name):
-        """ shallo initializer. Call create() for initializing this
+        """ shallow initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
+        assert name.isalnum(), name
         self.name = name
         self._states = states
         self.ownstate = self._states.get_ownstate(name)

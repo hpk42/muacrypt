@@ -87,6 +87,7 @@ class TestProcessIncoming:
         """, input=msg.as_string())
         mycmd.run_ok(["status"])
 
+
 class TestAccountCommands:
     def test_add_list_del_account(self, mycmd):
         mycmd.run_ok(["status"], """

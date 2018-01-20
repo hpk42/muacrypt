@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
+from __future__ import unicode_literals
 
 from click.testing import CliRunner
 import logging
@@ -10,7 +11,8 @@ import pytest
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
-from muacrypt.account import AccountManager
+from muacrypt.account import AccountManager, Account
+from muacrypt.states import States
 
 
 def pytest_addoption(parser):
@@ -245,14 +247,34 @@ class DirCache:
 
 
 @pytest.fixture
+def account_maker(tmpdir, gpgpath):
+    """ return a function which creates a new account, by default initialized.
+    pass init=False to the function to avoid initizialtion.
+    """
+    # we have to be careful to not generate too long paths
+    # because gpg-2.1.11 chokes while trying to start gpg-agent
+    count = itertools.count()
+
+    def maker(email_regex='.*', gpgmode='own', gpgbin=gpgpath):
+        bname = "ac%d" % next(count)
+        basedir = tmpdir.mkdir(bname).strpath
+        states = States(basedir)
+        account = Account(states, bname)
+        account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
+                       keyhandle=None)
+        return account
+    return maker
+
+
+@pytest.fixture
 def manager(manager_maker):
-    """ return an uninitialized MuacryptManager instance. """
+    """ return an uninitialized AccountManager instance. """
     return manager_maker(addid=False)
 
 
 @pytest.fixture
 def manager_maker(tmpdir, gpgpath):
-    """ return a function which creates a new MuacryptManager account, by default initialized.
+    """ return a function which creates a new AccountManager account, by default initialized.
     pass init=False to the function to avoid initizialtion.
     """
     # we have to be careful to not generate too long paths
