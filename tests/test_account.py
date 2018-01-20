@@ -90,6 +90,33 @@ class TestAccount:
         data, descr_info = ac1.bingpg.decrypt(enc)
         assert data == b"123"
 
+    def test_encrypt_decrypt_mime(self, account_maker):
+        ac1, ac2 = account_maker(), account_maker()
+        addr1, addr2 = "a@a.org", "b@b.org"
+
+        msg = mime.gen_mail_msg(
+            From=addr1, To=[addr2],
+            Autocrypt=ac1.make_ac_header(addr1, headername=""))
+        msg.set_type('text/plain')
+        msg.set_payload('hello world')
+
+        r = ac2.process_incoming(msg)
+        assert r.peerstate.addr == addr1
+
+        msg2 = mime.gen_mail_msg(
+            From=addr2, To=[addr1],
+            Autocrypt=ac2.make_ac_header(addr2, headername=""))
+        r = ac1.process_incoming(msg2)
+        assert r.peerstate.addr == addr2
+
+        r = ac2.encrypt_mime(msg2, [addr1])
+        print(mime.render_mime_structure(r.msg))
+        print(r.msg.as_string())
+
+        # with open("/tmp/x/cur/outenc", "w") as f:
+        #     f.write(r.msg.as_string())
+        # r = ac1.decrypt_mime(r.msg)
+
 
 class TestAccountManager:
     def test_account_handling(self, tmpdir):

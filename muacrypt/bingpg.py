@@ -204,7 +204,6 @@ class BinGPG(object):
             "Subkey-Type: RSA",
             "Subkey-Length: 2048",
             "Subkey-Usage: encrypt",
-            # "Name-Real: " + uid,
             "Name-Email: " + emailadr,
             "Expire-Date: 0",
             "%commit"
@@ -315,12 +314,16 @@ class BinGPG(object):
                     "--export-secret-key", keyhandle])
         return self._gpg_out(args, strict=True, encoding=None)
 
-    def encrypt(self, data, recipients):
-        recs = []
+    def encrypt(self, data, recipients, signkey=None, text=False):
+        opts = self._nopassphrase + ["--encrypt", "--always-trust"]
         for r in recipients:
-            recs.extend(["--recipient", r])
-        return self._gpg_out(recs + ["--encrypt", "--always-trust"], input=data,
-                             encoding=None)
+            opts.extend(["-r", r])
+        if signkey:
+            opts.extend(["--sign", "-u", signkey])
+        if text:
+            opts.extend(["--armor"])
+        print(opts)
+        return self._gpg_out(opts, input=data, encoding=None)
 
     def sign(self, data, keyhandle):
         args = self._nopassphrase + ["--detach-sign", "-u", keyhandle]

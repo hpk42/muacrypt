@@ -8,6 +8,7 @@ import email.parser
 import base64
 from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
+from email.generator import _make_boundary
 import six
 
 
@@ -128,7 +129,7 @@ def verify_ac_dict(ac_dict):
 
 
 def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
-                 Date=None, _dto=False, MessageID=None, body='Autoresponse'):
+                 Date=None, _dto=False, MessageID=None, body='Autoresponse\n'):
     assert isinstance(To, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
@@ -143,9 +144,9 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
         charset = "utf-8"
     msg = MIMEText(body, _charset=charset)
 
-    msg['Message-ID'] = MessageID
     msg['From'] = From
     msg['To'] = ",".join(To)
+    msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
     if _extra:
@@ -176,6 +177,10 @@ def decrypt_message(msg, bingpg):
             continue
         dec_msg.add_header(name, val)
     return dec_msg, err
+
+
+def gen_boundary():
+    return _make_boundary()
 
 
 # adapted from ModernPGP:memoryhole/generators/generator.py which

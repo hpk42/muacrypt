@@ -361,6 +361,48 @@ class Account:
             added_autocrypt=added_autocrypt, had_autocrypt=msg["Autocrypt"]
         )
 
+    def encrypt_mime(self, msg, toaddrs):
+        assert msg.get_content_type() == "text/plain"  # for now only support plain text
+        recipients = [self.get_peerstate(addr).public_keyhandle for addr in toaddrs]
+
+        raw_data = msg.get_payload()
+        # raw_data = raw_data.replace(b'\n', b'\r\n')
+        m = email.message.Message()
+        m["content-type"] = "text/plain"
+        m["content-disposition"] = "inline"
+        m.set_payload(raw_data)
+        data = m.as_string().replace(b'\n', b'\r\n')
+        # data = raw_data
+        enc_data = self.bingpg.encrypt(data=data, recipients=recipients,
+                                       text=True, signkey=self.ownstate.keyhandle)
+
+        enc = email.message.Message()
+        enc.set_type('application/pgp-encrypted')
+        enc.set_payload('Version: 1')
+        del enc['MIME-Version']
+
+        data = email.message.Message()
+        data.set_type('application/octet-stream')
+        data.set_payload(enc_data)
+        del data['MIME-Version']
+
+        newmsg = email.message.Message()
+        del newmsg['MIME-Version']
+        newmsg.set_type('multipart/encrypted')
+        newmsg.set_param('protocol', 'application/pgp-encrypted')
+        newmsg.set_boundary(mime.gen_boundary())
+        newmsg.set_payload([enc, data])
+        for header, value in msg.items():
+            if header.lower() not in ("content-type", "mime-version"):
+                newmsg[header] = value
+        return EncryptMimeResult(newmsg, recipients)
+
+
+@attrs
+class EncryptMimeResult(object):
+    msg = attrib()
+    recipients = attrib()
+
 
 @attrs
 class ProcessIncomingResult(object):

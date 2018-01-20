@@ -2,7 +2,6 @@
 # vim:ts=4:sw=4:expandtab
 from __future__ import unicode_literals
 
-from click.testing import CliRunner
 import logging
 import shutil
 import os
@@ -109,6 +108,7 @@ def bingpg2(bingpg_maker):
 
 class ClickRunner:
     def __init__(self, main):
+        from click.testing import CliRunner
         self.runner = CliRunner()
         self._main = main
         self._rootargs = []
