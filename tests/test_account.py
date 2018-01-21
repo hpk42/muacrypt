@@ -90,32 +90,35 @@ class TestAccount:
         data, descr_info = ac1.bingpg.decrypt(enc)
         assert data == b"123"
 
-    def test_encrypt_decrypt_mime(self, account_maker):
+    def test_encrypt_decrypt_mime_text_plain(self, account_maker, maildir):
         ac1, ac2 = account_maker(), account_maker()
         addr1, addr2 = "a@a.org", "b@b.org"
 
+        # send a mail from addr1 with autocrypt key to addr2
         msg = mime.gen_mail_msg(
             From=addr1, To=[addr2],
             Autocrypt=ac1.make_ac_header(addr1, headername=""))
         msg.set_type('text/plain')
-        msg.set_payload('hello world')
 
         r = ac2.process_incoming(msg)
         assert r.peerstate.addr == addr1
 
+        # send an encrypted mail from addr2 to addr1
         msg2 = mime.gen_mail_msg(
             From=addr2, To=[addr1],
-            Autocrypt=ac2.make_ac_header(addr2, headername=""))
+            Autocrypt=ac2.make_ac_header(addr2, headername=""),
+            payload="hello ä umlaut", charset="utf8")
         r = ac1.process_incoming(msg2)
         assert r.peerstate.addr == addr2
 
         r = ac2.encrypt_mime(msg2, [addr1])
-        print(mime.render_mime_structure(r.msg))
-        print(r.msg.as_string())
 
-        # with open("/tmp/x/cur/outenc", "w") as f:
-        #     f.write(r.msg.as_string())
-        # r = ac1.decrypt_mime(r.msg)
+        # decrypt the incoming mail
+        r = ac1.decrypt_mime(r.msg)
+        dec = r.dec_msg
+        assert dec.get_content_type() == "text/plain"
+        assert dec.get_payload() == msg2.get_payload()
+        assert dec.get_payload(decode=True) == msg2.get_payload(decode=True)
 
 
 class TestAccountManager:

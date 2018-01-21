@@ -85,7 +85,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
         Autocrypt=account.make_header(delivto, headername=""),
-        body=six.text_type(log)
+        payload=six.text_type(log), charset="utf8",
     )
     if smtp:
         host, port = smtp.split(",")

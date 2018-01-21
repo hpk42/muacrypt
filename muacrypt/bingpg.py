@@ -136,7 +136,7 @@ class BinGPG(object):
     @cached_property
     def _nopassphrase(self):
         return ((["--pinentry-mode=loopback"] if self.isgpg2 else []) +
-                ["--passphrase", "''"])
+                ["--passphrase", "123"])
 
     def _gpg_out(self, argv, input=None, strict=False, encoding="utf8"):
         return self._gpg_outerr(argv, input=input, strict=strict, encoding=encoding)[0]

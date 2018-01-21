@@ -6,6 +6,7 @@ per-account basis. """
 
 from __future__ import unicode_literals
 
+import logging
 import re
 import shutil
 from base64 import b64decode
@@ -365,37 +366,42 @@ class Account:
         assert msg.get_content_type() == "text/plain"  # for now only support plain text
         recipients = [self.get_peerstate(addr).public_keyhandle for addr in toaddrs]
 
-        raw_data = msg.get_payload()
-        # raw_data = raw_data.replace(b'\n', b'\r\n')
-        m = email.message.Message()
-        m["content-type"] = "text/plain"
-        m["content-disposition"] = "inline"
-        m.set_payload(raw_data)
-        data = m.as_string().replace(b'\n', b'\r\n')
-        # data = raw_data
-        enc_data = self.bingpg.encrypt(data=data, recipients=recipients,
+        # we turn text/plain message into a new text/plain message which
+        # is then (as an ascii-string with appropriate transfer-encoding)
+        # encrypted and put into a proper multipart/pgp message
+        m = mime.make_tp_message_from_msg(msg)
+        clear_data = m.as_string().encode("ascii")  # .replace(b'\n', b'\r\n') for mswin?
+        enc_data = self.bingpg.encrypt(data=clear_data, recipients=recipients,
                                        text=True, signkey=self.ownstate.keyhandle)
+        enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
+        data = mime.make_message("application/octet-stream", payload=enc_data)
 
-        enc = email.message.Message()
-        enc.set_type('application/pgp-encrypted')
-        enc.set_payload('Version: 1')
-        del enc['MIME-Version']
-
-        data = email.message.Message()
-        data.set_type('application/octet-stream')
-        data.set_payload(enc_data)
-        del data['MIME-Version']
-
-        newmsg = email.message.Message()
-        del newmsg['MIME-Version']
-        newmsg.set_type('multipart/encrypted')
+        newmsg = mime.make_message("multipart/encrypted", payload=[enc, data])
         newmsg.set_param('protocol', 'application/pgp-encrypted')
-        newmsg.set_boundary(mime.gen_boundary())
-        newmsg.set_payload([enc, data])
-        for header, value in msg.items():
-            if header.lower() not in ("content-type", "mime-version"):
-                newmsg[header] = value
+        mime.transfer_non_content_headers(msg, newmsg)
         return EncryptMimeResult(newmsg, recipients)
+
+    def decrypt_mime(self, msg):
+        assert msg.get_content_type() == "multipart/encrypted"
+        parts = msg.get_payload()
+        assert len(parts) == 2
+        assert parts[0].get_content_type() == 'application/pgp-encrypted'
+        assert parts[1].get_content_type() == 'application/octet-stream'
+        enc_data = parts[1].get_payload().encode("ascii")
+        dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
+        logging.debug("decrypted message {!r}".format(msg.get("message-id")))
+        dec_inner_msg = mime.parse_message_from_string(dec.decode("ascii"))
+        # create a new decrypted message
+        newmsg = mime.make_tp_message_from_msg(dec_inner_msg)
+        mime.transfer_non_content_headers(msg, newmsg)
+        return DecryptMimeResult(enc_msg=msg, dec_msg=newmsg, keyinfos=keyinfos)
+
+
+@attrs
+class DecryptMimeResult(object):
+    enc_msg = attrib()
+    dec_msg = attrib()
+    keyinfos = attrib()
 
 
 @attrs

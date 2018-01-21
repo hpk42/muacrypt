@@ -10,6 +10,10 @@
   all state changes (and in particular Autocrypt header processing)
   is tracked in immutable entries.
 
+- with gpg2 we now internally use a hardcoded passphrase to avoid
+  problems with gpg-2.1.11 on ubuntu 16.04 which does not seem
+  to allow no-passphrase operations very well.
+
 
 0.7.0
 -------

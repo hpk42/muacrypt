@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 import logging
+import mailbox
 import shutil
 import os
 import itertools
@@ -355,3 +356,18 @@ def popen_mock(monkeypatch):
 
     monkeypatch.setattr(subprocess, "Popen", MyPopen)
     return pm
+
+
+@pytest.fixture
+def maildir(tmpdir):
+    return Maildir(tmpdir.join("maildir").strpath)
+
+
+class Maildir:
+    def __init__(self, tmpdir):
+        self.maildir = mailbox.Maildir(tmpdir)
+
+    def store(self, msg):
+        self.maildir.add(msg)
+        logging.debug("stored msgid={} path: {}".format(
+            msg.get("message-id"), self.maildir._path))

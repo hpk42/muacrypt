@@ -67,7 +67,10 @@ def parse_message_from_file(fp):
 
 
 def parse_message_from_string(string):
-    stream = six.StringIO(string)
+    if isinstance(string, bytes):
+        stream = six.BytesIO(string)
+    else:
+        stream = six.StringIO(string)
     return parse_message_from_file(stream)
 
 
@@ -129,20 +132,15 @@ def verify_ac_dict(ac_dict):
 
 
 def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
-                 Date=None, _dto=False, MessageID=None, body='Autoresponse\n'):
+                 Date=None, _dto=False, MessageID=None, payload='Autoresponse\n',
+                 charset=None):
     assert isinstance(To, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
 
     # prefer plain ascii mails to keep mail files directly readable
     # without base64-decoding etc.
-    charset = None
-    assert isinstance(body, six.text_type)
-    try:
-        msg = body.encode("ascii")
-    except UnicodeEncodeError:
-        charset = "utf-8"
-    msg = MIMEText(body, _charset=charset)
+    msg = MIMEText(payload, _charset=charset)
 
     msg['From'] = From
     msg['To'] = ",".join(To)
@@ -181,6 +179,33 @@ def decrypt_message(msg, bingpg):
 
 def gen_boundary():
     return _make_boundary()
+
+
+def make_message(content_type, payload=None):
+    msg = email.message.Message()
+    del msg["MIME-Version"]
+    msg["Content-Type"] = content_type
+    if payload is not None:
+        msg.set_payload(payload)
+    return msg
+
+
+def make_tp_message_from_msg(msg, _h=("content-transfer-encoding",)):
+    newmsg = make_message(
+        content_type=msg["Content-Type"],
+        payload=msg.get_payload(decode=False)
+    )
+    for x in _h:
+        if x in msg:
+            newmsg[x] = msg[x]
+    return newmsg
+
+
+def transfer_non_content_headers(msg, newmsg):
+    _ignore_headers = ["content-type", "mime-version", "content-transfer-encoding"]
+    for header, value in msg.items():
+        if header.lower() not in _ignore_headers:
+            newmsg[header] = value
 
 
 # adapted from ModernPGP:memoryhole/generators/generator.py which
