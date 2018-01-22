@@ -152,6 +152,7 @@ class BinGPG(object):
         while stdout output is returned decoded if encoding is set (default is "utf8").
         If you want binary stdout output specify encoding=None.
         """
+        assert input is None or isinstance(input, bytes)
         args = [self.gpgpath, "--batch"] + self._homedirflags
         # make sure we use unicode for all provided arguments
 
