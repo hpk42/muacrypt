@@ -28,12 +28,12 @@ class TestAccount:
         addr = "alice@a.org"
         msg1 = mime.gen_mail_msg(
             From=addr, To=["b@b.org"],
-            Autocrypt=ac2.make_ac_header(addr, headername=""))
+            Autocrypt=ac2.make_ac_header(addr))
         r = ac1.process_incoming(msg1)
         assert r.peerstate.public_keyhandle == ac2.ownstate.keyhandle
         msg2 = mime.gen_mail_msg(
             From=addr, To=["b@b.org"],
-            Autocrypt=ac3.make_ac_header(addr, headername=""))
+            Autocrypt=ac3.make_ac_header(addr))
         r2 = ac1.process_incoming(msg2)
         assert r2.peerstate.public_keyhandle == ac3.ownstate.keyhandle
 
@@ -45,7 +45,7 @@ class TestAccount:
         addr = "alice@a.org"
         msg1 = mime.gen_mail_msg(
             From=addr, To=["b@b.org"], Date=later_date,
-            Autocrypt=account.make_ac_header(addr, ''),
+            Autocrypt=account.make_ac_header(addr),
         )
         r = account.process_incoming(msg1)
         assert r.peerstate.last_seen == fixed_time
@@ -54,10 +54,10 @@ class TestAccount:
         ac1, ac2, ac3 = account_maker(), account_maker(), account_maker()
         addr = "alice@a.org"
         msg2 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=ac3.make_ac_header(addr, ''),
+            From=addr, To=["b@b.org"], Autocrypt=ac3.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 15:00:00 -0000')
         msg1 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=ac2.make_ac_header(addr, ''),
+            From=addr, To=["b@b.org"], Autocrypt=ac2.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 13:00:00 -0000')
         r = ac1.process_incoming(msg2)
         assert r.account.get_peerstate(addr).public_keyhandle == ac3.ownstate.keyhandle
@@ -83,7 +83,7 @@ class TestAccount:
         addr = "a@a.org"
         msg = mime.gen_mail_msg(
             From=addr, To=["b@b.org"],
-            Autocrypt=ac1.make_ac_header(addr, headername=""))
+            Autocrypt=ac1.make_ac_header(addr))
         r = ac2.process_incoming(msg)
         assert r.peerstate.addr == addr
         enc = ac2.bingpg.encrypt(data=b"123", recipients=[r.peerstate.public_keyhandle])
@@ -97,16 +97,14 @@ class TestAccount:
         # send a mail from addr1 with autocrypt key to addr2
         msg = mime.gen_mail_msg(
             From=addr1, To=[addr2],
-            Autocrypt=ac1.make_ac_header(addr1, headername=""))
-        msg.set_type('text/plain')
-
+            Autocrypt=ac1.make_ac_header(addr1))
         r = ac2.process_incoming(msg)
         assert r.peerstate.addr == addr1
 
         # send an encrypted mail from addr2 to addr1
         msg2 = mime.gen_mail_msg(
             From=addr2, To=[addr1],
-            Autocrypt=ac2.make_ac_header(addr2, headername=""),
+            Autocrypt=ac2.make_ac_header(addr2),
             payload="hello ä umlaut", charset="utf8")
         r = ac1.process_incoming(msg2)
         assert r.peerstate.addr == addr2

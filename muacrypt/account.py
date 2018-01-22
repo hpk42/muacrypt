@@ -153,8 +153,7 @@ class AccountManager(object):
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
-        key and the provided emailadr if this account is managing
-        the emailadr.
+        key and the provided emailadr if one of our account matches it.
 
         :type emailadr: unicode
         :param emailadr:
@@ -178,7 +177,7 @@ class AccountManager(object):
             return ""
         else:
             assert account.ownstate.keyhandle
-            return account.make_ac_header(emailadr, headername=headername)
+            return headername + account.make_ac_header(emailadr)
 
     def process_incoming(self, msg, delivto=None):
         """ match account for incoming mail message
@@ -292,8 +291,8 @@ class Account:
                 "AccountManager directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
-    def make_ac_header(self, emailadr, headername="Autocrypt: "):
-        return headername + mime.make_ac_header_value(
+    def make_ac_header(self, emailadr):
+        return mime.make_ac_header_value(
             addr=emailadr,
             keydata=self.bingpg.get_public_keydata(self.ownstate.keyhandle),
             prefer_encrypt=self.ownstate.prefer_encrypt,
@@ -356,7 +355,7 @@ class Account:
         if "Autocrypt" in msg:
             added_autocrypt = None
         else:
-            msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr, "")
+            msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr)
         return ProcessOutgoingResult(
             msg=msg, account=self, addr=addr,
             added_autocrypt=added_autocrypt, had_autocrypt=msg["Autocrypt"]

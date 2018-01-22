@@ -38,7 +38,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
     The reply message contains an Autocrypt header and details of what
     was found and understood from the incoming mail.
     """
-    account = get_account_manager(ctx)
+    account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     From = msg["From"]
 
@@ -65,7 +65,8 @@ def bot_reply(ctx, smtp, fallback_delivto):
     with log.s("And this is the mime structure i saw:"):
         log(mime.render_mime_structure(msg))
 
-    r = account.process_incoming(msg, delivto=delivto)
+    account = account_manager.get_account_from_emailadr(delivto)
+    r = account.process_incoming(msg)
     with log.s("processing your mail through muacrypt:"):
         if r.autocrypt_header:
             status = "found:\n" + str(r.peerstate)
@@ -84,7 +85,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         From=delivto, To=[From],
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
-        Autocrypt=account.make_header(delivto, headername=""),
+        Autocrypt=account.make_ac_header(delivto),
         payload=six.text_type(log), charset="utf8",
     )
     if smtp:

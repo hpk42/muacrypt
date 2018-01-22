@@ -13,7 +13,7 @@ def ac_sender(manager_maker, request):
     manager = manager_maker(init=False)
     account = manager.add_account("sender", email_regex=request.param)
     account.adr = request.param
-    account.ac_headerval = account.make_ac_header(account.adr, headername="")
+    account.ac_headerval = account.make_ac_header(account.adr)
     assert account.ac_headerval
     return account
 
