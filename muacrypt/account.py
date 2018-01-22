@@ -11,6 +11,7 @@ import re
 import shutil
 import six
 from attr import attrs, attrib
+import email
 import uuid
 import time
 from .bingpg import cached_property, BinGPG

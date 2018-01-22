@@ -14,14 +14,6 @@ from email.generator import _make_boundary
 import six
 
 
-def encode_binary_keydata(keydata):
-    assert isinstance(keydata, bytes)
-    key = base64.b64encode(keydata)
-    if isinstance(key, bytes):
-        key = key.decode("ascii")
-    return key
-
-
 def decode_keydata(ascii_keydata):
     return base64.b64decode(ascii_keydata)
 
@@ -167,26 +159,6 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
     if Autocrypt:
         msg["Autocrypt"] = Autocrypt
     return msg
-
-
-def decrypt_message(msg, bingpg):
-    # this method is not tested through the test suite
-    # currently because we lack a way to generate proper
-    # encrypted messages
-    ctype = msg.get_content_type()
-    assert ctype == "multipart/encrypted"
-    parts = msg.get_payload()
-    meta, enc = parts
-    assert meta.get_content_type() == "application/pgp-encrypted"
-    assert enc.get_content_type() == "application/octet-stream"
-
-    dec, err = bingpg.decrypt(enc.get_payload())
-    dec_msg = parse_message_from_string(dec)
-    for name, val in msg.items():
-        if name.lower() in ("content-type", "content-transfer-encoding"):
-            continue
-        dec_msg.add_header(name, val)
-    return dec_msg, err
 
 
 def gen_boundary():

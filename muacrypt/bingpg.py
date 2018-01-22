@@ -14,17 +14,9 @@ import os
 import sys
 from subprocess import Popen, PIPE
 from contextlib import contextmanager
-from base64 import b64encode
 import tempfile
 import re
 iswin32 = sys.platform == "win32" or (getattr(os, '_name', False) == 'nt')
-
-
-def b64encode_u(x):
-    res = b64encode(x)
-    if isinstance(res, bytes):
-        res = res.decode("ascii")
-    return res
 
 
 def cached_property(f):
@@ -163,6 +155,7 @@ class BinGPG(object):
         # open the process with a C locale, pipe everything
         env = os.environ.copy()
         env["LANG"] = "C"
+        # env["LC_ALL"] = "en_US.UTF-8"
         popen = Popen(args, stdout=PIPE, stderr=PIPE, stdin=PIPE, env=env)
 
         # some debugging info
@@ -174,7 +167,7 @@ class BinGPG(object):
         ret = popen.wait()
         if ret == 130:
             raise KeyboardInterrupt("detected in gpg invocation")
-        err = err.decode("utf8")
+        err = err.decode("utf-8")
         if encoding:
             out = out.decode(encoding)
         if ret != 0 or (strict and err):
@@ -303,11 +296,11 @@ class BinGPG(object):
             packets.append(last_package_type + (lines,))
         return packets
 
-    def get_public_keydata(self, keyhandle, armor=False, b64=False):
+    def get_public_keydata(self, keyhandle, armor=False):
         args = ["-a"] if armor else []
         args.extend(["--export-options=export-minimal", "--export", str(keyhandle)])
         out = self._gpg_out(args, strict=True, encoding=None)
-        return out if not b64 else b64encode_u(out)
+        return out
 
     def get_secret_keydata(self, keyhandle, armor=False):
         args = ["-a"] if armor else []
