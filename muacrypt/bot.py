@@ -63,13 +63,13 @@ def bot_reply(ctx, smtp, fallback_delivto):
 
     account = account_manager.get_account_from_emailadr(delivto)
     r = account.process_incoming(msg)
-    with log.s("processing your mail through muacrypt:"):
-        if r.autocrypt_header:
-            status = "found:\n" + str(r.peerstate)
+    with log.s("processed incoming mail for account {}:".format(r.account.name)):
+        if r.pah.error:
+            log(r.pah.error)
         else:
-            status = "no Autocrypt header found."
-        log("processed incoming mail for account '{}', {}".format(
-            r.account.name, status))
+            ps = r.peerstate
+            log("found peeraddr={} keyhandle={} prefer_encrypt={}".format(
+                ps.addr, ps.public_keyhandle, ps.prefer_encrypt))
 
     log("\n")
     log("have a nice day, {}".format(delivto))

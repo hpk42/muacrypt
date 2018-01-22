@@ -6,6 +6,7 @@
 from __future__ import unicode_literals, print_function
 import email.parser
 import base64
+from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
@@ -25,7 +26,7 @@ def decode_keydata(ascii_keydata):
     return base64.b64decode(ascii_keydata)
 
 
-def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="1"):
+def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference"):
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
@@ -33,8 +34,6 @@ def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="
     l = ["addr=" + addr]
     if prefer_encrypt != "nopreference":
         l.append("prefer-encrypt=" + prefer_encrypt)
-    if keytype != "1":
-        l.append("type=" + keytype)
     l.append("keydata=\n" + indented_split(key))
     return "; ".join(l)
 
@@ -80,56 +79,66 @@ def parse_one_ac_header_from_string(string):
     return parse_one_ac_header_from_msg(msg)
 
 
-def parse_all_ac_headers_from_msg(msg):
-    autocrypt_headers = msg.get_all("Autocrypt") or []
-    return [parse_ac_headervalue(inb) for inb in autocrypt_headers if inb]
+def parse_one_ac_header_from_msg(msg, FromList=None):
+    results = []
+    err_results = []
+    for ac_header_value in msg.get_all("Autocrypt") or []:
+        r = parse_ac_headervalue(ac_header_value)
+        if not r.error and (not FromList or r.addr in FromList):
+            results.append(r)
+        else:
+            err_results.append(r)
 
-
-def parse_one_ac_header_from_msg(msg):
-    all_results = parse_all_ac_headers_from_msg(msg)
-    if len(all_results) == 1:
-        return all_results[0]
-    if len(all_results) > 1:
-        raise ValueError("more than one Autocrypt header\n%s" %
-                         "\n".join(msg.get_all("Autocrypt")))
-    return {}
+    if len(results) == 1:
+        return results[0]
+    if len(results) > 1:
+        return ACParseResult(error="more than one valid Autocrypt header found")
+    if err_results:
+        return err_results[0]
+    else:
+        return ACParseResult(error="no valid Autocrypt header found")
 
 
 def parse_ac_headervalue(value):
-    """ return a autocrypt attribute dictionary parsed
-    from the specified autocrypt header value.  Unspecified
-    default values for prefer-encrypt and the key type are filled in."""
+    """ return a Result object with keydata/addr/prefer_encrypt/extra_attr/error
+    attributes.
+
+    If the error attribute is set on the result object then all
+    other attribute values are undefined.
+    """
     parts = value.split(";")
-    result_dict = {"prefer-encrypt": "nopreference", "type": "1"}
+    result_dict = {"prefer_encrypt": "nopreference"}
+    extra_attr = {}
     for x in parts:
         kv = x.split("=", 1)
         name, value = [x.strip() for x in kv]
         if name == "keydata":
-            value = "".join(value.split())
+            value = decode_keydata("".join(value.split()))
+        elif name == "prefer-encrypt":
+            name = "prefer_encrypt"
+            if value not in ("nopreference", "mutual"):
+                return ACParseResult(error="unknown prefer-encryp setting '%s'" % value)
+        elif name == "addr":
+            pass
+        elif name[0] != "_":
+            return ACParseResult(error="unknown critical attr '%s'" % name)
+        else:
+            extra_attr[name] = value
+            continue
         result_dict[name] = value
-    return result_dict
+    for attr in ("keydata", "addr"):
+        if attr not in result_dict:
+            return ACParseResult(error="critical attr '%s' missing" % attr)
+    return ACParseResult(extra_attr=extra_attr, **result_dict)
 
 
-def verify_ac_dict(ac_dict):
-    """ return a list of errors from checking the autocrypt attribute dict.
-    if the returned list is empty no errors were found.
-    """
-    l = []
-    for name in ac_dict:
-        if name not in ("keydata", "addr", "type", "prefer-encrypt") and name[0] != "_":
-            l.append("unknown critical attr '{}'".format(name))
-    # keydata_base64 = "".join(ac_dict["keydata"])
-    # base64.b64decode(keydata_base64)
-    if "type" not in ac_dict:
-        l.append("type missing")
-    if "keydata" not in ac_dict:
-        l.append("keydata missing")
-    if ac_dict["type"] != "1":
-        l.append("unknown key type '%s'" % (ac_dict["type"], ))
-    if ac_dict["prefer-encrypt"] not in ("nopreference", "mutual"):
-        l.append("unknown prefer-encrypt setting '%s'" %
-                 (ac_dict["prefer-encrypt"]))
-    return l
+@attrs
+class ACParseResult(object):
+    keydata = attrib_bytes_or_none()
+    addr = attrib_text_or_none()
+    prefer_encrypt = attrib_text_or_none()
+    extra_attr = attrib(default=None)
+    error = attrib_text_or_none()
 
 
 def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",

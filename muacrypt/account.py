@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import logging
 import re
 import shutil
-from base64 import b64decode
 import six
 from attr import attrs, attrib
 import uuid
@@ -297,20 +296,20 @@ class Account:
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
-        d = mime.parse_one_ac_header_from_msg(msg)
-        if d.get("addr") != From:
-            d = {}
-            keydata = keyhandle = None,
+        r = mime.parse_one_ac_header_from_msg(msg, [From])
+        if r.error:
+            if "no valid Autocrypt" not in r.error:
+                logging.error("{}: {}".format(msg_id, r.error))
+            keyhandle = None
         else:
-            keydata = b64decode(d["keydata"])
-            keyhandle = self.bingpg.import_keydata(keydata)
+            keyhandle = self.bingpg.import_keydata(r.keydata)
         peerstate.update_from_msg(
             msg_id=msg_id, effective_date=msg_date,
-            parsed_autocrypt_header=d, keydata=keydata, keyhandle=keyhandle,
+            prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
         )
         return ProcessIncomingResult(
             msgid=msg_id,
-            autocrypt_header=d,
+            pah=r,
             peerstate=peerstate,
             account=self,
         )
@@ -378,7 +377,7 @@ class ProcessIncomingResult(object):
     msgid = attrib_text()
     peerstate = attrib()
     account = attrib(type=six.text_type)
-    autocrypt_header = attrib()
+    pah = attrib()
 
 
 @attrs

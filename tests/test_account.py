@@ -30,7 +30,15 @@ class TestAccount:
         msg = mime.gen_mail_msg(
             From=addr, To=["b@b.org"], Autocrypt="Autocrypt: to=123; key=12312k3")
         r = acc1.process_incoming(msg)
-        assert not r.autocrypt_header
+        assert r.pah.error
+
+    def test_parse_incoming_unknown_prefer_encrypt(self, account_maker):
+        acc1, acc2 = account_maker(), account_maker()
+        acc1.modify(prefer_encrypt="mutual")
+        msg = gen_ac_mail_msg(acc1, acc2)
+        msg.replace_header("Autocrypt", msg["Autocrypt"].replace("mutual", "notset"))
+        r = acc2.process_incoming(msg)
+        assert r.pah.error
 
     def test_parse_incoming_mails_replace(self, account_maker):
         acc1, acc2, ac3 = account_maker(), account_maker(), account_maker()
@@ -72,7 +80,7 @@ class TestAccount:
             From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
             Date='Thu, 16 Feb 2017 17:00:00 -0000')
         r = acc1.process_incoming(msg3)
-        assert not r.autocrypt_header
+        assert "no valid" in r.pah.error
         assert r.peerstate.last_seen > r.peerstate.autocrypt_timestamp
 
     def test_get_peer_keyhandle(self, account_maker, datadir):
@@ -159,12 +167,11 @@ class TestAccountManager:
         account = account_manager.add_account()
         assert account.ownstate.gpgmode == "own"
         h = account_manager.make_header(addr)
-        d = mime.parse_one_ac_header_from_string(h)
-        assert d["addr"] == addr
-        key = account.bingpg.get_public_keydata(account.ownstate.keyhandle, b64=True)
-        assert d["keydata"] == key
-        assert d["prefer-encrypt"] == "nopreference"
-        assert d["type"] == "1"
+        r = mime.parse_one_ac_header_from_string(h)
+        assert r.addr == addr
+        key = account.bingpg.get_public_keydata(account.ownstate.keyhandle)
+        assert r.keydata == key
+        assert r.prefer_encrypt == "nopreference"
 
     def test_add_one_and_check_defaults(self, manager):
         regex = "(office|work)@example.org"
@@ -230,9 +237,8 @@ class TestAccountManager:
 
         manager.mod_account(account.name, prefer_encrypt=pref)
         h = manager.make_header(addr)
-        d = mime.parse_one_ac_header_from_string(h)
-        assert d["addr"] == addr
-        key = account.bingpg.get_public_keydata(account.ownstate.keyhandle, b64=True)
-        assert d["keydata"] == key
-        assert d["prefer-encrypt"] == pref
-        assert d["type"] == "1"
+        r = mime.parse_one_ac_header_from_string(h)
+        assert r.addr == addr
+        key = account.bingpg.get_public_keydata(account.ownstate.keyhandle)
+        assert r.keydata == key
+        assert r.prefer_encrypt == pref

@@ -122,6 +122,10 @@ class PeerState(object):
         return getattr(self._latest_ac_entry(), "keyhandle", '')
 
     @property
+    def prefer_encrypt(self):
+        return getattr(self._latest_ac_entry(), "prefer_encrypt", '')
+
+    @property
     def public_keydata(self):
         return getattr(self._latest_ac_entry(), "keydata", b'')
 
@@ -136,12 +140,12 @@ class PeerState(object):
         return self._chain.latest_entry_of(MsgEntry)
 
     # methods which modify/add state
-    def update_from_msg(self, msg_id, effective_date, parsed_autocrypt_header,
+    def update_from_msg(self, msg_id, effective_date, prefer_encrypt,
                         keydata, keyhandle):
-        if parsed_autocrypt_header and effective_date >= self.autocrypt_timestamp:
+        if keydata and effective_date >= self.autocrypt_timestamp:
             self._append_ac_entry(
                 msg_id=msg_id, msg_date=effective_date,
-                prefer_encrypt=parsed_autocrypt_header["prefer-encrypt"],
+                prefer_encrypt=prefer_encrypt,
                 keydata=keydata or b'', keyhandle=keyhandle or '',
             )
         else:

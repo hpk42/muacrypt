@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import six
 import pytest
 from muacrypt import mime
-from base64 import b64decode
+from base64 import b64encode
 
 
 def make_ac_dict(**kwargs):
@@ -36,21 +36,21 @@ def test_render(datadir):
 
 
 def test_make_and_parse_header_value():
-    addr, keydata = "x@xy.z", "123"
+    addr, keydata = "x@xy.z", b64encode(b'123')
     h = mime.make_ac_header_value(addr=addr, keydata=keydata)
-    d = mime.parse_ac_headervalue(h)
-    assert not mime.verify_ac_dict(d)
-    assert d == make_ac_dict(addr=addr, keydata=keydata)
+    r = mime.parse_ac_headervalue(h)
+    assert not r.error
+    assert r.keydata == keydata
+    assert r.addr == addr
+    assert not r.extra_attr
 
 
-def test_make_and_parse_header_errors():
-    addr, keydata = "x@xy.z", "123"
-    h = mime.make_ac_header_value(addr=addr, keydata=keydata,
-                                  prefer_encrypt="nopreference", keytype="9")
-    assert "prefer-encrypt" not in h, h
-    d = mime.parse_ac_headervalue(h)
-    assert "unknown key type" in mime.verify_ac_dict(d)[0]
-    assert d == make_ac_dict(addr=addr, keydata=keydata, type="9")
+def test_make_and_parse_header_prefer_encrypt():
+    addr, keydata = "x@xy.z", b64encode(b'123')
+    h = mime.make_ac_header_value(addr=addr, keydata=keydata, prefer_encrypt="notset")
+    r = mime.parse_ac_headervalue(h)
+    assert "notset" in r.error
+    assert not r.keydata
 
 
 def test_get_delivered_to():
@@ -66,29 +66,26 @@ def test_get_delivered_to():
 
 class TestEmailCorpus:
     def test_rsa2048_simple(self, datadir, bingpg):
-        d = datadir.parse_ac_header_from_email("rsa2048-simple.eml")
-        assert d["addr"] == "alice@testsuite.autocrypt.org", d
-        bingpg.import_keydata(b64decode(d["keydata"]))
+        r = datadir.parse_ac_header_from_email("rsa2048-simple.eml")
+        assert r.addr == "alice@testsuite.autocrypt.org", r
+        assert r.prefer_encrypt == "nopreference"
+        bingpg.import_keydata(r.keydata)
 
     def test_rsa2048_explicit_type(self, datadir, bingpg):
-        d = datadir.parse_ac_header_from_email("rsa2048-explicit-type.eml")
-        assert d["addr"] == "alice@testsuite.autocrypt.org"
-        bingpg.import_keydata(b64decode(d["keydata"]))
+        r = datadir.parse_ac_header_from_email("rsa2048-explicit-type.eml")
+        assert r.error
+        assert not r.keydata
 
     def test_rsa2048_unknown_non_critical(self, datadir, bingpg):
-        d = datadir.parse_ac_header_from_email("rsa2048-unknown-non-critical.eml")
-        assert d["addr"] == "alice@testsuite.autocrypt.org"
-        assert d["_monkey"] == "ignore"
-        bingpg.import_keydata(b64decode(d["keydata"]))
+        r = datadir.parse_ac_header_from_email("rsa2048-unknown-non-critical.eml")
+        assert r.addr == "alice@testsuite.autocrypt.org"
+        assert r.extra_attr["_monkey"] == "ignore"
+        bingpg.import_keydata(r.keydata)
 
     def test_rsa2048_unknown_critical(self, datadir):
-        d = datadir.parse_ac_header_from_email("rsa2048-unknown-critical.eml")
-        l = mime.verify_ac_dict(d)
-        assert len(l) == 1
-        assert "unknown critical attr 'danger'" in l[0]
+        r = datadir.parse_ac_header_from_email("rsa2048-unknown-critical.eml")
+        assert "unknown critical attr 'danger'" in r.error
 
     def test_unknown_type(self, datadir):
-        d = datadir.parse_ac_header_from_email("unknown-type.eml")
-        l = mime.verify_ac_dict(d)
-        assert len(l) == 1
-        assert "unknown key type '7'" in l[0]
+        r = datadir.parse_ac_header_from_email("unknown-type.eml")
+        assert "unknown critical attr 'type'" in r.error
