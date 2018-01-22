@@ -31,6 +31,7 @@ class TestAccount:
             From=addr, To=["b@b.org"], Autocrypt="Autocrypt: to=123; key=12312k3")
         r = acc1.process_incoming(msg)
         assert r.pah.error
+        assert r.msg_date
 
     def test_parse_incoming_unknown_prefer_encrypt(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()
@@ -61,6 +62,7 @@ class TestAccount:
         msg1 = gen_ac_mail_msg(acc1, acc2, Date=later_date)
         r = acc2.process_incoming(msg1)
         assert r.peerstate.last_seen == fixed_time
+        assert r.msg_date == fixed_time
 
     def test_parse_incoming_mails_replace_by_date(self, account_maker):
         acc1, acc2, ac3 = account_maker(), account_maker(), account_maker()
@@ -76,12 +78,16 @@ class TestAccount:
         r2 = acc1.process_incoming(msg1)
         assert r2.peerstate.public_keyhandle == \
             ac3.ownstate.keyhandle
+        assert r2.msg_date < r.msg_date
+
         msg3 = mime.gen_mail_msg(
             From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
             Date='Thu, 16 Feb 2017 17:00:00 -0000')
-        r = acc1.process_incoming(msg3)
-        assert "no valid" in r.pah.error
-        assert r.peerstate.last_seen > r.peerstate.autocrypt_timestamp
+        r3 = acc1.process_incoming(msg3)
+        assert "no valid" in r3.pah.error
+        assert r3.msg_date > r2.msg_date
+        assert r3.peerstate.last_seen == r3.msg_date
+        assert r3.peerstate.last_seen > r.peerstate.autocrypt_timestamp
 
     def test_get_peer_keyhandle(self, account_maker, datadir):
         msg = mime.parse_message_from_file(datadir.open("rsa2048-simple.eml"))

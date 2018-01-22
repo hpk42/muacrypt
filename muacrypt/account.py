@@ -16,7 +16,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from . import mime
 from .states import States
-from .myattr import attrib_text
+from .myattr import attrib_text, attrib_float
 import email.utils
 
 
@@ -308,7 +308,8 @@ class Account:
             prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
         )
         return ProcessIncomingResult(
-            msgid=msg_id,
+            msg_id=msg_id,
+            msg_date=msg_date,
             pah=r,
             peerstate=peerstate,
             account=self,
@@ -374,9 +375,10 @@ class EncryptMimeResult(object):
 
 @attrs
 class ProcessIncomingResult(object):
-    msgid = attrib_text()
+    msg_id = attrib_text()
+    msg_date = attrib_float()
     peerstate = attrib()
-    account = attrib(type=six.text_type)
+    account = attrib()
     pah = attrib()
 
 
