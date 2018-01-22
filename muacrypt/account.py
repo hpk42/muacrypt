@@ -333,10 +333,15 @@ class Account:
         )
 
     def encrypt_mime(self, msg, toaddrs):
-        recipients = [self.get_peerstate(addr).public_keyhandle for addr in toaddrs]
+        assert toaddrs, "requires non-empty recipient list"
+        recipients = []
+        for addr in toaddrs:
+            kh = self.get_peerstate(addr).public_keyhandle
+            assert kh, "keyhandle not found for: " + addr
+            recipients.append(kh)
 
         m = mime.make_content_message_from_email(msg)
-        clear_data = m.as_string().encode("ascii")  # .replace(b'\n', b'\r\n') for mswin?
+        clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=recipients,
                                        text=True, signkey=self.ownstate.keyhandle)
         enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
@@ -356,7 +361,7 @@ class Account:
         enc_data = parts[1].get_payload().encode("ascii")
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
-        new_msg = mime.parse_message_from_string(dec.decode("ascii"))
+        new_msg = mime.message_from_bytes(dec)
         mime.transfer_non_content_headers(msg, new_msg)
         return DecryptMimeResult(enc_msg=msg, dec_msg=new_msg, keyinfos=keyinfos)
 

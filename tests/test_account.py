@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import os
 import time
+import six
 from email.mime.image import MIMEImage
 import pytest
 from muacrypt.account import AccountManager, NotInitialized
@@ -104,6 +105,27 @@ class TestAccount:
         enc = acc2.bingpg.encrypt(data=b"123", recipients=[r.peerstate.public_keyhandle])
         data, descr_info = acc1.bingpg.decrypt(enc)
         assert data == b"123"
+
+    @pytest.mark.xfail("sys.version_info > (3,0)")
+    def test_parse_incoming_mail_8bit(self, account_maker, datadir):
+        acc1 = account_maker()
+        acc1.process_incoming(gen_ac_mail_msg(acc1, acc1))
+        with datadir.open("msg_8bit.eml", "rb") as f:
+            msg = mime.message_from_binary_file(f)
+        r1 = acc1.encrypt_mime(msg, [acc1.addr])
+        r2 = acc1.decrypt_mime(r1.msg)
+        assert r2.dec_msg.get_payload(decode=True) == msg.get_payload(decode=True)
+
+    def test_parse_incoming_mail_iso_quopri(self, account_maker, datadir):
+        acc1 = account_maker()
+        acc1.process_incoming(gen_ac_mail_msg(acc1, acc1))
+        with datadir.open("msg_iso8859_quopri.eml", "rb") as f:
+            msg = mime.message_from_binary_file(f)
+        r1 = acc1.encrypt_mime(msg, [acc1.addr])
+        r2 = acc1.decrypt_mime(r1.msg)
+        assert r2.dec_msg.get_payload(decode=True) == msg.get_payload(decode=True)
+        s = r2.dec_msg.get_payload(decode=True)
+        assert six.text_type(s, "iso-8859-1") == u"angehört\n"
 
     def test_encrypt_decrypt_mime_text_plain(self, account_maker, maildir):
         acc1, acc2 = account_maker(), account_maker()

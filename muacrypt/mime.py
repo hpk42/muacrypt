@@ -13,10 +13,35 @@ from email.utils import formatdate, make_msgid
 from email.generator import _make_boundary
 import six
 
+if six.PY3:
+    from email.generator import BytesGenerator
+    from email import message_from_bytes, message_from_binary_file
+else:
+    from email.generator import Generator as BytesGenerator
+    from email import message_from_string as message_from_bytes  # noqa
+    from email import message_from_file as message_from_binary_file # noqa
+
 
 def decode_keydata(ascii_keydata):
     return base64.b64decode(ascii_keydata)
 
+
+# slighly hacky way to get a byte string out of a message
+
+class MyBytesIO(six.BytesIO):
+    def write(self, s):
+        if isinstance(s, six.text_type):
+            s = s.encode("ascii")
+        return six.BytesIO.write(self, s)
+
+
+def msg2bytes(msg):
+    f = MyBytesIO()
+    BytesGenerator(f).flatten(msg)
+    return f.getvalue()
+
+
+# main functions
 
 def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference"):
     assert keydata
