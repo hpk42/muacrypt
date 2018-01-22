@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
-from __future__ import unicode_literals
 
 import logging
 import mailbox
@@ -256,8 +255,8 @@ def account_maker(tmpdir, gpgpath):
     # because gpg-2.1.11 chokes while trying to start gpg-agent
     count = itertools.count()
 
-    def maker(email_regex='.*', gpgmode='own', gpgbin=gpgpath):
-        bname = "ac%d" % next(count)
+    def maker(email_regex=u'.*', gpgmode=u'own', gpgbin=gpgpath):
+        bname = u"ac%d" % next(count)
         basedir = tmpdir.mkdir(bname).strpath
         states = States(basedir)
         account = Account(states, bname)
