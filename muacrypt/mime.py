@@ -7,6 +7,7 @@ from __future__ import unicode_literals, print_function
 import email.parser
 import base64
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
 from email.generator import _make_boundary
 import six
@@ -138,9 +139,11 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
     if MessageID is None:
         MessageID = make_msgid()
 
-    # prefer plain ascii mails to keep mail files directly readable
-    # without base64-decoding etc.
-    msg = MIMEText(payload, _charset=charset)
+    if not isinstance(payload, list):
+        msg = MIMEText(payload or '', _charset=charset)
+    else:
+        msg = MIMEMultipart()
+        assert not payload
 
     msg['From'] = From
     msg['To'] = ",".join(To)
@@ -190,7 +193,7 @@ def make_message(content_type, payload=None):
     return msg
 
 
-def make_tp_message_from_msg(msg, _h=("content-transfer-encoding",)):
+def make_content_message_from_email(msg, _h=("content-transfer-encoding",)):
     newmsg = make_message(
         content_type=msg["Content-Type"],
         payload=msg.get_payload(decode=False)

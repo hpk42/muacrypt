@@ -256,12 +256,14 @@ def account_maker(tmpdir, gpgpath):
     count = itertools.count()
 
     def maker(email_regex=u'.*', gpgmode=u'own', gpgbin=gpgpath):
-        bname = u"ac%d" % next(count)
+        i = next(count)
+        bname = u"ac%d" % i
         basedir = tmpdir.mkdir(bname).strpath
         states = States(basedir)
         account = Account(states, bname)
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
+        account.addr = "%d@x.org" % (i, )
         return account
     return maker
 

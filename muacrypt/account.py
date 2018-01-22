@@ -332,13 +332,9 @@ class Account:
         )
 
     def encrypt_mime(self, msg, toaddrs):
-        assert msg.get_content_type() == "text/plain"  # for now only support plain text
         recipients = [self.get_peerstate(addr).public_keyhandle for addr in toaddrs]
 
-        # we turn text/plain message into a new text/plain message which
-        # is then (as an ascii-string with appropriate transfer-encoding)
-        # encrypted and put into a proper multipart/pgp message
-        m = mime.make_tp_message_from_msg(msg)
+        m = mime.make_content_message_from_email(msg)
         clear_data = m.as_string().encode("ascii")  # .replace(b'\n', b'\r\n') for mswin?
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=recipients,
                                        text=True, signkey=self.ownstate.keyhandle)
@@ -359,11 +355,9 @@ class Account:
         enc_data = parts[1].get_payload().encode("ascii")
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
-        dec_inner_msg = mime.parse_message_from_string(dec.decode("ascii"))
-        # create a new decrypted message
-        newmsg = mime.make_tp_message_from_msg(dec_inner_msg)
-        mime.transfer_non_content_headers(msg, newmsg)
-        return DecryptMimeResult(enc_msg=msg, dec_msg=newmsg, keyinfos=keyinfos)
+        new_msg = mime.parse_message_from_string(dec.decode("ascii"))
+        mime.transfer_non_content_headers(msg, new_msg)
+        return DecryptMimeResult(enc_msg=msg, dec_msg=new_msg, keyinfos=keyinfos)
 
 
 @attrs
