@@ -179,36 +179,6 @@ class AccountManager(object):
             assert account.ownstate.keyhandle
             return headername + account.make_ac_header(emailadr)
 
-    def process_incoming(self, msg, delivto=None):
-        """ match account for incoming mail message
-        and defer to account.process_incoming.
-        :type msg: email.message.Message
-        :param msg: instance of a standard email Message.
-        :rtype: ProcessIncomingResult
-        """
-        if delivto is None:
-            _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-            assert delivto
-        account = self.get_account_from_emailadr(delivto, raising=True)
-        return account.process_incoming(msg)
-
-    def process_outgoing(self, msg):
-        """ process outgoing mail message and add Autocrypt
-        header if it doesn't already exist.
-
-        :type msg: email.message.Message
-        :param msg: instance of a standard email Message.
-        :rtype: ProcessOutgoingResult
-        """
-        _, addr = mime.parse_email_addr(msg["From"])
-        account = self.get_account_from_emailadr(addr)
-        if account is not None:
-            return account.process_outgoing(msg)
-        else:
-            return ProcessOutgoingResult(
-                account=None, msg=msg, addr=addr,
-                had_autocrypt=None, added_autocrypt=None)
-
 
 class Account:
     """ An Account manages all Autocrypt settings (both own keys and

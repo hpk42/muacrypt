@@ -3,6 +3,7 @@
 
 from __future__ import unicode_literals
 import six
+import pytest
 from muacrypt import mime
 from base64 import b64decode
 
@@ -50,6 +51,17 @@ def test_make_and_parse_header_errors():
     d = mime.parse_ac_headervalue(h)
     assert "unknown key type" in mime.verify_ac_dict(d)[0]
     assert d == make_ac_dict(addr=addr, keydata=keydata, type="9")
+
+
+def test_get_delivered_to():
+    msg = mime.gen_mail_msg(From="a@a.org", To=["b@b.org"], _dto=True)
+    assert mime.get_delivered_to(msg) == "b@b.org"
+
+    msg = mime.gen_mail_msg(From="a@a.org", To=["b@b.org"], _dto=False)
+    assert mime.get_delivered_to(msg, "z@b.org") == "z@b.org"
+
+    with pytest.raises(ValueError):
+        mime.get_delivered_to(msg)
 
 
 class TestEmailCorpus:

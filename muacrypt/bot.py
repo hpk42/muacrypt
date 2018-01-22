@@ -44,12 +44,8 @@ def bot_reply(ctx, smtp, fallback_delivto):
 
     log = SimpleLog()
     with log.s("reading headers", raising=True):
-        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        if not delivto and fallback_delivto:
-            _, delivto = mime.parse_email_addr(fallback_delivto)
-        if not delivto:
-            raise ValueError("could not determine my own delivered-to address")
-        log("determined my own Delivered-To: " + delivto)
+        delivto = mime.get_delivered_to(msg, fallback_delivto)
+        log("determined Delivered-To: " + delivto)
 
     maxheadershow = 60
 

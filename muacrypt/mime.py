@@ -208,6 +208,15 @@ def transfer_non_content_headers(msg, newmsg):
             newmsg[header] = value
 
 
+def get_delivered_to(msg, fallback_delivto=None):
+    _, delivto = parse_email_addr(msg.get("Delivered-To"))
+    if not delivto and fallback_delivto:
+        _, delivto = parse_email_addr(fallback_delivto)
+    if not delivto:
+        raise ValueError("could not determine my own delivered-to address")
+    return delivto
+
+
 # adapted from ModernPGP:memoryhole/generators/generator.py which
 # was adapted from notmuch:devel/printmimestructure
 def render_mime_structure(msg, prefix='└'):
