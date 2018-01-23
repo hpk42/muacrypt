@@ -155,7 +155,7 @@ class TestAccount:
         with datadir.open("msg_8bit.eml", "rb") as f:
             msg = mime.message_from_binary_file(f)
         r1 = acc1.encrypt_mime(msg, [acc1.addr])
-        r2 = acc1.decrypt_mime(r1.msg)
+        r2 = acc1.decrypt_mime(r1.enc_msg)
         assert r2.dec_msg.get_payload(decode=True) == msg.get_payload(decode=True)
 
     def test_parse_incoming_mail_iso_quopri(self, account_maker, datadir):
@@ -164,7 +164,7 @@ class TestAccount:
         with datadir.open("msg_iso8859_quopri.eml", "rb") as f:
             msg = mime.message_from_binary_file(f)
         r1 = acc1.encrypt_mime(msg, [acc1.addr])
-        r2 = acc1.decrypt_mime(r1.msg)
+        r2 = acc1.decrypt_mime(r1.enc_msg)
         assert r2.dec_msg.get_payload(decode=True) == msg.get_payload(decode=True)
         s = r2.dec_msg.get_payload(decode=True)
         assert six.text_type(s, "iso-8859-1") == u"angehört\n"
@@ -181,10 +181,10 @@ class TestAccount:
         msg2 = gen_ac_mail_msg(acc2, acc1, payload="hello ä umlaut", charset="utf8")
 
         r = acc2.encrypt_mime(msg2, [acc1.addr])
-        acc1.process_incoming(r.msg)
+        acc1.process_incoming(r.enc_msg)
 
         # decrypt the incoming mail
-        r = acc1.decrypt_mime(r.msg)
+        r = acc1.decrypt_mime(r.enc_msg)
         dec = r.dec_msg
         assert dec.get_content_type() == "text/plain"
         assert dec.get_payload() == msg2.get_payload()
@@ -205,10 +205,10 @@ class TestAccount:
 
         # send multipart/mixed back to acc1
         r = acc2.encrypt_mime(msg2, [acc1.addr])
-        acc1.process_incoming(r.msg)
+        acc1.process_incoming(r.enc_msg)
 
         # decrypt the incoming mail
-        r = acc1.decrypt_mime(r.msg)
+        r = acc1.decrypt_mime(r.enc_msg)
         dec = r.dec_msg
         assert dec.get_content_type() == "multipart/mixed"
         assert len(dec.get_payload()) == 2

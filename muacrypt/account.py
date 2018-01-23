@@ -340,16 +340,24 @@ class Account:
         )
 
     def encrypt_mime(self, msg, toaddrs):
+        """ create a new encrypted mime message.
+
+        :type msg: email.message.Message
+        :param msg: message to be encrypted
+        :type toaddrs: list of e-mail addresses
+        :param toaddrs: e-mail addresses to encrypt to
+        :rtype: EncryptMimeResult
+        """
         assert toaddrs, "requires non-empty recipient list"
-        recipients = []
+        keyhandles = []
         for addr in toaddrs:
             kh = self.get_peerstate(addr).public_keyhandle
             assert kh, "keyhandle not found for: " + addr
-            recipients.append(kh)
+            keyhandles.append(kh)
 
         m = mime.make_content_message_from_email(msg)
         clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
-        enc_data = self.bingpg.encrypt(data=clear_data, recipients=recipients,
+        enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
         enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
         data = mime.make_message("application/octet-stream", payload=enc_data)
@@ -357,9 +365,15 @@ class Account:
         newmsg = mime.make_message("multipart/encrypted", payload=[enc, data])
         newmsg.set_param('protocol', 'application/pgp-encrypted')
         mime.transfer_non_content_headers(msg, newmsg)
-        return EncryptMimeResult(newmsg, recipients)
+        return EncryptMimeResult(enc_msg=newmsg, keyhandles=keyhandles)
 
     def decrypt_mime(self, msg):
+        """ decrypt an encrypted mime message.
+
+        :type msg: email.message.Message
+        :param msg: message to be decrypted
+        :rtype: DecryptMimeResult
+        """
         assert msg.get_content_type() == "multipart/encrypted"
         parts = msg.get_payload()
         assert len(parts) == 2
@@ -375,6 +389,10 @@ class Account:
 
 @attrs
 class DecryptMimeResult(object):
+    """ Result returned from decrypt_mime() with
+    'enc_msg' (encrypted message) 'dec_msg' (decrypted message)
+    and 'keyinfos' (keys for which the message was encrypted).
+    """
     enc_msg = attrib()
     dec_msg = attrib()
     keyinfos = attrib()
@@ -382,8 +400,12 @@ class DecryptMimeResult(object):
 
 @attrs
 class EncryptMimeResult(object):
-    msg = attrib()
-    recipients = attrib()
+    """ Result returned from encrypt_mime() with
+    'msg' (encrypted message) and 'keyhandles' (list of
+    public key handles used for encryption) attributes
+    """
+    enc_msg = attrib()
+    keyhandles = attrib()
 
 
 @attrs

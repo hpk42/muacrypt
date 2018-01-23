@@ -14,6 +14,9 @@
   problems with gpg-2.1.11 on ubuntu 16.04 which does not seem
   to allow no-passphrase operations very well.
 
+- #22 introduce account.encrypt_mime and account.decrypt_mime API
+  (not yet exposed to cmdline).
+
 
 0.7.0
 -------
