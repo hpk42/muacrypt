@@ -22,7 +22,10 @@ import email.utils
 
 
 def parse_date_to_float(date):
-    return time.mktime(email.utils.parsedate(date))
+    try:
+        return time.mktime(email.utils.parsedate(date))
+    except TypeError:
+        return 0.0
 
 
 def effective_date(date):
@@ -293,7 +296,7 @@ class Account:
         :param msg: instance of a standard email Message.
         :rtype: PeerState
         """
-        From = mime.parse_email_addr(msg["From"])[1]
+        From = mime.parse_email_addr(msg["From"])
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
@@ -303,7 +306,11 @@ class Account:
                 logging.error("{}: {}".format(msg_id, r.error))
             keyhandle = None
         else:
-            keyhandle = self.bingpg.import_keydata(r.keydata)
+            try:
+                keyhandle = self.bingpg.import_keydata(r.keydata)
+            except self.bingpg.InvocationFailure:
+                keyhandle = None
+                r.error = "failed to import key"
         peerstate.update_from_msg(
             msg_id=msg_id, effective_date=msg_date,
             prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
@@ -322,7 +329,7 @@ class Account:
         :param msg: outgoing message in mime format.
         :rtype: ProcessOutgoingResult
         """
-        _, addr = mime.parse_email_addr(msg.get("From"))
+        addr = mime.parse_email_addr(msg.get("From"))
         if "Autocrypt" in msg:
             added_autocrypt = None
         else:

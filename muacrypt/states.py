@@ -54,8 +54,7 @@ class States:
         return sorted(self._heads._getheads(prefix=prefix))
 
     def get_peerstate(self, account_name, addr):
-        # XXX encode addr?
-        assert addr.encode("ascii"), addr
+        addr.encode("ascii")  # throw an exception if we have a non-ascii addr
         head_name = self._peer_pat.format(id=account_name, addr=addr)
         chain = self._makechain(head_name)
         return PeerState(chain)

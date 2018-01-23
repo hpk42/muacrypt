@@ -217,7 +217,7 @@ def process_outgoing(ctx):
 def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    _, addr = mime.parse_email_addr(msg["From"])
+    addr = mime.parse_email_addr(msg["From"])
     account = account_manager.get_account_from_emailadr(addr)
     if account is None:
         log_info("No Account associated with addr={!r}".format(addr))

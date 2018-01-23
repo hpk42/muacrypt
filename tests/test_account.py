@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import os
 import time
+from base64 import b64encode
 import six
 from email.mime.image import MIMEImage
 import pytest
@@ -33,6 +34,41 @@ class TestAccount:
         r = acc1.process_incoming(msg)
         assert r.pah.error
         assert r.msg_date
+
+    def test_parse_incoming_mail_broken_date_header(self, account_maker):
+        addr = "a@a.org"
+        acc1 = account_maker()
+        msg = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"], Date="l1k2j3")
+        r = acc1.process_incoming(msg)
+        assert r.pah.error
+        assert r.msg_date == 0.0
+
+    @pytest.mark.parametrize("keydata", [b64encode(b'123'), b'123123'])
+    def test_parse_incoming_mail_broken_keydata(self, account_maker, keydata):
+        addr = "a@a.org"
+        acc1 = account_maker()
+        msg = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"],
+            Autocrypt="addr={}; keydata={}".format(addr, keydata)
+        )
+        r = acc1.process_incoming(msg)
+        assert r.pah.error
+
+    def test_parse_incoming_mail_broken_from(self, account_maker):
+        acc1 = account_maker()
+        msg = mime.gen_mail_msg(From="", To=["b@b.org"])
+        r = acc1.process_incoming(msg)
+        assert r.pah.error
+
+    def test_parse_incoming_mail_unicode_from(self, account_maker):
+        addr = b'x@k\366nig.de'
+        acc1 = account_maker()
+        msg = mime.gen_mail_msg(
+            From=addr, To=["b@b.org"],
+        )
+        r = acc1.process_incoming(msg)
+        assert r.pah.error
 
     def test_parse_incoming_unknown_prefer_encrypt(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()

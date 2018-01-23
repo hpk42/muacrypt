@@ -64,6 +64,17 @@ def test_get_delivered_to():
         mime.get_delivered_to(msg)
 
 
+@pytest.mark.parametrize("input,output", [
+    (b"Simple <x@x.org>", "x@x.org"),
+    (b"=?utf-8?Q?Bj=C3=B6rn?= <x@x.org>", "x@x.org"),
+    (b"x <x@i\366enig.net>", "x@i=F6enig.net"),
+])
+def test_parse_email_addr(input, output):
+    addr = mime.parse_email_addr(input)
+    assert isinstance(addr, six.text_type)
+    assert addr == output
+
+
 class TestEmailCorpus:
     def test_rsa2048_simple(self, datadir, bingpg):
         r = datadir.parse_ac_header_from_email("rsa2048-simple.eml")

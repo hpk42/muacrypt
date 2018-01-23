@@ -6,6 +6,7 @@
 from __future__ import unicode_literals, print_function
 import email.parser
 import base64
+import quopri
 from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -72,11 +73,15 @@ def get_target_emailadr(msg):
 
 
 def parse_email_addr(string):
-    """ return a (prefix, emailadr) tuple. """
+    """ return the routable email address part from a email-field string.
+
+    If the address is of type bytes and not ascii, it is returned in
+    quoted printable encoding.
+    """
     prefix, emailadr = email.utils.parseaddr(string)
     if isinstance(emailadr, bytes):
-        emailadr = six.text_type(emailadr)
-    return prefix, emailadr
+        emailadr = six.text_type(quopri.encodestring(emailadr))
+    return emailadr
 
 
 def parse_message_from_file(fp):
@@ -130,7 +135,10 @@ def parse_ac_headervalue(value):
         kv = x.split("=", 1)
         name, value = [x.strip() for x in kv]
         if name == "keydata":
-            value = decode_keydata("".join(value.split()))
+            try:
+                value = decode_keydata("".join(value.split()))
+            except Exception:
+                return ACParseResult(error="failed to decode keydata")
         elif name == "prefer-encrypt":
             name = "prefer_encrypt"
             if value not in ("nopreference", "mutual"):
@@ -218,9 +226,9 @@ def transfer_non_content_headers(msg, newmsg):
 
 
 def get_delivered_to(msg, fallback_delivto=None):
-    _, delivto = parse_email_addr(msg.get("Delivered-To"))
+    delivto = parse_email_addr(msg.get("Delivered-To"))
     if not delivto and fallback_delivto:
-        _, delivto = parse_email_addr(fallback_delivto)
+        delivto = parse_email_addr(fallback_delivto)
     if not delivto:
         raise ValueError("could not determine my own delivered-to address")
     return delivto
