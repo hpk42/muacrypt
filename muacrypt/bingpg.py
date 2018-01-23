@@ -86,8 +86,21 @@ class BinGPG(object):
             gpgpath=self.gpgpath, homedir=self.homedir)
 
     @cached_property
+    def _version_info(self):
+        return self._gpg_out(['--version'])
+
+    @cached_property
+    def gpg_version(self):
+        vline = self._version_info.split('\n', 1)[0]
+        return V(vline.split(' ')[2])
+
+    @cached_property
     def isgpg2(self, min_version=V("2.0")):
-        return V(self.get_version()) >= min_version
+        return self.gpg_version >= min_version
+
+    @cached_property
+    def isgpg21(self, min_version=V("2.1")):
+        return self.gpg_version >= min_version
 
     def _ensure_init(self):
         if self.homedir is None:
@@ -99,7 +112,7 @@ class BinGPG(object):
             os.chmod(self.homedir, 0o700)
 
         # fix bad defaults for certain gpg2 versions
-        if V("2.0") <= V(self.get_version()) < V("2.1.12"):
+        if V("2.0") <= self.gpg_version < V("2.1.12"):
             p = os.path.join(self.homedir, "gpg-agent.conf")
             if not os.path.exists(p):
                 with open(p, "w") as f:
@@ -127,9 +140,10 @@ class BinGPG(object):
 
     @cached_property
     def _nopassphrase(self):
-        return (["--passphrase", "123"])
-        return ((["--pinentry-mode=loopback"] if self.isgpg2 else []) +
-                ["--passphrase", "123"])
+        opts = ["--passphrase", "123"]
+        if self.isgpg21:
+            opts.append("--pinentry-mode=loopback")
+        return opts
 
     def _gpg_out(self, argv, input=None, strict=False, encoding="utf8"):
         return self._gpg_outerr(argv, input=input, strict=strict, encoding=encoding)[0]
@@ -175,14 +189,6 @@ class BinGPG(object):
             raise self.InvocationFailure(ret, " ".join(args),
                                          out=out, err=err)
         return out, err
-
-    @cached_property
-    def _version_info(self):
-        return self._gpg_out(['--version'])
-
-    def get_version(self):
-        vline = self._version_info.split('\n', 1)[0]
-        return vline.split(' ')[2]
 
     def supports_eddsa(self):
         for l in self._version_info.split('\n'):

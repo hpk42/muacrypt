@@ -17,6 +17,10 @@
 - #22 introduce account.encrypt_mime and account.decrypt_mime API
   (not yet exposed to cmdline).
 
+- make tests work against gpg 2.0.21, gpg-2.1.11 (and likely higher
+  versions but those are hard to custom-build on ubuntu or older debian
+  machines)
+
 
 0.7.0
 -------
