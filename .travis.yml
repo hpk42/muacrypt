@@ -9,6 +9,7 @@ cache:
     - $HOME/lib
 install:
   - gpg2 --version
+  - gpg2 --import --no-default-keyring --keyring ~/.gnupg/trustedkeys.gpg --import util/keys.pgp
   - PATH="$HOME/bin:$PATH"
   - export LD_LIBRARY_PATH="$HOME/lib:${LD_LIBRARY_PATH}"
   - util/custom-gpg.sh
@@ -17,7 +18,7 @@ install:
 
 # if we install gpg2 here we get 2.0 which does not work with the lib.
 before_install:
-    - sudo apt-get install rng-tools
+    - sudo apt-get install rng-tools gpgv2
     - sudo rngd -r /dev/urandom
 
 env:

@@ -6,6 +6,8 @@ gpg2 --version | grep "gpg (GnuPG) $GPG_VERSION" && exit 0
 wget https://gnupg.org/ftp/gcrypt/gnupg/gnupg-$GPG_VERSION.tar.bz2
 bzcat gnupg-$GPG_VERSION.tar.bz2 | tar xf -
 cd gnupg-$GPG_VERSION
+make -f build-aux/speedo.mk native INSTALL_PREFIX="$HOME"
+gpgv2 swdb.lst.sig swdb.lst
 make -f build-aux/speedo.mk native INSTALL_PREFIX="$HOME" CUSTOM_SWDB=1
 
 gpg2 --version | grep "gpg (GnuPG) $GPG_VERSION"
