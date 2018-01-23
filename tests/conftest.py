@@ -193,10 +193,13 @@ def datadir(request):
             with self.open(name, "r") as f:
                 return f.read()
 
+        def get_mime(self, name):
+            with self.open(name, "rb") as f:
+                return mime.message_from_binary_file(f)
+
         def parse_ac_header_from_email(self, name):
-            with self.open(name) as fp:
-                msg = mime.parse_message_from_file(fp)
-                return mime.parse_one_ac_header_from_msg(msg)
+            msg = self.get_mime(name)
+            return mime.parse_one_ac_header_from_msg(msg)
 
     return D(request.fspath.dirpath("data"))
 

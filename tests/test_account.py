@@ -27,13 +27,19 @@ class TestAccount:
         assert acc.export_secret_key()
 
     def test_parse_incoming_mail_broken_ac_header(self, account_maker):
-        addr = "a@a.org"
         acc1 = account_maker()
         msg = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt="Autocrypt: to=123; key=12312k3")
+            From=acc1.addr, To=[], Autocrypt="Autocrypt: to=123; key=12312k3")
         r = acc1.process_incoming(msg)
         assert r.pah.error
         assert r.msg_date
+
+    def test_parse_incoming_mail_empty_ac_header(self, account_maker):
+        acc1 = account_maker()
+        msg = mime.gen_mail_msg(From=acc1.addr, To=[])
+        msg["Autocrypt"] = ""
+        r = acc1.process_incoming(msg)
+        assert r.pah.error
 
     def test_parse_incoming_mail_broken_date_header(self, account_maker):
         addr = "a@a.org"
@@ -62,7 +68,7 @@ class TestAccount:
         assert r.pah.error
 
     def test_parse_incoming_mail_unicode_from(self, account_maker):
-        addr = b'x@k\366nig.de'
+        addr = 'x@k\366nig.de'
         acc1 = account_maker()
         msg = mime.gen_mail_msg(
             From=addr, To=["b@b.org"],

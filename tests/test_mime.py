@@ -30,9 +30,15 @@ def test_parse_message_from_string(datadir):
 
 
 def test_render(datadir):
-    msg = mime.parse_message_from_string(datadir.read("rsa2048-simple.eml"))
+    msg = datadir.get_mime("rsa2048-simple.eml")
     x = mime.render_mime_structure(msg)
     assert "text/plain" in x
+
+
+def test_render_filename_unicode(datadir):
+    msg = datadir.get_mime("multipart_fn_unicode.eml")
+    x = mime.render_mime_structure(msg)
+    assert "rsicht" in x
 
 
 def test_make_and_parse_header_value():
@@ -65,14 +71,20 @@ def test_get_delivered_to():
 
 
 @pytest.mark.parametrize("input,output", [
-    (b"Simple <x@x.org>", "x@x.org"),
-    (b"=?utf-8?Q?Bj=C3=B6rn?= <x@x.org>", "x@x.org"),
-    (b"x <x@i\366enig.net>", "x@i=F6enig.net"),
+    ("Simple <x@x.org>", "x@x.org"),
+    ("=?utf-8?Q?Bj=C3=B6rn?= <x@x.org>", "x@x.org"),
+    ("x <x@k\366nig.net>", "x@könig.net"),
 ])
 def test_parse_email_addr(input, output):
     addr = mime.parse_email_addr(input)
     assert isinstance(addr, six.text_type)
     assert addr == output
+
+
+@pytest.mark.parametrize("input", ["", "lkqwje", ";;"])
+def test_parse_ac_headervalue_bad_input(input):
+    r = mime.parse_ac_headervalue(input)
+    assert r.error
 
 
 class TestEmailCorpus:

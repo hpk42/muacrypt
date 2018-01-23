@@ -128,11 +128,16 @@ def parse_ac_headervalue(value):
     If the error attribute is set on the result object then all
     other attribute values are undefined.
     """
-    parts = value.split(";")
+    parts = filter(None, [x.strip() for x in value.split(";")])
+    if not parts:
+        return ACParseResult(error="empty header")
+
     result_dict = {"prefer_encrypt": "nopreference"}
     extra_attr = {}
     for x in parts:
         kv = x.split("=", 1)
+        if not len(kv) == 2:
+            return ACParseResult(error="malformed setting")
         name, value = [x.strip() for x in kv]
         if name == "keydata":
             try:
@@ -234,13 +239,28 @@ def get_delivered_to(msg, fallback_delivto=None):
     return delivto
 
 
+def make_displayable(string):
+    if string is None:
+        return ''
+    if isinstance(string, six.text_type):
+        return string
+    assert isinstance(string, bytes)
+    for enc in ["utf-8", "latin1"]:
+        try:
+            return string.decode(enc)
+        except Exception:
+            pass
+    return six.text_type(quopri.encodestring(enc))
+
+
 # adapted from ModernPGP:memoryhole/generators/generator.py which
 # was adapted from notmuch:devel/printmimestructure
 def render_mime_structure(msg, prefix='└'):
     '''msg should be an email.message.Message object'''
     stream = six.StringIO()
-    mcset = str(msg.get_charset())
-    fname = '' if msg.get_filename() is None else ' [' + msg.get_filename() + ']'
+    mcset = msg.get_charset()
+    fn = make_displayable(msg.get_filename())
+    fname = ' [' + fn + ']'
     cset = '' if mcset is None else ' ({})'.format(mcset)
     disp = msg.get_params(None, header='Content-Disposition')
     if (disp is None):
