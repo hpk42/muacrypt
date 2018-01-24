@@ -1,6 +1,6 @@
 *.pyc
 __pycache__
-autocrypt.egg-info
+muacrypt.egg-info
 doc/_build
 .cache
 *.swp
