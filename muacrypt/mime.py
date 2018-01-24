@@ -6,24 +6,45 @@
 from __future__ import unicode_literals, print_function
 import email.parser
 import base64
+import quopri
+from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
+from email.generator import _make_boundary
 import six
 
-
-def encode_binary_keydata(keydata):
-    assert isinstance(keydata, bytes)
-    key = base64.b64encode(keydata)
-    if isinstance(key, bytes):
-        key = key.decode("ascii")
-    return key
+if six.PY3:
+    from email.generator import BytesGenerator
+    from email import message_from_bytes, message_from_binary_file
+else:
+    from email.generator import Generator as BytesGenerator
+    from email import message_from_string as message_from_bytes  # noqa
+    from email import message_from_file as message_from_binary_file # noqa
 
 
 def decode_keydata(ascii_keydata):
     return base64.b64decode(ascii_keydata)
 
 
-def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="1"):
+# slighly hacky way to get a byte string out of a message
+
+class MyBytesIO(six.BytesIO):
+    def write(self, s):
+        if isinstance(s, six.text_type):
+            s = s.encode("ascii")
+        return six.BytesIO.write(self, s)
+
+
+def msg2bytes(msg):
+    f = MyBytesIO()
+    BytesGenerator(f).flatten(msg)
+    return f.getvalue()
+
+
+# main functions
+
+def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference"):
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
@@ -31,8 +52,6 @@ def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference", keytype="
     l = ["addr=" + addr]
     if prefer_encrypt != "nopreference":
         l.append("prefer-encrypt=" + prefer_encrypt)
-    if keytype != "1":
-        l.append("type=" + keytype)
     l.append("keydata=\n" + indented_split(key))
     return "; ".join(l)
 
@@ -54,11 +73,15 @@ def get_target_emailadr(msg):
 
 
 def parse_email_addr(string):
-    """ return a (prefix, emailadr) tuple. """
+    """ return the routable email address part from a email-field string.
+
+    If the address is of type bytes and not ascii, it is returned in
+    quoted printable encoding.
+    """
     prefix, emailadr = email.utils.parseaddr(string)
     if isinstance(emailadr, bytes):
-        emailadr = six.text_type(emailadr)
-    return prefix, emailadr
+        emailadr = six.text_type(quopri.encodestring(emailadr))
+    return emailadr
 
 
 def parse_message_from_file(fp):
@@ -66,7 +89,10 @@ def parse_message_from_file(fp):
 
 
 def parse_message_from_string(string):
-    stream = six.StringIO(string)
+    if isinstance(string, bytes):
+        stream = six.BytesIO(string)
+    else:
+        stream = six.StringIO(string)
     return parse_message_from_file(stream)
 
 
@@ -75,77 +101,92 @@ def parse_one_ac_header_from_string(string):
     return parse_one_ac_header_from_msg(msg)
 
 
-def parse_all_ac_headers_from_msg(msg):
-    autocrypt_headers = msg.get_all("Autocrypt") or []
-    return [parse_ac_headervalue(inb) for inb in autocrypt_headers if inb]
+def parse_one_ac_header_from_msg(msg, FromList=None):
+    results = []
+    err_results = []
+    for ac_header_value in msg.get_all("Autocrypt") or []:
+        r = parse_ac_headervalue(ac_header_value)
+        if not r.error and (not FromList or r.addr in FromList):
+            results.append(r)
+        else:
+            err_results.append(r)
 
-
-def parse_one_ac_header_from_msg(msg):
-    all_results = parse_all_ac_headers_from_msg(msg)
-    if len(all_results) == 1:
-        return all_results[0]
-    if len(all_results) > 1:
-        raise ValueError("more than one Autocrypt header\n%s" %
-                         "\n".join(msg.get_all("Autocrypt")))
-    return {}
+    if len(results) == 1:
+        return results[0]
+    if len(results) > 1:
+        return ACParseResult(error="more than one valid Autocrypt header found")
+    if err_results:
+        return err_results[0]
+    else:
+        return ACParseResult(error="no valid Autocrypt header found")
 
 
 def parse_ac_headervalue(value):
-    """ return a autocrypt attribute dictionary parsed
-    from the specified autocrypt header value.  Unspecified
-    default values for prefer-encrypt and the key type are filled in."""
-    parts = value.split(";")
-    result_dict = {"prefer-encrypt": "nopreference", "type": "1"}
+    """ return a Result object with keydata/addr/prefer_encrypt/extra_attr/error
+    attributes.
+
+    If the error attribute is set on the result object then all
+    other attribute values are undefined.
+    """
+    parts = filter(None, [x.strip() for x in value.split(";")])
+    if not parts:
+        return ACParseResult(error="empty header")
+
+    result_dict = {"prefer_encrypt": "nopreference"}
+    extra_attr = {}
     for x in parts:
         kv = x.split("=", 1)
+        if not len(kv) == 2:
+            return ACParseResult(error="malformed setting")
         name, value = [x.strip() for x in kv]
         if name == "keydata":
-            value = "".join(value.split())
+            try:
+                value = decode_keydata("".join(value.split()))
+            except Exception:
+                return ACParseResult(error="failed to decode keydata")
+        elif name == "prefer-encrypt":
+            name = "prefer_encrypt"
+            if value not in ("nopreference", "mutual"):
+                return ACParseResult(error="unknown prefer-encryp setting '%s'" % value)
+        elif name == "addr":
+            pass
+        elif name[0] != "_":
+            return ACParseResult(error="unknown critical attr '%s'" % name)
+        else:
+            extra_attr[name] = value
+            continue
         result_dict[name] = value
-    return result_dict
+    for attr in ("keydata", "addr"):
+        if attr not in result_dict:
+            return ACParseResult(error="critical attr '%s' missing" % attr)
+    return ACParseResult(extra_attr=extra_attr, **result_dict)
 
 
-def verify_ac_dict(ac_dict):
-    """ return a list of errors from checking the autocrypt attribute dict.
-    if the returned list is empty no errors were found.
-    """
-    l = []
-    for name in ac_dict:
-        if name not in ("keydata", "addr", "type", "prefer-encrypt") and name[0] != "_":
-            l.append("unknown critical attr '{}'".format(name))
-    # keydata_base64 = "".join(ac_dict["keydata"])
-    # base64.b64decode(keydata_base64)
-    if "type" not in ac_dict:
-        l.append("type missing")
-    if "keydata" not in ac_dict:
-        l.append("keydata missing")
-    if ac_dict["type"] != "1":
-        l.append("unknown key type '%s'" % (ac_dict["type"], ))
-    if ac_dict["prefer-encrypt"] not in ("nopreference", "mutual"):
-        l.append("unknown prefer-encrypt setting '%s'" %
-                 (ac_dict["prefer-encrypt"]))
-    return l
+@attrs
+class ACParseResult(object):
+    keydata = attrib_bytes_or_none()
+    addr = attrib_text_or_none()
+    prefer_encrypt = attrib_text_or_none()
+    extra_attr = attrib(default=None)
+    error = attrib_text_or_none()
 
 
 def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
-                 Date=None, _dto=False, MessageID=None, body='Autoresponse'):
+                 Date=None, _dto=False, MessageID=None, payload='Autoresponse\n',
+                 charset=None):
     assert isinstance(To, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
 
-    # prefer plain ascii mails to keep mail files directly readable
-    # without base64-decoding etc.
-    charset = None
-    assert isinstance(body, six.text_type)
-    try:
-        msg = body.encode("ascii")
-    except UnicodeEncodeError:
-        charset = "utf-8"
-    msg = MIMEText(body, _charset=charset)
+    if not isinstance(payload, list):
+        msg = MIMEText(payload or '', _charset=charset)
+    else:
+        msg = MIMEMultipart()
+        assert not payload
 
-    msg['Message-ID'] = MessageID
     msg['From'] = From
     msg['To'] = ",".join(To)
+    msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
     if _extra:
@@ -158,24 +199,58 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
     return msg
 
 
-def decrypt_message(msg, bingpg):
-    # this method is not tested through the test suite
-    # currently because we lack a way to generate proper
-    # encrypted messages
-    ctype = msg.get_content_type()
-    assert ctype == "multipart/encrypted"
-    parts = msg.get_payload()
-    meta, enc = parts
-    assert meta.get_content_type() == "application/pgp-encrypted"
-    assert enc.get_content_type() == "application/octet-stream"
+def gen_boundary():
+    return _make_boundary()
 
-    dec, err = bingpg.decrypt(enc.get_payload())
-    dec_msg = parse_message_from_string(dec)
-    for name, val in msg.items():
-        if name.lower() in ("content-type", "content-transfer-encoding"):
-            continue
-        dec_msg.add_header(name, val)
-    return dec_msg, err
+
+def make_message(content_type, payload=None):
+    msg = email.message.Message()
+    del msg["MIME-Version"]
+    msg["Content-Type"] = content_type
+    if payload is not None:
+        msg.set_payload(payload)
+    return msg
+
+
+def make_content_message_from_email(msg, _h=("content-transfer-encoding",)):
+    newmsg = make_message(
+        content_type=msg["Content-Type"],
+        payload=msg.get_payload(decode=False)
+    )
+    for x in _h:
+        if x in msg:
+            newmsg[x] = msg[x]
+    return newmsg
+
+
+def transfer_non_content_headers(msg, newmsg):
+    _ignore_headers = ["content-type", "mime-version", "content-transfer-encoding"]
+    for header, value in msg.items():
+        if header.lower() not in _ignore_headers:
+            newmsg[header] = value
+
+
+def get_delivered_to(msg, fallback_delivto=None):
+    delivto = parse_email_addr(msg.get("Delivered-To"))
+    if not delivto and fallback_delivto:
+        delivto = parse_email_addr(fallback_delivto)
+    if not delivto:
+        raise ValueError("could not determine my own delivered-to address")
+    return delivto
+
+
+def make_displayable(string):
+    if string is None:
+        return ''
+    if isinstance(string, six.text_type):
+        return string
+    assert isinstance(string, bytes)
+    for enc in ["utf-8", "latin1"]:
+        try:
+            return string.decode(enc)
+        except Exception:
+            pass
+    return six.text_type(quopri.encodestring(enc))
 
 
 # adapted from ModernPGP:memoryhole/generators/generator.py which
@@ -183,8 +258,9 @@ def decrypt_message(msg, bingpg):
 def render_mime_structure(msg, prefix='└'):
     '''msg should be an email.message.Message object'''
     stream = six.StringIO()
-    mcset = str(msg.get_charset())
-    fname = '' if msg.get_filename() is None else ' [' + msg.get_filename() + ']'
+    mcset = msg.get_charset()
+    fn = make_displayable(msg.get_filename())
+    fname = ' [' + fn + ']'
     cset = '' if mcset is None else ' ({})'.format(mcset)
     disp = msg.get_params(None, header='Content-Disposition')
     if (disp is None):

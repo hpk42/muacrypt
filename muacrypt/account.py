@@ -6,22 +6,26 @@ per-account basis. """
 
 from __future__ import unicode_literals
 
+import logging
 import re
 import shutil
-from base64 import b64decode
 import six
 from attr import attrs, attrib
+import email
 import uuid
 import time
 from .bingpg import cached_property, BinGPG
 from . import mime
 from .states import States
-from .myattr import attrib_text
+from .myattr import attrib_text, attrib_float
 import email.utils
 
 
 def parse_date_to_float(date):
-    return time.mktime(email.utils.parsedate(date))
+    try:
+        return time.mktime(email.utils.parsedate(date))
+    except TypeError:
+        return 0.0
 
 
 def effective_date(date):
@@ -75,7 +79,6 @@ class AccountManager(object):
 
     def get_account(self, account_name="default", check=True):
         self._ensure_init()
-        assert account_name.isalnum(), account_name
         account = Account(self._states, account_name)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
@@ -153,8 +156,7 @@ class AccountManager(object):
 
     def make_header(self, emailadr, headername="Autocrypt: "):
         """ return an Autocrypt header line which uses our own
-        key and the provided emailadr if this account is managing
-        the emailadr.
+        key and the provided emailadr if one of our account matches it.
 
         :type emailadr: unicode
         :param emailadr:
@@ -178,37 +180,7 @@ class AccountManager(object):
             return ""
         else:
             assert account.ownstate.keyhandle
-            return account.make_ac_header(emailadr, headername=headername)
-
-    def process_incoming(self, msg, delivto=None):
-        """ match account for incoming mail message
-        and defer to account.process_incoming.
-        :type msg: email.message.Message
-        :param msg: instance of a standard email Message.
-        :rtype: ProcessIncomingResult
-        """
-        if delivto is None:
-            _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-            assert delivto
-        account = self.get_account_from_emailadr(delivto, raising=True)
-        return account.process_incoming(msg)
-
-    def process_outgoing(self, msg):
-        """ process outgoing mail message and add Autocrypt
-        header if it doesn't already exist.
-
-        :type msg: email.message.Message
-        :param msg: instance of a standard email Message.
-        :rtype: ProcessOutgoingResult
-        """
-        _, addr = mime.parse_email_addr(msg["From"])
-        account = self.get_account_from_emailadr(addr)
-        if account is not None:
-            return account.process_outgoing(msg)
-        else:
-            return ProcessOutgoingResult(
-                account=None, msg=msg, addr=addr,
-                had_autocrypt=None, added_autocrypt=None)
+            return headername + account.make_ac_header(emailadr)
 
 
 class Account:
@@ -217,8 +189,9 @@ class Account:
     """
 
     def __init__(self, states, name):
-        """ shallo initializer. Call create() for initializing this
+        """ shallow initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
+        assert name.isalnum(), name
         self.name = name
         self._states = states
         self.ownstate = self._states.get_ownstate(name)
@@ -291,8 +264,8 @@ class Account:
                 "AccountManager directory {!r} not initialized".format(self.dir))
         return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
-    def make_ac_header(self, emailadr, headername="Autocrypt: "):
-        return headername + mime.make_ac_header_value(
+    def make_ac_header(self, emailadr):
+        return mime.make_ac_header_value(
             addr=emailadr,
             keydata=self.bingpg.get_public_keydata(self.ownstate.keyhandle),
             prefer_encrypt=self.ownstate.prefer_encrypt,
@@ -323,24 +296,29 @@ class Account:
         :param msg: instance of a standard email Message.
         :rtype: PeerState
         """
-        From = mime.parse_email_addr(msg["From"])[1]
+        From = mime.parse_email_addr(msg["From"])
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
-        d = mime.parse_one_ac_header_from_msg(msg)
-        if d.get("addr") != From:
-            d = {}
-            keydata = keyhandle = None,
+        r = mime.parse_one_ac_header_from_msg(msg, [From])
+        if r.error:
+            if "no valid Autocrypt" not in r.error:
+                logging.error("{}: {}".format(msg_id, r.error))
+            keyhandle = None
         else:
-            keydata = b64decode(d["keydata"])
-            keyhandle = self.bingpg.import_keydata(keydata)
+            try:
+                keyhandle = self.bingpg.import_keydata(r.keydata)
+            except self.bingpg.InvocationFailure:
+                keyhandle = None
+                r.error = "failed to import key"
         peerstate.update_from_msg(
             msg_id=msg_id, effective_date=msg_date,
-            parsed_autocrypt_header=d, keydata=keydata, keyhandle=keyhandle,
+            prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
         )
         return ProcessIncomingResult(
-            msgid=msg_id,
-            autocrypt_header=d,
+            msg_id=msg_id,
+            msg_date=msg_date,
+            pah=r,
             peerstate=peerstate,
             account=self,
         )
@@ -351,23 +329,92 @@ class Account:
         :param msg: outgoing message in mime format.
         :rtype: ProcessOutgoingResult
         """
-        _, addr = mime.parse_email_addr(msg.get("From"))
+        addr = mime.parse_email_addr(msg.get("From"))
         if "Autocrypt" in msg:
             added_autocrypt = None
         else:
-            msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr, "")
+            msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr)
         return ProcessOutgoingResult(
             msg=msg, account=self, addr=addr,
             added_autocrypt=added_autocrypt, had_autocrypt=msg["Autocrypt"]
         )
 
+    def encrypt_mime(self, msg, toaddrs):
+        """ create a new encrypted mime message.
+
+        :type msg: email.message.Message
+        :param msg: message to be encrypted
+        :type toaddrs: list of e-mail addresses
+        :param toaddrs: e-mail addresses to encrypt to
+        :rtype: EncryptMimeResult
+        """
+        assert toaddrs, "requires non-empty recipient list"
+        keyhandles = []
+        for addr in toaddrs:
+            kh = self.get_peerstate(addr).public_keyhandle
+            assert kh, "keyhandle not found for: " + addr
+            keyhandles.append(kh)
+
+        m = mime.make_content_message_from_email(msg)
+        clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
+        enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
+                                       text=True, signkey=self.ownstate.keyhandle)
+        enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
+        data = mime.make_message("application/octet-stream", payload=enc_data)
+
+        newmsg = mime.make_message("multipart/encrypted", payload=[enc, data])
+        newmsg.set_param('protocol', 'application/pgp-encrypted')
+        mime.transfer_non_content_headers(msg, newmsg)
+        return EncryptMimeResult(enc_msg=newmsg, keyhandles=keyhandles)
+
+    def decrypt_mime(self, msg):
+        """ decrypt an encrypted mime message.
+
+        :type msg: email.message.Message
+        :param msg: message to be decrypted
+        :rtype: DecryptMimeResult
+        """
+        assert msg.get_content_type() == "multipart/encrypted"
+        parts = msg.get_payload()
+        assert len(parts) == 2
+        assert parts[0].get_content_type() == 'application/pgp-encrypted'
+        assert parts[1].get_content_type() == 'application/octet-stream'
+        enc_data = parts[1].get_payload().encode("ascii")
+        dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
+        logging.debug("decrypted message {!r}".format(msg.get("message-id")))
+        new_msg = mime.message_from_bytes(dec)
+        mime.transfer_non_content_headers(msg, new_msg)
+        return DecryptMimeResult(enc_msg=msg, dec_msg=new_msg, keyinfos=keyinfos)
+
+
+@attrs
+class DecryptMimeResult(object):
+    """ Result returned from decrypt_mime() with
+    'enc_msg' (encrypted message) 'dec_msg' (decrypted message)
+    and 'keyinfos' (keys for which the message was encrypted).
+    """
+    enc_msg = attrib()
+    dec_msg = attrib()
+    keyinfos = attrib()
+
+
+@attrs
+class EncryptMimeResult(object):
+    """ Result returned from encrypt_mime() with
+    'msg' (encrypted message) and 'keyhandles' (list of
+    public key handles used for encryption) attributes
+    """
+    enc_msg = attrib()
+    keyhandles = attrib()
+
 
 @attrs
 class ProcessIncomingResult(object):
-    msgid = attrib_text()
+    msg_id = attrib_text()
+    msg_date = attrib_float()
     peerstate = attrib()
-    account = attrib(type=six.text_type)
-    autocrypt_header = attrib()
+    account = attrib()
+    pah = attrib()
 
 
 @attrs

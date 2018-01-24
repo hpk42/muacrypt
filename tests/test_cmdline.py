@@ -23,10 +23,10 @@ def test_init_and_make_header(mycmd):
     adr = "x@yz.org"
     mycmd.run_ok(["add-account", "default", "--email-regex", adr])
     out = mycmd.run_ok(["make-header", adr])
-    d = mime.parse_one_ac_header_from_string(out)
+    r = mime.parse_one_ac_header_from_string(out)
     assert "prefer-encrypt" not in out
     assert "type" not in out
-    assert d["addr"] == adr
+    assert r.addr == adr
     out2 = mycmd.run_ok(["make-header", adr])
     assert out == out2
 
@@ -86,6 +86,7 @@ class TestProcessIncoming:
             *processed*account1*no*Autocrypt*header*
         """, input=msg.as_string())
         mycmd.run_ok(["status"])
+
 
 class TestAccountCommands:
     def test_add_list_del_account(self, mycmd):

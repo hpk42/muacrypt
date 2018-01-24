@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
-from click.testing import CliRunner
 import logging
+import mailbox
 import shutil
 import os
 import itertools
@@ -10,7 +10,8 @@ import pytest
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
-from muacrypt.account import AccountManager
+from muacrypt.account import AccountManager, Account
+from muacrypt.states import States
 
 
 def pytest_addoption(parser):
@@ -107,6 +108,7 @@ def bingpg2(bingpg_maker):
 
 class ClickRunner:
     def __init__(self, main):
+        from click.testing import CliRunner
         self.runner = CliRunner()
         self._main = main
         self._rootargs = []
@@ -191,10 +193,13 @@ def datadir(request):
             with self.open(name, "r") as f:
                 return f.read()
 
+        def get_mime(self, name):
+            with self.open(name, "rb") as f:
+                return mime.message_from_binary_file(f)
+
         def parse_ac_header_from_email(self, name):
-            with self.open(name) as fp:
-                msg = mime.parse_message_from_file(fp)
-                return mime.parse_one_ac_header_from_msg(msg)
+            msg = self.get_mime(name)
+            return mime.parse_one_ac_header_from_msg(msg)
 
     return D(request.fspath.dirpath("data"))
 
@@ -245,14 +250,36 @@ class DirCache:
 
 
 @pytest.fixture
+def account_maker(tmpdir, gpgpath):
+    """ return a function which creates a new account, by default initialized.
+    pass init=False to the function to avoid initizialtion.
+    """
+    # we have to be careful to not generate too long paths
+    # because gpg-2.1.11 chokes while trying to start gpg-agent
+    count = itertools.count()
+
+    def maker(email_regex=u'.*', gpgmode=u'own', gpgbin=gpgpath):
+        i = next(count)
+        bname = u"ac%d" % i
+        basedir = tmpdir.mkdir(bname).strpath
+        states = States(basedir)
+        account = Account(states, bname)
+        account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
+                       keyhandle=None)
+        account.addr = "%d@x.org" % (i, )
+        return account
+    return maker
+
+
+@pytest.fixture
 def manager(manager_maker):
-    """ return an uninitialized MuacryptManager instance. """
+    """ return an uninitialized AccountManager instance. """
     return manager_maker(addid=False)
 
 
 @pytest.fixture
 def manager_maker(tmpdir, gpgpath):
-    """ return a function which creates a new MuacryptManager account, by default initialized.
+    """ return a function which creates a new AccountManager account, by default initialized.
     pass init=False to the function to avoid initizialtion.
     """
     # we have to be careful to not generate too long paths
@@ -333,3 +360,18 @@ def popen_mock(monkeypatch):
 
     monkeypatch.setattr(subprocess, "Popen", MyPopen)
     return pm
+
+
+@pytest.fixture
+def maildir(tmpdir):
+    return Maildir(tmpdir.join("maildir").strpath)
+
+
+class Maildir:
+    def __init__(self, tmpdir):
+        self.maildir = mailbox.Maildir(tmpdir)
+
+    def store(self, msg):
+        self.maildir.add(msg)
+        logging.debug("stored msgid={} path: {}".format(
+            msg.get("message-id"), self.maildir._path))

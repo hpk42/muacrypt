@@ -7,9 +7,7 @@ from __future__ import print_function
 
 import os
 import sys
-import time
 import subprocess
-import six
 import click
 from .cmdline_utils import (
     get_account, get_account_manager, MyGroup, MyCommandUnknownOptions,
@@ -182,29 +180,17 @@ def make_header(ctx, emailadr):
     click.echo(account_manager.make_header(emailadr))
 
 
-@mycommand("set-prefer-encrypt")
-@account_option
-@click.argument("value", default=None, required=False,
-                type=click.Choice(["notset", "yes", "no"]))
-@click.pass_context
-def set_prefer_encrypt(ctx, account, value):
-    """print or set prefer-encrypted setting."""
-    account = get_account(ctx, account)
-    if value is None:
-        click.echo(account.config.prefer_encrypt)
-    else:
-        value = six.text_type(value)
-        account.config.set_prefer_encrypt(value)
-        click.echo("set prefer-encrypt to %r" % value)
-
-
 @mycommand("process-incoming")
 @click.pass_context
 def process_incoming(ctx):
-    """parse Autocrypt headers from stdin mail. """
+    """parse Autocrypt headers from stdin-read mime message
+    if it was delivered to one of our managed accounts.
+    """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    r = account_manager.process_incoming(msg)
+    delivto = mime.get_delivered_to(msg)
+    account = account_manager.get_account_from_emailadr(delivto, raising=True)
+    r = account.process_incoming(msg)
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
         msg = "found: " + str(r.peerstate)
     else:
@@ -216,18 +202,30 @@ def process_incoming(ctx):
 @mycommand("process-outgoing")
 @click.pass_context
 def process_outgoing(ctx):
-    """add Autocrypt header for outgoing mail.
+    """add Autocrypt header for outgoing mail if the From matches
+    a managed account.
 
-    We process mail from stdin by adding an Autocrypt
+    We read mail from stdin by adding an Autocrypt
     header and send the resulting message to stdout.
     If the mail from stdin contains an Autocrypt header we keep it
     for the outgoing message and do not add one.
     """
+    msg = _process_outgoing(ctx)
+    click.echo(msg.as_string())
+
+
+def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    r = account_manager.process_outgoing(msg)
-    dump_info_outgoing_result(r)
-    click.echo(r.msg.as_string())
+    addr = mime.parse_email_addr(msg["From"])
+    account = account_manager.get_account_from_emailadr(addr)
+    if account is None:
+        log_info("No Account associated with addr={!r}".format(addr))
+        return msg
+    else:
+        r = account.process_outgoing(msg)
+        dump_info_outgoing_result(r)
+        return r.msg
 
 
 def dump_info_outgoing_result(r):
@@ -235,8 +233,6 @@ def dump_info_outgoing_result(r):
         log_info("Autocrypt header set for {!r}".format(r.addr))
     elif r.had_autocrypt:
         log_info("Found existing Autocrypt: {}...".format(r.had_autocrypt[:35]))
-    elif r.account is None:
-        log_info("No Account associated with addr={!r}".format(r.addr))
 
 
 @click.command(cls=MyCommandUnknownOptions)
@@ -254,12 +250,8 @@ def sendmail(ctx, args):
     "sendmail" program.
     """
     assert args
-    account_manager = get_account_manager(ctx)
     args = list(args)
-    msg = mime.parse_message_from_file(sys.stdin)
-    r = account_manager.process_outgoing(msg)
-    dump_info_outgoing_result(r)
-
+    msg = _process_outgoing(ctx)
     input = msg.as_string()
     # with open("/tmp/mail", "w") as f:
     #    f.write(input)

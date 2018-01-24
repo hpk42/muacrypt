@@ -38,18 +38,14 @@ def bot_reply(ctx, smtp, fallback_delivto):
     The reply message contains an Autocrypt header and details of what
     was found and understood from the incoming mail.
     """
-    account = get_account_manager(ctx)
+    account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
     From = msg["From"]
 
     log = SimpleLog()
     with log.s("reading headers", raising=True):
-        _, delivto = mime.parse_email_addr(msg.get("Delivered-To"))
-        if not delivto and fallback_delivto:
-            _, delivto = mime.parse_email_addr(fallback_delivto)
-        if not delivto:
-            raise ValueError("could not determine my own delivered-to address")
-        log("determined my own Delivered-To: " + delivto)
+        delivto = mime.get_delivered_to(msg, fallback_delivto)
+        log("determined Delivered-To: " + delivto)
 
     maxheadershow = 60
 
@@ -65,14 +61,15 @@ def bot_reply(ctx, smtp, fallback_delivto):
     with log.s("And this is the mime structure i saw:"):
         log(mime.render_mime_structure(msg))
 
-    r = account.process_incoming(msg, delivto=delivto)
-    with log.s("processing your mail through muacrypt:"):
-        if r.autocrypt_header:
-            status = "found:\n" + str(r.peerstate)
+    account = account_manager.get_account_from_emailadr(delivto)
+    r = account.process_incoming(msg)
+    with log.s("processed incoming mail for account {}:".format(r.account.name)):
+        if r.pah.error:
+            log(r.pah.error)
         else:
-            status = "no Autocrypt header found."
-        log("processed incoming mail for account '{}', {}".format(
-            r.account.name, status))
+            ps = r.peerstate
+            log("found peeraddr={} keyhandle={} prefer_encrypt={}".format(
+                ps.addr, ps.public_keyhandle, ps.prefer_encrypt))
 
     log("\n")
     log("have a nice day, {}".format(delivto))
@@ -84,8 +81,8 @@ def bot_reply(ctx, smtp, fallback_delivto):
         From=delivto, To=[From],
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
-        Autocrypt=account.make_header(delivto, headername=""),
-        body=six.text_type(log)
+        Autocrypt=account.make_ac_header(delivto),
+        payload=six.text_type(log), charset="utf8",
     )
     if smtp:
         host, port = smtp.split(",")

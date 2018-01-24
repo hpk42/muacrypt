@@ -1,0 +1,9 @@
+From: Alice <alice@testsuite.autocrypt.org>
+To: Bob <bob@testsuite.autocrypt.org>
+Subject: an 8-bit test
+Date: Sat, 17 Dec 2016 10:07:48 +0100
+Message-ID: <8bit@testsuite.autocrypt.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+this äöäqäwe

@@ -13,7 +13,7 @@ def ac_sender(manager_maker, request):
     manager = manager_maker(init=False)
     account = manager.add_account("sender", email_regex=request.param)
     account.adr = request.param
-    account.ac_headerval = account.make_ac_header(account.adr, headername="")
+    account.ac_headerval = account.make_ac_header(account.adr)
     assert account.ac_headerval
     return account
 
@@ -118,9 +118,9 @@ class TestBot:
         assert reply_msg["From"] == bcmd.bot_adr
         assert reply_msg["To"] == msg["From"]
         assert reply_msg["Autocrypt"]
-        ac_dict = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
-        assert ac_dict["addr"] == bcmd.bot_adr
-        assert ac_dict["keydata"]
+        r = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
+        assert r.addr == bcmd.bot_adr
+        assert r.keydata
         body = decode_body(reply_msg)
         assert "no Autocrypt header" not in body
         print(body)
@@ -137,7 +137,7 @@ class TestBot:
         assert reply_msg["Autocrypt"]
         body = decode_body(reply_msg)
         print(body)
-        assert "no autocrypt header" in body.lower()
+        assert "no valid autocrypt" in body.lower()
 
     @pytest.mark.parametrize("with_ac", [True, False])
     def test_send_reply(self, smtpserver, bcmd, ac_sender, with_ac, linematch):
@@ -164,7 +164,7 @@ class TestBot:
         """.format(msg["Message-ID"][:20]))
         if with_ac:
             linematch(body, """
-                *processed incoming*found:*
+                *processed incoming*
                 *{senderadr}*{senderkeyhandle}*
             """.format(
                 senderadr=ac_sender.adr,
