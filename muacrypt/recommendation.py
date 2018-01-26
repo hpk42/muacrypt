@@ -26,10 +26,14 @@ class Recommendation:
         return self._public_key(peer) or self._gossip_key(peer)
 
     def _public_key(self, peer):
-        if peer and len(peer.public_keyhandle):
-            return peer.public_keyhandle
+        if peer:
+            return self._key(peer.public_keyhandle)
 
     def _gossip_key(self, peer):
-        return None # gossip is not implemented yet.
-        if peer and len(peer.gossip_keyhandle):
-            return peer.gossip_keyhandle
+        # gossip keyhandle is not implemented yet.
+        if peer and hasattr(peer, 'gossip_keyhandle'):
+            return self._key(peer.gossip_keyhandle)
+
+    def _key(self, handle):
+        if len(handle):
+            return handle
