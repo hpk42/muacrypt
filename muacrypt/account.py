@@ -203,8 +203,8 @@ class Account:
     def get_peerstate(self, addr):
         return self._states.get_peerstate(self.name, addr)
 
-    def get_recommendation(self, addr):
-        peerstates = { addr: self.get_peerstate(addr) }
+    def get_recommendation(self, addrs):
+        peerstates = {addr: self.get_peerstate(addr) for addr in addrs}
         recommendation = Recommendation(self, peerstates)
         return recommendation
 
