@@ -85,7 +85,7 @@ class TestAccount:
         assert r.pah.error
 
     def test_parse_incoming_mails_replace(self, account_maker):
-        acc1, acc2, ac3 = account_maker(), account_maker(), account_maker()
+        acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         msg1 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
             Autocrypt=acc2.make_ac_header(acc1.addr))
@@ -93,9 +93,9 @@ class TestAccount:
         assert r.peerstate.public_keyhandle == acc2.ownstate.keyhandle
         msg2 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
-            Autocrypt=ac3.make_ac_header(acc1.addr))
+            Autocrypt=acc3.make_ac_header(acc1.addr))
         r2 = acc1.process_incoming(msg2)
-        assert r2.peerstate.public_keyhandle == ac3.ownstate.keyhandle
+        assert r2.peerstate.public_keyhandle == acc3.ownstate.keyhandle
 
     def test_parse_incoming_mails_effective_date(self, account_maker, monkeypatch):
         fixed_time = time.time()
@@ -108,19 +108,19 @@ class TestAccount:
         assert r.msg_date == fixed_time
 
     def test_parse_incoming_mails_replace_by_date(self, account_maker):
-        acc1, acc2, ac3 = account_maker(), account_maker(), account_maker()
+        acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         addr = acc1.addr
         msg2 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=ac3.make_ac_header(addr),
+            From=addr, To=["b@b.org"], Autocrypt=acc3.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 15:00:00 -0000')
         msg1 = mime.gen_mail_msg(
             From=addr, To=["b@b.org"], Autocrypt=acc2.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 13:00:00 -0000')
         r = acc1.process_incoming(msg2)
-        assert r.account.get_peerstate(addr).public_keyhandle == ac3.ownstate.keyhandle
+        assert r.account.get_peerstate(addr).public_keyhandle == acc3.ownstate.keyhandle
         r2 = acc1.process_incoming(msg1)
         assert r2.peerstate.public_keyhandle == \
-            ac3.ownstate.keyhandle
+            acc3.ownstate.keyhandle
         assert r2.msg_date < r.msg_date
 
         msg3 = mime.gen_mail_msg(
@@ -216,6 +216,16 @@ class TestAccount:
         assert m1.get_content_type() == msg2.get_payload()[0].get_content_type()
         assert m2.get_content_type() == img.get_content_type()
         assert m2.get_payload(decode=True) == img.get_payload(decode=True)
+
+    def test_get_recommendation(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+        msg1 = mime.gen_mail_msg(
+            From=sender.addr, To=[recipient.addr],
+            Autocrypt=sender.make_ac_header(sender.addr))
+        recipient.process_incoming(msg1)
+        recommend = recipient.get_recommendation([sender.addr])
+        assert recommend.ui_recommendation() == 'available'
+        assert recommend.target_keys()[sender.addr] == sender.ownstate.keyhandle
 
 
 class TestAccountManager:
