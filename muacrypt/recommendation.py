@@ -11,7 +11,7 @@ class Recommendation:
         return self._peer_recommendation(peer)
 
     def target_keys(self):
-        return {addr: self._key_for_peer(peer) for addr, peer in
+        return {addr: self._target_key(peer) for addr, peer in
                 self.peerstates.items()}
 
     def _peer_recommendation(self, peer):
@@ -22,6 +22,14 @@ class Recommendation:
         else:
             return 'disable'
 
-    def _key_for_peer(self, peer):
+    def _target_key(self, peer):
+        return self._public_key(peer) or self._gossip_key(peer)
+
+    def _public_key(self, peer):
         if peer and len(peer.public_keyhandle):
             return peer.public_keyhandle
+
+    def _gossip_key(self, peer):
+        return None # gossip is not implemented yet.
+        if peer and len(peer.gossip_keyhandle):
+            return peer.gossip_keyhandle
