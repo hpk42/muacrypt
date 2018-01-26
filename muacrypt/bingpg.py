@@ -200,10 +200,10 @@ class BinGPG(object):
     def gen_secret_key(self, emailadr):
         spec = "\n".join([
             "Key-Type: RSA",
-            "Key-Length: 2048",
+            "Key-Length: 3072",
             "Key-Usage: sign",
             "Subkey-Type: RSA",
-            "Subkey-Length: 2048",
+            "Subkey-Length: 3072",
             "Subkey-Usage: encrypt",
             "Name-Email: " + emailadr,
             "Expire-Date: 0",

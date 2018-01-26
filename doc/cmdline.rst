@@ -159,10 +159,10 @@ let's create a standard autocrypt key with gpg::
     # content of autocrypt_key.spec
 
     Key-Type: RSA
-    Key-Length: 2048
+    Key-Length: 3072
     Key-Usage: sign
     Subkey-Type: RSA
-    Subkey-Length: 2048
+    Subkey-Length: 3072
     Subkey-Usage: encrypt
     Name-Email: test@autocrypt.org
     Expire-Date: 0
