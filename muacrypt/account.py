@@ -17,6 +17,7 @@ import time
 from .bingpg import cached_property, BinGPG
 from . import mime
 from .states import States
+from .recommendation import Recommendation
 from .myattr import attrib_text, attrib_float
 import email.utils
 
@@ -201,6 +202,11 @@ class Account:
 
     def get_peerstate(self, addr):
         return self._states.get_peerstate(self.name, addr)
+
+    def get_recommendation(self, addr):
+        peerstates = { addr: self.get_peerstate(addr) }
+        recommendation = Recommendation(self, peerstates)
+        return recommendation
 
     def get_peername_list(self):
         return self._states.get_peername_list(self.name)

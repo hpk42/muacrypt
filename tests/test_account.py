@@ -217,6 +217,16 @@ class TestAccount:
         assert m2.get_content_type() == img.get_content_type()
         assert m2.get_payload(decode=True) == img.get_payload(decode=True)
 
+    def test_get_recommendation(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+        msg1 = mime.gen_mail_msg(
+            From=sender.addr, To=[recipient.addr],
+            Autocrypt=sender.make_ac_header(sender.addr))
+        recipient.process_incoming(msg1)
+        recommend = recipient.get_recommendation(sender.addr)
+        assert recommend.ui_recommendation() == 'available'
+        assert recommend.target_keys()[sender.addr] == sender.ownstate.keyhandle
+
 
 class TestAccountManager:
     def test_account_handling(self, tmpdir):
