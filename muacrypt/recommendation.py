@@ -7,33 +7,40 @@ class Recommendation:
     def ui_recommendation(self):
         # only consider first peer for now
         peer = list(self.peerstates.values())[0]
-        return self._peer_recommendation(peer)
+        return PeerRecommendation(peer).ui_recommendation()
 
     def target_keys(self):
-        return {addr: self._target_key(peer) for addr, peer in
+        return {addr: PeerRecommendation(peer).target_key() for addr, peer in
                 self.peerstates.items()}
 
-    def _peer_recommendation(self, peer):
-        if self._target_key(peer) is None:
+
+class PeerRecommendation:
+    """ Calculating recommendation for a single peer """
+
+    def __init__(self, peer):
+        self.peer = peer
+
+    def ui_recommendation(self):
+        if self.target_key() is None:
             return 'disable'
-        if self._ac_is_outdated(peer):
+        if self._ac_is_outdated():
             return 'discourage'
         return 'available'
 
-    def _ac_is_outdated(self, peer):
+    def target_key(self):
+        return self._public_key() or self._gossip_key()
+
+    def _ac_is_outdated(self):
         timeout = 35 * 24 * 60 * 60
-        return (peer.last_seen - peer.autocrypt_timestamp > timeout)
+        return (self.peer.last_seen - self.peer.autocrypt_timestamp > timeout)
 
-    def _target_key(self, peer):
-        return self._public_key(peer) or self._gossip_key(peer)
+    def _public_key(self):
+        return self._key(self.peer.public_keyhandle)
 
-    def _public_key(self, peer):
-        return self._key(peer.public_keyhandle)
-
-    def _gossip_key(self, peer):
+    def _gossip_key(self):
         # gossip keyhandle is not implemented yet.
-        if hasattr(peer, 'gossip_keyhandle'):
-            return self._key(peer.gossip_keyhandle)
+        if hasattr(self.peer, 'gossip_keyhandle'):
+            return self._key(self.peer.gossip_keyhandle)
 
     # logic for checking if a key is usable could go here.
     def _key(self, handle):
