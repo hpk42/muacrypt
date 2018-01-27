@@ -14,10 +14,15 @@ class Recommendation:
                 self.peerstates.items()}
 
     def _peer_recommendation(self, peer):
-        if self._target_key(peer):
-            return 'available'
-        else:
+        if self._target_key(peer) is None:
             return 'disable'
+        if self._ac_is_outdated(peer):
+            return 'discourage'
+        return 'available'
+
+    def _ac_is_outdated(self, peer):
+        timeout = 35 * 24 * 60 * 60
+        return (peer.last_seen - peer.autocrypt_timestamp > timeout)
 
     def _target_key(self, peer):
         return self._public_key(peer) or self._gossip_key(peer)
