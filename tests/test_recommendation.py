@@ -13,6 +13,7 @@ def send_ac_mail(sender, recipient):
     )
     recipient.process_incoming(mail)
 
+
 def send_no_ac_mail(sender, recipient):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
@@ -21,27 +22,29 @@ def send_no_ac_mail(sender, recipient):
     recipient.process_incoming(mail)
 
 
+def get_recommendation(composer, peer):
+    peerstate = composer.get_peerstate(peer.addr)
+    return Recommendation({peer.addr: peerstate})
+
+
 class TestRecommendation:
 
     def test_initial_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
-        peerstate = composer.get_peerstate(peer.addr)
-        rec = Recommendation({peer.addr: peerstate})
+        rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr] is None
         assert rec.ui_recommendation() == 'disable'
 
-    def test_reply_to_ac_mail(self, account_maker):
+    def test_after_receiving_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         send_ac_mail(peer, composer)
-        peerstate = composer.get_peerstate(peer.addr)
-        rec = Recommendation({peer.addr: peerstate})
+        rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'available'
 
-    def test_reply_to_no_ac_mail(self, account_maker):
+    def test_after_receiving_no_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         send_no_ac_mail(peer, composer)
-        peerstate = composer.get_peerstate(peer.addr)
-        rec = Recommendation({peer.addr: peerstate})
+        rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr] is None
         assert rec.ui_recommendation() == 'disable'
