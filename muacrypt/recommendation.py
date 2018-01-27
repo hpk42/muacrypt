@@ -1,8 +1,7 @@
 class Recommendation:
     """ Calculating recommendations for encryption """
 
-    def __init__(self, account, peerstates):
-        self.account = account
+    def __init__(self, peerstates):
         self.peerstates = peerstates
 
     def ui_recommendation(self):
@@ -15,9 +14,7 @@ class Recommendation:
                 self.peerstates.items()}
 
     def _peer_recommendation(self, peer):
-        if peer is None:
-            return 'disable'
-        if len(peer.public_keyhandle):
+        if self._target_key(peer):
             return 'available'
         else:
             return 'disable'
@@ -26,14 +23,14 @@ class Recommendation:
         return self._public_key(peer) or self._gossip_key(peer)
 
     def _public_key(self, peer):
-        if peer:
-            return self._key(peer.public_keyhandle)
+        return self._key(peer.public_keyhandle)
 
     def _gossip_key(self, peer):
         # gossip keyhandle is not implemented yet.
-        if peer and hasattr(peer, 'gossip_keyhandle'):
+        if hasattr(peer, 'gossip_keyhandle'):
             return self._key(peer.gossip_keyhandle)
 
+    # logic for checking if a key is usable could go here.
     def _key(self, handle):
-        if len(handle):
+        if handle:
             return handle
