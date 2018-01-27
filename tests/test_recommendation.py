@@ -29,20 +29,20 @@ def get_recommendation(composer, peer):
 
 class TestRecommendation:
 
-    def test_initial_mail(self, account_maker):
+    def test_disable_on_initial_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr] is None
         assert rec.ui_recommendation() == 'disable'
 
-    def test_after_receiving_ac_mail(self, account_maker):
+    def test_available_after_receiving_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         send_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'available'
 
-    def test_after_receiving_no_ac_mail(self, account_maker):
+    def test_disable_after_receiving_no_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
@@ -57,7 +57,7 @@ class TestRecommendation:
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'available'
 
-    def test_discouraged_on_outdated_ac_header(self, account_maker):
+    def test_discourage_on_outdated_ac_header(self, account_maker):
         long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
         composer, peer = account_maker(), account_maker()
         send_ac_mail(peer, composer, Date=long_ago)
