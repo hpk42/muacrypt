@@ -48,7 +48,8 @@ class TestRecommendation:
         composer, peer = account_maker(), account_maker()
         send_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'available'
 
     def test_disable_after_receiving_no_ac_mail(self, account_maker):
@@ -63,7 +64,8 @@ class TestRecommendation:
         composer, peer = account_maker(), account_maker()
         send_ac_mail(peer, composer, Date=long_ago)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'available'
 
     def test_discourage_on_outdated_ac_header(self, account_maker):
@@ -72,7 +74,8 @@ class TestRecommendation:
         send_ac_mail(peer, composer, Date=long_ago)
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'discourage'
 
     def test_encrypt_on_mutual_preference(self, account_maker):
@@ -81,7 +84,8 @@ class TestRecommendation:
         peer.modify(prefer_encrypt="mutual")
         send_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'encrypt'
 
     def test_available_if_one_peer_without_prefer_encrypt(self, account_maker):
@@ -92,7 +96,8 @@ class TestRecommendation:
         send_ac_mail(peer, composer)
         send_ac_mail(peer_with_no_preference, composer)
         rec = get_recommendation(composer, {peer, peer_with_no_preference})
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'available'
 
     def test_available_if_only_peer_prefers_encrypt(self, account_maker):
@@ -100,7 +105,8 @@ class TestRecommendation:
         peer.modify(prefer_encrypt="mutual")
         send_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'available'
 
     # note: even though we send an encrypted mail in the setup the
@@ -111,7 +117,8 @@ class TestRecommendation:
         send_ac_mail(composer, peer)
         send_enc_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer, reply_to_enc=True)
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'encrypt'
 
     def test_disable_if_one_key_is_missing(self, account_maker):
@@ -119,7 +126,8 @@ class TestRecommendation:
         no_ac_peer = account_maker()
         send_ac_mail(peer, composer)
         rec = get_recommendation(composer, {peer, no_ac_peer})
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'disable'
 
     def test_discourage_if_one_key_is_outdated(self, account_maker):
@@ -130,5 +138,6 @@ class TestRecommendation:
         send_ac_mail(discourage_peer, composer, Date=long_ago)
         send_no_ac_mail(discourage_peer, composer)
         rec = get_recommendation(composer, {peer, discourage_peer})
-        assert rec.target_keys()[peer.addr]
+        peer_key = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keys()[peer.addr] == peer_key
         assert rec.ui_recommendation() == 'discourage'
