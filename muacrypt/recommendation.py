@@ -8,8 +8,11 @@ class Recommendation:
 
     def ui_recommendation(self):
         # only consider first peer for now
-        peer = list(self.peerstates.values())[0]
-        return self._peer_recommendation(peer).ui_recommendation()
+        peer_recommendations = [
+                self._peer_recommendation(peer).ui_recommendation()
+            for peer in self.peerstates.values()]
+        precedence = ['disable', 'discourage', 'available', 'encrypt']
+        return next(rec for rec in precedence if rec in peer_recommendations)
 
     def target_keys(self):
         return {addr: self._peer_recommendation(peer).target_key()

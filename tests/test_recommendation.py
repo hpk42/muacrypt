@@ -29,8 +29,11 @@ def send_no_ac_mail(sender, recipient):
     recipient.process_incoming(mail)
 
 
-def get_recommendation(composer, peer, reply_to_enc=False):
-    return composer.get_recommendation([peer.addr],
+def get_recommendation(composer, peers, reply_to_enc=False):
+    if not isinstance(peers, set):
+        peers = {peers}
+    peer_addrs = {peer.addr for peer in peers}
+    return composer.get_recommendation(peer_addrs,
             reply_to_enc=reply_to_enc)
 
 
@@ -65,8 +68,8 @@ class TestRecommendation:
         assert rec.ui_recommendation() == 'available'
 
     def test_discourage_on_outdated_ac_header(self, account_maker):
-        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
         composer, peer = account_maker(), account_maker()
+        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
         send_ac_mail(peer, composer, Date=long_ago)
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
@@ -82,11 +85,15 @@ class TestRecommendation:
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'encrypt'
 
-    def test_available_if_only_composer_prefers_encrypt(self, account_maker):
+    def test_available_if_one_peer_without_prefer_encrypt(self, account_maker):
         composer, peer = account_maker(), account_maker()
+        peer_with_no_preference = account_maker()
         composer.modify(prefer_encrypt="mutual")
+        peer.modify(prefer_encrypt="mutual")
         send_ac_mail(peer, composer)
-        rec = get_recommendation(composer, peer)
+        send_ac_mail(peer_with_no_preference, composer)
+        rec = get_recommendation(composer, {peer,
+            peer_with_no_preference})
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'available'
 
@@ -105,3 +112,22 @@ class TestRecommendation:
         rec = get_recommendation(composer, peer, reply_to_enc=True)
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'encrypt'
+
+    def test_disable_if_one_key_is_missing(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        no_ac_peer = account_maker()
+        send_ac_mail(peer, composer)
+        rec = get_recommendation(composer, {peer, no_ac_peer})
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'disable'
+
+    def test_discourage_if_one_key_is_outdated(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        discourage_peer = account_maker()
+        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
+        send_ac_mail(peer, composer)
+        send_ac_mail(discourage_peer, composer, Date=long_ago)
+        send_no_ac_mail(discourage_peer, composer)
+        rec = get_recommendation(composer, {peer, discourage_peer})
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'discourage'
