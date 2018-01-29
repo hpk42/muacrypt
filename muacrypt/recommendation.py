@@ -9,7 +9,7 @@ class Recommendation:
     def ui_recommendation(self):
         # only consider first peer for now
         peer_recommendations = [
-                self._peer_recommendation(peer).ui_recommendation()
+            self._peer_recommendation(peer).ui_recommendation()
             for peer in self.peerstates.values()]
         precedence = ['disable', 'discourage', 'available', 'encrypt']
         return next(rec for rec in precedence if rec in peer_recommendations)
@@ -21,7 +21,7 @@ class Recommendation:
 
     def _peer_recommendation(self, peer):
         return PeerRecommendation(peer, self.prefer_encrypt,
-                self.reply_to_enc)
+                                  self.reply_to_enc)
 
 
 class PeerRecommendation:
