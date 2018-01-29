@@ -2,7 +2,6 @@
 # vim:ts=4:sw=4:expandtab
 
 from muacrypt import mime
-from muacrypt.recommendation import Recommendation
 
 
 def send_ac_mail(sender, recipient, Date=None):
@@ -23,8 +22,7 @@ def send_no_ac_mail(sender, recipient):
 
 
 def get_recommendation(composer, peer):
-    peerstate = composer.get_peerstate(peer.addr)
-    return Recommendation({peer.addr: peerstate})
+    return composer.get_recommendation([peer.addr])
 
 
 class TestRecommendation:
@@ -65,3 +63,28 @@ class TestRecommendation:
         rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'discourage'
+
+    def test_encrypt_on_mutual_preference(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        composer.modify(prefer_encrypt="mutual")
+        peer.modify(prefer_encrypt="mutual")
+        send_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer)
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'encrypt'
+
+    def test_available_if_only_composer_prefers_encrypt(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        composer.modify(prefer_encrypt="mutual")
+        send_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer)
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'available'
+
+    def test_available_if_only_peer_prefers_encrypt(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        peer.modify(prefer_encrypt="mutual")
+        send_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer)
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'available'

@@ -205,7 +205,7 @@ class Account:
 
     def get_recommendation(self, addrs):
         peerstates = {addr: self.get_peerstate(addr) for addr in addrs}
-        return Recommendation(peerstates)
+        return Recommendation(peerstates, self.ownstate.prefer_encrypt)
 
     def get_peername_list(self):
         return self._states.get_peername_list(self.name)

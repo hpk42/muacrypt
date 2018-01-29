@@ -1,34 +1,48 @@
 class Recommendation:
     """ Calculating recommendations for encryption """
 
-    def __init__(self, peerstates):
+    def __init__(self, peerstates, prefer_encrypt):
         self.peerstates = peerstates
+        self.prefer_encrypt = prefer_encrypt
 
     def ui_recommendation(self):
         # only consider first peer for now
         peer = list(self.peerstates.values())[0]
-        return PeerRecommendation(peer).ui_recommendation()
+        return self._peer_recommendation(peer).ui_recommendation()
 
     def target_keys(self):
-        return {addr: PeerRecommendation(peer).target_key() for addr, peer in
+        return {addr: self._peer_recommendation(peer).target_key()
+                for addr, peer in
                 self.peerstates.items()}
+
+    def _peer_recommendation(self, peer):
+        return PeerRecommendation(peer, self.prefer_encrypt)
 
 
 class PeerRecommendation:
     """ Calculating recommendation for a single peer """
 
-    def __init__(self, peer):
+    def __init__(self, peer, prefer_encrypt):
         self.peer = peer
+        self.prefer_encrypt = prefer_encrypt
 
     def ui_recommendation(self):
+        pre = self._preliminary_recommendation()
+        if (pre == 'available' and
+                self.prefer_encrypt == 'mutual' and
+                self.peer.prefer_encrypt == 'mutual'):
+            return 'encrypt'
+        return pre
+
+    def target_key(self):
+        return self._public_key() or self._gossip_key()
+
+    def _preliminary_recommendation(self):
         if self.target_key() is None:
             return 'disable'
         if self._ac_is_outdated():
             return 'discourage'
         return 'available'
-
-    def target_key(self):
-        return self._public_key() or self._gossip_key()
 
     def _ac_is_outdated(self):
         timeout = 35 * 24 * 60 * 60
