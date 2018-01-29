@@ -49,13 +49,11 @@ class PeerRecommendation:
     def _preliminary_recommendation(self):
         if self.target_key() is None:
             return 'disable'
-        if self._ac_is_outdated():
+        timeout = 35 * 24 * 60 * 60
+        if (self.peer.last_seen - self.peer.autocrypt_timestamp >
+                timeout):
             return 'discourage'
         return 'available'
-
-    def _ac_is_outdated(self):
-        timeout = 35 * 24 * 60 * 60
-        return (self.peer.last_seen - self.peer.autocrypt_timestamp > timeout)
 
     def _public_key(self):
         return self._key(self.peer.public_keyhandle)
