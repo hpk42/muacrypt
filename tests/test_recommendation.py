@@ -8,21 +8,30 @@ def send_ac_mail(sender, recipient, Date=None):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
         Autocrypt=sender.make_ac_header(recipient.addr),
-        payload=None, charset=None, Date=Date,
+        Date=Date,
     )
     recipient.process_incoming(mail)
 
+def send_enc_ac_mail(sender, recipient):
+    msg = mime.gen_mail_msg(
+        From=sender.addr, To=[recipient.addr],
+        Autocrypt=sender.make_ac_header(recipient.addr),
+    )
+    r = sender.encrypt_mime(msg, [recipient.addr])
+    recipient.process_incoming(r.enc_msg)
+    r = recipient.decrypt_mime(r.enc_msg)
+    return r.dec_msg
 
 def send_no_ac_mail(sender, recipient):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
-        Autocrypt=None, payload=None, charset=None, Date=None,
     )
     recipient.process_incoming(mail)
 
 
-def get_recommendation(composer, peer):
-    return composer.get_recommendation([peer.addr])
+def get_recommendation(composer, peer, reply_to_enc=False):
+    return composer.get_recommendation([peer.addr],
+            reply_to_enc=reply_to_enc)
 
 
 class TestRecommendation:
@@ -88,3 +97,11 @@ class TestRecommendation:
         rec = get_recommendation(composer, peer)
         assert rec.target_keys()[peer.addr]
         assert rec.ui_recommendation() == 'available'
+
+    def test_encrypt_replies_to_encrypted(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        send_ac_mail(composer, peer)
+        decrypted = send_enc_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer, reply_to_enc=True)
+        assert rec.target_keys()[peer.addr]
+        assert rec.ui_recommendation() == 'encrypt'

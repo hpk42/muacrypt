@@ -1,9 +1,10 @@
 class Recommendation:
     """ Calculating recommendations for encryption """
 
-    def __init__(self, peerstates, prefer_encrypt):
+    def __init__(self, peerstates, prefer_encrypt, reply_to_enc=False):
         self.peerstates = peerstates
         self.prefer_encrypt = prefer_encrypt
+        self.reply_to_enc = reply_to_enc
 
     def ui_recommendation(self):
         # only consider first peer for now
@@ -16,18 +17,23 @@ class Recommendation:
                 self.peerstates.items()}
 
     def _peer_recommendation(self, peer):
-        return PeerRecommendation(peer, self.prefer_encrypt)
+        return PeerRecommendation(peer, self.prefer_encrypt,
+                self.reply_to_enc)
 
 
 class PeerRecommendation:
     """ Calculating recommendation for a single peer """
 
-    def __init__(self, peer, prefer_encrypt):
+    def __init__(self, peer, prefer_encrypt, reply_to_enc):
         self.peer = peer
         self.prefer_encrypt = prefer_encrypt
+        self.reply_to_enc = reply_to_enc
 
     def ui_recommendation(self):
         pre = self._preliminary_recommendation()
+        if ((pre == 'available' or pre == 'discourage') and
+                self.reply_to_enc):
+            return 'encrypt'
         if (pre == 'available' and
                 self.prefer_encrypt == 'mutual' and
                 self.peer.prefer_encrypt == 'mutual'):
