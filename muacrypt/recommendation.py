@@ -14,8 +14,8 @@ class Recommendation:
         precedence = ['disable', 'discourage', 'available', 'encrypt']
         return next(rec for rec in precedence if rec in peer_recommendations)
 
-    def target_keys(self):
-        return {addr: self._peer_recommendation(peer).target_key()
+    def target_keyhandles(self):
+        return {addr: self._peer_recommendation(peer).target_keyhandle()
                 for addr, peer in
                 self.peerstates.items()}
 
@@ -43,12 +43,12 @@ class PeerRecommendation:
             return 'encrypt'
         return pre
 
-    def target_key(self):
+    def target_keyhandle(self):
         return (getattr(self.peer, 'public_keyhandle', None) or
                 getattr(self.peer, 'gossip_keyhandle', None))
 
     def _preliminary_recommendation(self):
-        if self.target_key() is None:
+        if self.target_keyhandle() is None:
             return 'disable'
         timeout = 35 * 24 * 60 * 60
         if (self.peer.last_seen - self.peer.autocrypt_timestamp >

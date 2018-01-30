@@ -225,7 +225,7 @@ class TestAccount:
         recipient.process_incoming(msg1)
         recommend = recipient.get_recommendation({sender.addr})
         assert recommend.ui_recommendation() == 'available'
-        assert recommend.target_keys()[sender.addr] == sender.ownstate.keyhandle
+        assert recommend.target_keyhandles()[sender.addr] == sender.ownstate.keyhandle
 
 
 class TestAccountManager:
