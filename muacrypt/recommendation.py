@@ -44,7 +44,8 @@ class PeerRecommendation:
         return pre
 
     def target_key(self):
-        return self._public_key() or self._gossip_key()
+        return (getattr(self.peer, 'public_keyhandle', None) or
+                getattr(self.peer, 'gossip_keyhandle', None))
 
     def _preliminary_recommendation(self):
         if self.target_key() is None:
@@ -54,16 +55,3 @@ class PeerRecommendation:
                 timeout):
             return 'discourage'
         return 'available'
-
-    def _public_key(self):
-        return self._key(self.peer.public_keyhandle)
-
-    def _gossip_key(self):
-        # gossip keyhandle is not implemented yet.
-        if hasattr(self.peer, 'gossip_keyhandle'):
-            return self._key(self.peer.gossip_keyhandle)
-
-    # logic for checking if a key is usable could go here.
-    def _key(self, handle):
-        if handle:
-            return handle
