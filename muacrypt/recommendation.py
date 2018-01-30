@@ -11,8 +11,9 @@ class Recommendation:
         peer_recommendations = [
             self._peer_recommendation(peer).ui_recommendation()
             for peer in self.peerstates.values()]
-        precedence = ['disable', 'discourage', 'available', 'encrypt']
-        return next(rec for rec in precedence if rec in peer_recommendations)
+        for rec in ['disable', 'discourage', 'available', 'encrypt']:
+            if rec in peer_recommendations:
+                return rec
 
     def target_keyhandles(self):
         return {addr: self._peer_recommendation(peer).target_keyhandle()
