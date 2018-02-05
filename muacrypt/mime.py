@@ -102,6 +102,8 @@ def parse_one_ac_header_from_string(string):
 
 
 def parse_one_ac_header_from_msg(msg, FromList=None):
+    if msg.get_content_type() == 'multipart/report':
+        return ACParseResult(error="Ignoring 'multipart/report' message.")
     results = []
     err_results = []
     for ac_header_value in msg.get_all("Autocrypt") or []:

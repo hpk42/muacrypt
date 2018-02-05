@@ -41,6 +41,13 @@ class TestAccount:
         r = acc1.process_incoming(msg)
         assert r.pah.error
 
+    def test_ignore_multipart_report(self, account_maker, datadir):
+        acc1 = account_maker()
+        acc1.modify(email_regex='Jane_Sender@example.org')
+        msg = mime.parse_message_from_file(datadir.open("multipart_report.eml"))
+        r = acc1.process_incoming(msg)
+        assert r.pah.error == "Ignoring 'multipart/report' message."
+
     def test_parse_incoming_mail_broken_date_header(self, account_maker):
         addr = "a@a.org"
         acc1 = account_maker()
