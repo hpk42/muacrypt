@@ -140,17 +140,19 @@ class PeerState(object):
     # methods which modify/add state
     def update_from_msg(self, msg_id, effective_date, prefer_encrypt,
                         keydata, keyhandle):
-        if keydata and effective_date >= self.autocrypt_timestamp:
-            self._append_ac_entry(
-                msg_id=msg_id, msg_date=effective_date,
-                prefer_encrypt=prefer_encrypt,
-                keydata=keydata or b'', keyhandle=keyhandle or '',
-            )
-        else:
+        if effective_date < self.autocrypt_timestamp:
+            return
+        if not keydata:
             if effective_date > self.last_seen:
                 self._append_noac_entry(
                     msg_id=msg_id, msg_date=effective_date,
                 )
+            return
+        self._append_ac_entry(
+            msg_id=msg_id, msg_date=effective_date,
+            prefer_encrypt=prefer_encrypt,
+            keydata=keydata or b'', keyhandle=keyhandle or '',
+        )
 
     def _append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
         """append an Autocrypt message entry. """
