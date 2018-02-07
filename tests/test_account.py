@@ -6,6 +6,7 @@ import os
 import time
 from base64 import b64encode
 import six
+import email
 from email.mime.image import MIMEImage
 import pytest
 from muacrypt.account import AccountManager, NotInitialized
@@ -41,6 +42,13 @@ class TestAccount:
         r = acc1.process_incoming(msg)
         assert r.pah.error
 
+    def test_ignore_multipart_report(self, account_maker, datadir):
+        acc1 = account_maker()
+        acc1.modify(email_regex='Jane_Sender@example.org')
+        msg = mime.parse_message_from_file(datadir.open("multipart_report.eml"))
+        r = acc1.process_incoming(msg)
+        assert r.pah.error == "Ignoring 'multipart/report' message."
+
     def test_parse_incoming_mail_broken_date_header(self, account_maker):
         addr = "a@a.org"
         acc1 = account_maker()
@@ -66,6 +74,24 @@ class TestAccount:
         msg = mime.gen_mail_msg(From="", To=["b@b.org"])
         r = acc1.process_incoming(msg)
         assert r.pah.error
+
+    def test_ignore_incoming_mail_multiple_from(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+        msg = mime.gen_mail_msg(From=','.join([sender.addr, "b@a.org"]),
+                                To=[recipient.addr],
+                                Autocrypt=sender.make_ac_header(sender.addr))
+        r = recipient.process_incoming(msg)
+        assert r.pah.error == "Ignoring message with more than one address in From header."
+
+    def test_accept_incoming_mail_with_at_in_from_realname(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+        msg = mime.gen_mail_msg(
+            From=email.utils.formataddr([sender.addr, sender.addr]),
+            To=[recipient.addr],
+            Autocrypt=sender.make_ac_header(sender.addr),
+        )
+        r = recipient.process_incoming(msg)
+        assert r.pah.error is None
 
     def test_parse_incoming_mail_unicode_from(self, account_maker):
         addr = 'x@k\366nig.de'
