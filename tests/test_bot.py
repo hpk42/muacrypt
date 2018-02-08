@@ -123,6 +123,36 @@ class TestBot:
         assert r.keydata
         body = decode_body(reply_msg)
         assert "no Autocrypt header" not in body
+        assert "recommendation is available" in body
+        print(body)
+
+    def test_encrypted_if_mutual(self, bcmd, ac_sender, linematch):
+        bcmd.run_ok(["mod-account", "default", "--prefer-encrypt=mutual"])
+        ac_sender.modify(prefer_encrypt='mutual')
+        ac_sender.ac_headerval = ac_sender.make_ac_header(ac_sender.adr)
+        send_adr = ac_sender.adr
+        msg = mime.gen_mail_msg(
+            From=send_adr, To=[bcmd.bot_adr],
+            Autocrypt=ac_sender.ac_headerval,
+            Subject="hello", _dto=True)
+
+        out = bcmd.run_ok(["bot-reply"], input=msg.as_string())
+
+        reply_msg = mime.parse_message_from_string(out)
+        linematch(decode_body(reply_msg), """
+            *processed*account*default*
+        """)
+        assert reply_msg["Subject"] == "Re: " + msg["Subject"]
+        assert reply_msg["From"] == bcmd.bot_adr
+        assert reply_msg["To"] == msg["From"]
+        assert reply_msg["Autocrypt"]
+        r = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
+        assert r.addr == bcmd.bot_adr
+        assert r.keydata
+        body = decode_body(reply_msg)
+        assert "no Autocrypt header" not in body
+        assert "prefer_encrypt=mutual" in body
+        assert "recommendation is encrypt" in body
         print(body)
 
     def test_reply_no_autocrypt(self, bcmd):

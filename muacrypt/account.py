@@ -121,9 +121,7 @@ class AccountManager(object):
                             belonging to this account.
         :param keyhandle: key fingerprint or uid to use for this account.
         :param gpgbin: basename of or full path to gpg binary
-        :param gpgmode: "own" keeps all key state inside the account
-                        directory under the account.  "system" will states keys
-                        in the user's system gnupg keyring.
+        :param prefer_encrypt: prefer_encrypt setting for this account.
         :returns: Account instance
         """
         account = self.get_account(account_name)

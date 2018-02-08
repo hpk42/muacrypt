@@ -76,6 +76,8 @@ def bot_reply(ctx, smtp, fallback_delivto):
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
         .format(r.account.ownstate.keyhandle))
+    log("P.P.S.: For this reply the encryption recommendation is {}".format(
+        account.get_recommendation([From]).ui_recommendation()))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],
