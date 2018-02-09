@@ -11,6 +11,7 @@ Terms:
 - "msgid", message id from MIME header of e-mail
 
 
+
 Send history information to peer
 ---------------------------------
 
@@ -19,13 +20,13 @@ Send history information to peer
 1. collect a list ``OUT_HISTORY`` of ``(DATE, msgid, finger_print)`` tuples
    for my own messages to a peer.
 
-2. collect a list ``IN_HISTORY`` of ``(DATE, From, msgid, peer_fingerprint)`` tuples
+2. collect a list ``IN_HISTORY`` of ``(DATE, origin_addr, msgid, peer_fingerprint)`` tuples
    for each message where ``peeraddr`` was one of the specified message participants
-   (contained in any of From, To, CC headers). ``From`` is either ``peeraddr``
-   in which case the peer_fingerprint was sent directly, and otherwise indicates
-   from which address we saw an ``AUTOCRYPT-GOSSIP`` header.
+   (contained in any of From, To, CC headers). If ``origin_addr == peer_addr`` then
+   the key was sent directly, otherwise it was gossiped from another peer
+   through an ``AUTOCRYPT-GOSSIP`` header.
 
-3. collect a list ``OOB_VERIFICATIONS`` of ``(DATE, peeraddr, peer_fingerprint)``
+3. collect a list ``OOB_VERIFICATIONS`` of ``(peer_addr, peer_fingerprint)``
    for all out-of-band verifications with peers which were involved in messages
    of both myaddr and peeraddr.
 
@@ -62,13 +63,44 @@ We get::
    - If we don't know of a message and its DATE is newer than our
      earliest ``peerlog`` message, emit a DROPPED-MESSAGE-WARNING.
 
-4. check that each oob verification is consistent with our notes.
+4. add a verification block which contains:
 
-   for (DATE, peer_addr, peer_fingerprint) in the OOB_VERIFICATIONS:
+   - origin=peer_addr0 to tell where we
+   - origin_auth=peer_fingerprint
+   - origin_date=CURRENT_DATE
+   - OOB_VERIFICATIONS
 
-    - if we have a message before and after that date from that peer
-      and both messages have the same fingerprint but it differs from
-      we get through peer_fingerprint, signal MITM-ATTACK error.
 
-    - if an oob verification for a peeraddr and DATE does not match
-      the fingerprint of the earlierst both the a
+Determining OOB_VERIFICATIONs
+-----------------------------
+
+Go through all verification blocks and incoming messages
+to perform or recommend verification actions. The output
+of this algorithm is a map of peer_addr -> score entries.
+We call each score also the "peer_score".
+
+If a score for a peer_addr is higher, it is placed
+higher on the "to be oob-verified recommendation" list.
+
+1. "complete match"
+  We set peer_score to "0" (green, perfect)
+  where for each key we saw for the peer,
+  we have a matching oob verification.
+  additional oob verification are ignored for scoring
+  because they might relate to message history from that peer
+  that we don't have.
+
+2. "unverified keys"
+  If we have keys for a peer which don't have a
+  matching OOB_VERIFICATION, compute the score
+  as "OOB_UNVERIFIED_KEY_WEIGHT / AGE_LAST_MSG" where AGE_LAST_MSG
+  indicates the time since we last a message with an unverified key.
+
+  TODO: increase the weight further if we had past messages
+  with an oob-verified key, but recent messages with an unverified one?
+
+3. If we have seen different keys in gossip than in direct
+  messages from a peer, add OOB_KEY_MISMATCH / AGE_MISMATCH
+  to peer_score where AGE_MISMATCH is the time difference
+  between the latest two dates of conflicting messages.
+
