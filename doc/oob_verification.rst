@@ -83,24 +83,24 @@ If a score for a peer_addr is higher, it is placed
 higher on the "to be oob-verified recommendation" list.
 
 1. "complete match"
-  We set peer_score to "0" (green, perfect)
-  where for each key we saw for the peer,
-  we have a matching oob verification.
-  additional oob verification are ignored for scoring
-  because they might relate to message history from that peer
-  that we don't have.
+   We set peer_score to "0" (green, perfect)
+   where for each key we saw for the peer,
+   we have a matching oob verification.
+   additional oob verification are ignored for scoring
+   because they might relate to message history from that peer
+   that we don't have.
 
 2. "unverified keys"
-  If we have keys for a peer which don't have a
-  matching OOB_VERIFICATION, compute the score
-  as "OOB_UNVERIFIED_KEY_WEIGHT / AGE_LAST_MSG" where AGE_LAST_MSG
-  indicates the time since we last a message with an unverified key.
+   If we have keys for a peer which don't have a
+   matching OOB_VERIFICATION, compute the score
+   as "OOB_UNVERIFIED_KEY_WEIGHT / AGE_LAST_MSG" where AGE_LAST_MSG
+   indicates the time since we last a message with an unverified key.
 
-  TODO: increase the weight further if we had past messages
-  with an oob-verified key, but recent messages with an unverified one?
+   TODO: increase the weight further if we had past messages
+   with an oob-verified key, but recent messages with an unverified one?
 
 3. If we have seen different keys in gossip than in direct
-  messages from a peer, add OOB_KEY_MISMATCH / AGE_MISMATCH
-  to peer_score where AGE_MISMATCH is the time difference
-  between the latest two dates of conflicting messages.
+   messages from a peer, add OOB_KEY_MISMATCH / AGE_MISMATCH
+   to peer_score where AGE_MISMATCH is the time difference
+   between the latest two dates of conflicting messages.
 
