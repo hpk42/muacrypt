@@ -45,3 +45,4 @@ arrangements.
    cmdline
    diagrams
    api
+   oob_verification
