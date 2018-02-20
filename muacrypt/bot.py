@@ -76,8 +76,10 @@ def bot_reply(ctx, smtp, fallback_delivto):
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
         .format(r.account.ownstate.keyhandle))
-    log("P.P.S.: For this reply the encryption recommendation is {}".format(
-        account.get_recommendation([From]).ui_recommendation()))
+
+    ui_recommendation = account.get_recommendation([From]).ui_recommendation()
+    log("P.P.S.: For this reply the encryption recommendation is {}"
+        .format(ui_recommendation))
 
     reply_msg = mime.gen_mail_msg(
         From=delivto, To=[From],
@@ -86,6 +88,9 @@ def bot_reply(ctx, smtp, fallback_delivto):
         Autocrypt=account.make_ac_header(delivto),
         payload=six.text_type(log), charset="utf8",
     )
+    if ui_recommendation == 'encrypt':
+        r = account.encrypt_mime(reply_msg, [From])
+        reply_msg = r.enc_msg
     if smtp:
         host, port = smtp.split(",")
         send_reply(host, int(port), reply_msg)

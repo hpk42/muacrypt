@@ -139,9 +139,6 @@ class TestBot:
         out = bcmd.run_ok(["bot-reply"], input=msg.as_string())
 
         reply_msg = mime.parse_message_from_string(out)
-        linematch(decode_body(reply_msg), """
-            *processed*account*default*
-        """)
         assert reply_msg["Subject"] == "Re: " + msg["Subject"]
         assert reply_msg["From"] == bcmd.bot_adr
         assert reply_msg["To"] == msg["From"]
@@ -149,7 +146,13 @@ class TestBot:
         r = mime.parse_ac_headervalue(reply_msg["Autocrypt"])
         assert r.addr == bcmd.bot_adr
         assert r.keydata
-        body = decode_body(reply_msg)
+
+        ac_sender.process_incoming(reply_msg)
+        decrypted = ac_sender.decrypt_mime(reply_msg)
+        body = decode_body(decrypted.dec_msg)
+        linematch(body, """
+            *processed*account*default*
+        """)
         assert "no Autocrypt header" not in body
         assert "prefer_encrypt=mutual" in body
         assert "recommendation is encrypt" in body

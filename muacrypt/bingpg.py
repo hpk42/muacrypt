@@ -323,7 +323,7 @@ class BinGPG(object):
             opts.extend(["--sign", "-u", signkey])
         if text:
             opts.extend(["--armor"])
-        print(opts)
+        # print(opts)
         return self._gpg_out(opts, input=data, encoding=None)
 
     def sign(self, data, keyhandle):
