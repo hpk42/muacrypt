@@ -48,7 +48,8 @@ class InvocationFailure(Exception):
 
     def __str__(self):
         lines = ["GPG Command '%s' retcode=%d" % (self.cmd, self.ret)]
-        for name, olines in [("stdout:", self.out), ("stderr:", self.err)]:
+        for name, olines in [("stdout:", self.out.__str__()),
+                             ("stderr:", self.err)]:
             lines.append(name)
             for line in olines.splitlines():
                 lines.append("  " + line)
