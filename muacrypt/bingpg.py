@@ -48,7 +48,8 @@ class InvocationFailure(Exception):
 
     def __str__(self):
         lines = ["GPG Command '%s' retcode=%d" % (self.cmd, self.ret)]
-        for name, olines in [("stdout:", self.out), ("stderr:", self.err)]:
+        for name, olines in [("stdout:", self.out.__str__()),
+                             ("stderr:", self.err)]:
             lines.append(name)
             for line in olines.splitlines():
                 lines.append("  " + line)
@@ -323,7 +324,7 @@ class BinGPG(object):
             opts.extend(["--sign", "-u", signkey])
         if text:
             opts.extend(["--armor"])
-        print(opts)
+        # print(opts)
         return self._gpg_out(opts, input=data, encoding=None)
 
     def sign(self, data, keyhandle):
