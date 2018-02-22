@@ -8,7 +8,7 @@ from muacrypt import mime
 from muacrypt.bot import SimpleLog
 
 
-@pytest.fixture(params=["sender@example.org"])
+@pytest.fixture(params=["sender@example.org", "sender <sender@example.org>"])
 def ac_sender(manager_maker, request):
     manager = manager_maker(init=False)
     account = manager.add_account("sender", email_regex=request.param)
@@ -231,6 +231,6 @@ class TestBot:
                 *processed incoming*
                 *{senderadr}*{senderkeyhandle}*
             """.format(
-                senderadr=ac_sender.adr,
+                senderadr=mime.parse_email_addr(ac_sender.adr),
                 senderkeyhandle=ac_sender.ownstate.keyhandle,
             ))
