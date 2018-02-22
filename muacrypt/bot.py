@@ -91,7 +91,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         .format(ui_recommendation))
 
     reply_msg = mime.gen_mail_msg(
-        From=delivto, To=[From],
+        From=delivto, To=[From], Cc=[msg["Cc"]],
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
         Autocrypt=account.make_ac_header(delivto),

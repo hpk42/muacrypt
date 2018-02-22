@@ -176,10 +176,12 @@ class ACParseResult(object):
     error = attrib_text_or_none()
 
 
-def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
-                 Date=None, _dto=False, MessageID=None, payload='Autoresponse\n',
+def gen_mail_msg(From, To, Cc=[], _extra=None, Autocrypt=None,
+                 Subject="testmail", Date=None, _dto=False,
+                 MessageID=None, payload='Autoresponse\n',
                  charset=None):
     assert isinstance(To, (list, tuple))
+    assert isinstance(Cc, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
 
@@ -191,6 +193,7 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
 
     msg['From'] = From
     msg['To'] = ",".join(To)
+    msg['Cc'] = ",".join(Cc)
     msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()

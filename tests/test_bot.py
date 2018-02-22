@@ -126,6 +126,19 @@ class TestBot:
         assert "recommendation is available" in body
         print(body)
 
+    def test_reply_with_cc(self, bcmd, ac_sender, linematch):
+        send_adr = ac_sender.adr
+        msg = mime.gen_mail_msg(
+            From=send_adr, To=[bcmd.bot_adr],
+            Cc=['some@address.example'],
+            Autocrypt=ac_sender.ac_headerval,
+            Subject="hello", _dto=True)
+
+        out = bcmd.run_ok(["bot-reply"], input=msg.as_string())
+
+        reply_msg = mime.parse_message_from_string(out)
+        assert reply_msg["Cc"] == msg["Cc"]
+
     def test_reply_to_encrypted(self, bcmd, ac_sender, linematch):
         send_adr = ac_sender.adr
         msg = mime.gen_mail_msg(
