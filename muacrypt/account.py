@@ -199,9 +199,12 @@ class Account:
         return "Account(name={})".format(self.name)
 
     def get_peerstate(self, addr):
-        return self._states.get_peerstate(self.name, addr)
+        routable_addr = mime.parse_email_addr(addr)
+        return self._states.get_peerstate(self.name, routable_addr)
 
     def get_recommendation(self, addrs, reply_to_enc=False):
+        assert isinstance(addrs, (list, set, tuple)), addrs
+        addrs = map(mime.parse_email_addr, addrs)
         peerstates = {addr: self.get_peerstate(addr) for addr in addrs}
         return Recommendation(peerstates, self.ownstate.prefer_encrypt,
                               reply_to_enc=reply_to_enc)
