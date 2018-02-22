@@ -72,12 +72,21 @@ def bot_reply(ctx, smtp, fallback_delivto):
                 ps.addr, ps.public_keyhandle, ps.prefer_encrypt))
 
     log("\n")
+    reply_to_encrypted = False
+    if msg.get_content_type() == "multipart/encrypted":
+        log("Your message was encrypted.")
+        decrypted = account.decrypt_mime(msg)
+        log("It was encrypted to the following keys:{}".format(
+            decrypted.keyinfos))
+        reply_to_encrypted = True
+
     log("have a nice day, {}".format(delivto))
     log("")
     log("P.S.: my current key {} is in the Autocrypt header of this reply."
         .format(r.account.ownstate.keyhandle))
 
-    ui_recommendation = account.get_recommendation([From]).ui_recommendation()
+    recom = account.get_recommendation([From], reply_to_encrypted)
+    ui_recommendation = recom.ui_recommendation()
     log("P.P.S.: For this reply the encryption recommendation is {}"
         .format(ui_recommendation))
 
