@@ -9,14 +9,16 @@ import six
 import email
 from email.mime.image import MIMEImage
 import pytest
-from muacrypt.account import AccountManager, NotInitialized
+from muacrypt.account import Account, AccountManager, NotInitialized
 from muacrypt import mime
 
 
-def gen_ac_mail_msg(acc1, acc2, payload=None, charset=None, Date=None):
+def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None):
+    if isinstance(recipients, Account):
+        recipients = [recipients]
     return mime.gen_mail_msg(
-        From=acc1.addr, To=[acc2.addr],
-        Autocrypt=acc1.make_ac_header(acc1.addr),
+        From=sender.addr, To=[rec.addr for rec in recipients],
+        Autocrypt=sender.make_ac_header(sender.addr),
         payload=payload, charset=charset, Date=Date,
     )
 
@@ -253,6 +255,31 @@ class TestAccount:
             recommend = recipient.get_recommendation([addr])
             assert recommend.ui_recommendation() == 'available'
             assert recommend.target_keyhandles()[sender.addr] == sender.ownstate.keyhandle
+
+    def test_encrypt_with_gossip(self, account_maker, maildir):
+        sender = account_maker()
+        recipients = [account_maker(), account_maker()]
+
+        # make sure sender has all keys
+        for recipient in recipients:
+            msg = gen_ac_mail_msg(recipient, sender)
+            r = sender.process_incoming(msg)
+            assert r.peerstate.addr == recipient.addr
+
+        # send an encrypted mail from sender to both recipients
+        gossip_msg = gen_ac_mail_msg(sender, recipients,
+                                     payload="hello ä umlaut", charset="utf8")
+
+        r = sender.encrypt_mime(gossip_msg, [rec.addr for rec in recipients])
+        recipient = recipients[0]
+        recipient.process_incoming(r.enc_msg)
+
+        # decrypt the incoming mail
+        r = recipient.decrypt_mime(r.enc_msg)
+        dec = r.dec_msg
+        assert dec.get_content_type() == "text/plain"
+        assert dec.get_payload() == gossip_msg.get_payload()
+        assert dec.get_payload(decode=True) == gossip_msg.get_payload(decode=True)
 
 
 class TestAccountManager:
