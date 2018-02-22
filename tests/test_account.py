@@ -272,14 +272,15 @@ class TestAccount:
 
         r = sender.encrypt_mime(gossip_msg, [rec.addr for rec in recipients])
         recipient = recipients[0]
+        other = recipients[1]
         recipient.process_incoming(r.enc_msg)
 
         # decrypt the incoming mail
         r = recipient.decrypt_mime(r.enc_msg)
         dec = r.dec_msg
-        assert dec.get_content_type() == "text/plain"
-        assert dec.get_payload() == gossip_msg.get_payload()
-        assert dec.get_payload(decode=True) == gossip_msg.get_payload(decode=True)
+        r = recipient.process_incoming_gossip(dec)
+        key = other.bingpg.get_public_keydata(other.ownstate.keyhandle)
+        assert r.peerstate[other.addr].public_keydata == key
 
 
 class TestAccountManager:

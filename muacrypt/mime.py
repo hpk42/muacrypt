@@ -126,6 +126,23 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
         return ACParseResult(error="no valid Autocrypt header found")
 
 
+def get_gossip_headers_from_msg(msg, recipients):
+    results = {}
+    err_results = []
+    for ac_header_value in msg.get_all("Autocrypt-Gossip") or []:
+        r = parse_ac_headervalue(ac_header_value)
+        if not r.error and (r.addr in recipients):
+            results[r.addr] = r
+        else:
+            err_results.append(r)
+
+    if results:
+        return results
+    if err_results:
+        return err_results[0]
+    return ACParseResult(error="no valid Autocrypt Gossip header found")
+
+
 def parse_ac_headervalue(value):
     """ return a Result object with keydata/addr/prefer_encrypt/extra_attr/error
     attributes.
@@ -176,10 +193,12 @@ class ACParseResult(object):
     error = attrib_text_or_none()
 
 
-def gen_mail_msg(From, To, Cc=[], _extra=None, Autocrypt=None,
+def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
                  Subject="testmail", Date=None, _dto=False,
                  MessageID=None, payload='Autoresponse\n',
                  charset=None):
+    if Cc is None:
+        Cc = []
     assert isinstance(To, (list, tuple))
     assert isinstance(Cc, (list, tuple))
     if MessageID is None:

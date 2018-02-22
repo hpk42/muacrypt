@@ -301,7 +301,7 @@ class Account:
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerState
+        :rtype: ProcessIncomingResult
         """
         From = mime.parse_email_addr(msg["From"])
         peerstate = self.get_peerstate(From)
@@ -327,6 +327,55 @@ class Account:
             msg_date=msg_date,
             pah=r,
             peerstate=peerstate,
+            account=self,
+        )
+
+    def process_incoming_gossip(self, msg):
+        """ process gossip from encrypted part of incoming mail message
+        and update states information from any gossip header for the
+        To or Cc recipients of the msg.
+
+        :type msg: email.message.Message
+        :param msg: decrypted message returned from decrypt_mime as dec_msg
+        :rtype: ProcessIncomingResult
+        """
+
+        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
+        msg_id = six.text_type(msg["Message-Id"])
+        recipients = mime.get_target_emailadr(msg)
+        peerstates = {}
+        r = mime.get_gossip_headers_from_msg(msg, recipients)
+        if isinstance(r, dict):
+            pahs = r
+        else:
+            if "no valid Autocrypt Gossip" not in r.error:
+                logging.error("{}: {}"
+                              .format(msg_id, r.error))
+            pahs = {}
+        for recipient in recipients:
+            peerstate = self.get_peerstate(recipient)
+            try:
+                pah = pahs[recipient]
+            except KeyError:
+                pah = None
+            if pah:
+                try:
+                    keyhandle = self.bingpg.import_keydata(pah.keydata)
+                except self.bingpg.InvocationFailure:
+                    keyhandle = None
+                    pah.error = "failed to import key"
+                peerstate.update_from_msg(
+                    msg_id=msg_id, effective_date=msg_date,
+                    keydata=pah.keydata, keyhandle=keyhandle,
+                    prefer_encrypt='nopreference'
+                )
+            peerstates[recipient] = peerstate
+
+        return ProcessIncomingResult(
+            msg_id=msg_id,
+            msg_date=msg_date,
+            pah=pahs,
+            peerstate=peerstates,
             account=self,
         )
 
@@ -357,12 +406,15 @@ class Account:
         """
         assert toaddrs, "requires non-empty recipient list"
         keyhandles = []
+        m = mime.make_content_message_from_email(msg)
         for addr in toaddrs:
-            kh = self.get_peerstate(addr).public_keyhandle
+            peer = self.get_peerstate(addr)
+            kh = peer.public_keyhandle
             assert kh, "keyhandle not found for: " + addr
             keyhandles.append(kh)
+            value = mime.make_ac_header_value(addr, peer.public_keydata)
+            m.add_header('Autocrypt-Gossip', value)
 
-        m = mime.make_content_message_from_email(msg)
         clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
