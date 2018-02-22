@@ -21,6 +21,11 @@
   versions but those are hard to custom-build on ubuntu or older debian
   machines)
 
+- introduce decrypt/encrypt support for the bot and implement
+  the autocrypt Level 1 recommendation algorithm for determining
+  if encryption should happen or not.
+
+
 
 0.7.0
 -------
