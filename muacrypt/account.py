@@ -307,25 +307,22 @@ class Account:
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
-        r = mime.parse_one_ac_header_from_msg(msg, [From])
-        if r.error:
-            if "no valid Autocrypt" not in r.error:
-                logging.error("{}: {}".format(msg_id, r.error))
+        pah = mime.parse_one_ac_header_from_msg(msg, [From])
+        if pah.error:
+            if "no valid Autocrypt" not in pah.error:
+                logging.error("{}: {}".format(msg_id, pah.error))
             keyhandle = None
         else:
-            try:
-                keyhandle = self.bingpg.import_keydata(r.keydata)
-            except self.bingpg.InvocationFailure:
-                keyhandle = None
-                r.error = "failed to import key"
+            keyhandle = self._import_key(pah)
         peerstate.update_from_msg(
             msg_id=msg_id, effective_date=msg_date,
-            prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
+            prefer_encrypt=pah.prefer_encrypt,
+            keydata=pah.keydata, keyhandle=keyhandle,
         )
         return ProcessIncomingResult(
             msg_id=msg_id,
             msg_date=msg_date,
-            pah=r,
+            pah=pah,
             peerstate=peerstate,
             account=self,
         )
@@ -359,11 +356,7 @@ class Account:
             except KeyError:
                 pah = None
             if pah:
-                try:
-                    keyhandle = self.bingpg.import_keydata(pah.keydata)
-                except self.bingpg.InvocationFailure:
-                    keyhandle = None
-                    pah.error = "failed to import key"
+                keyhandle = self._import_key(pah)
                 peerstate.update_from_msg(
                     msg_id=msg_id, effective_date=msg_date,
                     keydata=pah.keydata, keyhandle=keyhandle,
@@ -378,6 +371,13 @@ class Account:
             peerstate=peerstates,
             account=self,
         )
+
+    def _import_key(self, pah):
+        try:
+            return self.bingpg.import_keydata(pah.keydata)
+        except self.bingpg.InvocationFailure:
+            pah.error = "failed to import key"
+            return None
 
     def process_outgoing(self, msg):
         """ add Autocrypt header to outgoing message.
