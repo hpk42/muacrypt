@@ -45,8 +45,11 @@ class PeerRecommendation:
         return pre
 
     def target_keyhandle(self):
-        return (getattr(self.peer, 'public_keyhandle', None) or
-                getattr(self.peer, 'gossip_keyhandle', None))
+        kh = getattr(self.peer, 'public_keyhandle', None)
+        if kh:
+            return kh
+        ge = self.peer.latest_gossip_entry()
+        return getattr(ge, "keyhandle", None)
 
     def _preliminary_recommendation(self):
         if self.target_keyhandle() is None:

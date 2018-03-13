@@ -121,6 +121,16 @@ class TestRecommendation:
         assert rec.target_keyhandles()[peer.addr] == peer_keyhandle
         assert rec.ui_recommendation() == 'encrypt'
 
+    def test_gossip_keys_recommendation(self, account_maker):
+        composer, peer1, peer2 = account_maker(), account_maker(), account_maker()
+        send_ac_mail(peer1, composer)
+        send_ac_mail(peer2, composer)
+        send_enc_ac_mail(composer, [peer1, peer2])
+        rec = get_recommendation(peer1, peer2, reply_to_enc=True)
+        # peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.ui_recommendation() == 'encrypt'
+        assert rec.target_keyhandles()[peer2.addr]
+
     def test_disable_if_one_key_is_missing(self, account_maker):
         composer, peer = account_maker(), account_maker()
         no_ac_peer = account_maker()
