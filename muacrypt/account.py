@@ -355,10 +355,9 @@ class Account:
             if pah is not None:
                 peerstate = self.get_peerstate(recipient)
                 keyhandle = self._import_key(pah)
-                peerstate.update_from_msg(
+                peerstate.update_from_msg_gossip(
                     msg_id=msg_id, effective_date=msg_date,
                     keydata=pah.keydata, keyhandle=keyhandle,
-                    prefer_encrypt='nopreference'
                 )
                 processed[recipient] = pah
         return processed
