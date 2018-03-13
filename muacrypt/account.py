@@ -307,6 +307,23 @@ class Account:
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
+        pah = self.process_autocrypt_header(msg, From, peerstate, msg_date, msg_id)
+        if mime.is_encrypted(msg):
+            dec_msg = self.decrypt_mime(msg).dec_msg
+            gossip_pahs = self.process_gossip_headers(dec_msg, msg_date, msg_id)
+        else:
+            gossip_pahs = {}
+
+        return ProcessIncomingResult(
+            msg_id=msg_id,
+            msg_date=msg_date,
+            pah=pah,
+            gossip_pahs=gossip_pahs,
+            peerstate=peerstate,
+            account=self,
+        )
+
+    def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
         pah = mime.parse_one_ac_header_from_msg(msg, [From])
         if pah.error:
             if "no valid Autocrypt" not in pah.error:
@@ -319,15 +336,9 @@ class Account:
             prefer_encrypt=pah.prefer_encrypt,
             keydata=pah.keydata, keyhandle=keyhandle,
         )
-        return ProcessIncomingResult(
-            msg_id=msg_id,
-            msg_date=msg_date,
-            pah=pah,
-            peerstate=peerstate,
-            account=self,
-        )
+        return pah
 
-    def process_gossip_headers(self, msg):
+    def process_gossip_headers(self, msg, msg_date, msg_id):
         """ process gossip headers from payload mime part of mail message
         and update state information from any gossip header for the
         To or Cc recipients of the msg.
@@ -336,31 +347,21 @@ class Account:
         :param msg: decrypted message returned from decrypt_mime as dec_msg
         :rtype: ProcessIncomingResult
         """
-
-        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
-        msg_id = six.text_type(msg["Message-Id"])
         recipients = mime.get_target_emailadr(msg)
-        peerstates = {}
+        processed = {}
         addr2pah = mime.get_gossip_headers_from_msg(msg)
         for recipient in recipients:
-            peerstate = self.get_peerstate(recipient)
             pah = addr2pah.get(recipient)
             if pah is not None:
+                peerstate = self.get_peerstate(recipient)
                 keyhandle = self._import_key(pah)
                 peerstate.update_from_msg(
                     msg_id=msg_id, effective_date=msg_date,
                     keydata=pah.keydata, keyhandle=keyhandle,
                     prefer_encrypt='nopreference'
                 )
-            peerstates[recipient] = peerstate
-
-        return ProcessIncomingResult(
-            msg_id=msg_id,
-            msg_date=msg_date,
-            pah=addr2pah,
-            peerstate=peerstates,
-            account=self,
-        )
+                processed[recipient] = pah
+        return processed
 
     def _import_key(self, pah):
         try:
@@ -423,11 +424,8 @@ class Account:
         :param msg: message to be decrypted
         :rtype: DecryptMimeResult
         """
-        assert msg.get_content_type() == "multipart/encrypted"
+        assert mime.is_encrypted(msg)
         parts = msg.get_payload()
-        assert len(parts) == 2
-        assert parts[0].get_content_type() == 'application/pgp-encrypted'
-        assert parts[1].get_content_type() == 'application/octet-stream'
         enc_data = parts[1].get_payload().encode("ascii")
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
@@ -464,6 +462,7 @@ class ProcessIncomingResult(object):
     peerstate = attrib()
     account = attrib()
     pah = attrib()
+    gossip_pahs = attrib()
 
 
 @attrs

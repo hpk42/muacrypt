@@ -97,6 +97,14 @@ def parse_message_from_string(string):
     return parse_message_from_file(stream)
 
 
+def is_encrypted(msg):
+    if msg.get_content_type() == "multipart/encrypted":
+        parts = msg.get_payload()
+        return (len(parts) == 2
+            and parts[0].get_content_type() == 'application/pgp-encrypted'
+            and parts[1].get_content_type() == 'application/octet-stream')
+
+
 def parse_one_ac_header_from_string(string):
     msg = parse_message_from_string(string)
     return parse_one_ac_header_from_msg(msg)

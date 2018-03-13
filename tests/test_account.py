@@ -273,14 +273,10 @@ class TestAccount:
         r = sender.encrypt_mime(gossip_msg, [rec.addr for rec in recipients])
         recipient = recipients[0]
         other = recipients[1]
-        recipient.process_incoming(r.enc_msg)
-
-        # decrypt the incoming mail
-        r = recipient.decrypt_mime(r.enc_msg)
-        dec = r.dec_msg
-        r = recipient.process_gossip_headers(dec)
         key = other.bingpg.get_public_keydata(other.ownstate.keyhandle)
-        assert r.peerstate[other.addr].public_keydata == key
+
+        r = recipient.process_incoming(r.enc_msg)
+        assert r.gossip_pahs[other.addr].keydata == key
 
 
 class TestAccountManager:
