@@ -46,6 +46,7 @@ def msg2bytes(msg):
 # main functions
 
 def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference"):
+    addr = parse_email_addr(addr)
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
@@ -100,9 +101,9 @@ def parse_message_from_string(string):
 def is_encrypted(msg):
     if msg.get_content_type() == "multipart/encrypted":
         parts = msg.get_payload()
-        return (len(parts) == 2
-            and parts[0].get_content_type() == 'application/pgp-encrypted'
-            and parts[1].get_content_type() == 'application/octet-stream')
+        return (len(parts) == 2 and
+                parts[0].get_content_type() == 'application/pgp-encrypted' and
+                parts[1].get_content_type() == 'application/octet-stream')
 
 
 def parse_one_ac_header_from_string(string):
@@ -120,10 +121,13 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
     err_results = []
     for ac_header_value in msg.get_all("Autocrypt") or []:
         r = parse_ac_headervalue(ac_header_value)
-        if not r.error and (not FromList or r.addr in FromList):
-            results.append(r)
-        else:
+        if r.error:
             err_results.append(r)
+        elif FromList and r.addr not in FromList:
+            e = ACParseResult(error="addr %r does not match %r" % (r.addr, FromList))
+            err_results.append(e)
+        else:
+            results.append(r)
 
     if len(results) == 1:
         return results[0]
@@ -131,8 +135,7 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
         return ACParseResult(error="more than one valid Autocrypt header found")
     if err_results:
         return err_results[0]
-    else:
-        return ACParseResult(error="no valid Autocrypt header found")
+    return ACParseResult(error="no valid Autocrypt header found")
 
 
 def get_gossip_headers_from_msg(msg):

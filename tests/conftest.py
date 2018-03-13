@@ -199,7 +199,8 @@ def datadir(request):
 
         def parse_ac_header_from_email(self, name):
             msg = self.get_mime(name)
-            return mime.parse_one_ac_header_from_msg(msg)
+            From = mime.parse_email_addr(msg["From"])
+            return mime.parse_one_ac_header_from_msg(msg, FromList=[From])
 
     return D(request.fspath.dirpath("data"))
 
