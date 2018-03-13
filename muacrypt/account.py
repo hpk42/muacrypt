@@ -327,9 +327,9 @@ class Account:
             account=self,
         )
 
-    def process_incoming_gossip(self, msg):
-        """ process gossip from encrypted part of incoming mail message
-        and update states information from any gossip header for the
+    def process_gossip_headers(self, msg):
+        """ process gossip headers from payload mime part of mail message
+        and update state information from any gossip header for the
         To or Cc recipients of the msg.
 
         :type msg: email.message.Message
@@ -341,21 +341,11 @@ class Account:
         msg_id = six.text_type(msg["Message-Id"])
         recipients = mime.get_target_emailadr(msg)
         peerstates = {}
-        r = mime.get_gossip_headers_from_msg(msg, recipients)
-        if isinstance(r, dict):
-            pahs = r
-        else:
-            if "no valid Autocrypt Gossip" not in r.error:
-                logging.error("{}: {}"
-                              .format(msg_id, r.error))
-            pahs = {}
+        addr2pah = mime.get_gossip_headers_from_msg(msg)
         for recipient in recipients:
             peerstate = self.get_peerstate(recipient)
-            try:
-                pah = pahs[recipient]
-            except KeyError:
-                pah = None
-            if pah:
+            pah = addr2pah.get(recipient)
+            if pah is not None:
                 keyhandle = self._import_key(pah)
                 peerstate.update_from_msg(
                     msg_id=msg_id, effective_date=msg_date,
@@ -367,7 +357,7 @@ class Account:
         return ProcessIncomingResult(
             msg_id=msg_id,
             msg_date=msg_date,
-            pah=pahs,
+            pah=addr2pah,
             peerstate=peerstates,
             account=self,
         )

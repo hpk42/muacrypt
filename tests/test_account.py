@@ -278,7 +278,7 @@ class TestAccount:
         # decrypt the incoming mail
         r = recipient.decrypt_mime(r.enc_msg)
         dec = r.dec_msg
-        r = recipient.process_incoming_gossip(dec)
+        r = recipient.process_gossip_headers(dec)
         key = other.bingpg.get_public_keydata(other.ownstate.keyhandle)
         assert r.peerstate[other.addr].public_keydata == key
 

@@ -4,6 +4,7 @@
 """Mime message parsing and manipulation functions for Autocrypt usage. """
 
 from __future__ import unicode_literals, print_function
+import logging
 import email.parser
 import base64
 import quopri
@@ -126,21 +127,16 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
         return ACParseResult(error="no valid Autocrypt header found")
 
 
-def get_gossip_headers_from_msg(msg, recipients):
+def get_gossip_headers_from_msg(msg):
     results = {}
-    err_results = []
     for ac_header_value in msg.get_all("Autocrypt-Gossip") or []:
         r = parse_ac_headervalue(ac_header_value)
-        if not r.error and (r.addr in recipients):
+        if not r.error:
             results[r.addr] = r
         else:
-            err_results.append(r)
+            logging.error(r.error)
 
-    if results:
-        return results
-    if err_results:
-        return err_results[0]
-    return ACParseResult(error="no valid Autocrypt Gossip header found")
+    return results
 
 
 def parse_ac_headervalue(value):
