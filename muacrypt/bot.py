@@ -20,7 +20,8 @@ from .cmdline_utils import (
 def send_reply(host, port, msg):
     import smtplib
     smtp = smtplib.SMTP(host, port)
-    return smtp.sendmail(msg["From"], msg["To"], msg.as_string())
+    recipients = mime.get_target_emailadr(msg)
+    return smtp.sendmail(msg["From"], recipients, msg.as_string())
 
 
 @mycommand("bot-reply")
@@ -119,7 +120,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         payload=six.text_type(log), charset="utf8",
     )
     if ui_recommendation == 'encrypt':
-        r = account.encrypt_mime(reply_msg, [From])
+        r = account.encrypt_mime(reply_msg, [From] + newlist)
         reply_msg = r.enc_msg
     if smtp:
         host, port = smtp.split(",")
