@@ -105,7 +105,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
         # loops between CCed bots)
         return
 
-    addrlist = mime.getaddresses(msg.get_all("Cc") + msg.get_all("To"))
+    addrlist = mime.get_target_fulladr(msg)
     newlist = []
     for realname, addr in set(addrlist):
         if addr and addr != delivto:

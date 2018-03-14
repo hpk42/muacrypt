@@ -12,7 +12,7 @@ from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
-from email.utils import getaddresses, formataddr  # noqa
+from email.utils import formataddr  # noqa
 from email.generator import _make_boundary
 import six
 
@@ -68,11 +68,12 @@ def indented_split(value, maxlen=78, indent="  "):
 
 
 def get_target_emailadr(msg):
-    l = []
-    tos = msg.get_all("to") + (msg.get_all("cc") or [])
-    for realname, emailadr in email.utils.getaddresses(tos):
-        l.append(emailadr)
-    return l
+    return [x[1] for x in get_target_fulladr(msg)]
+
+
+def get_target_fulladr(msg):
+    tos = (msg.get_all("to") or []) + (msg.get_all("cc") or [])
+    return email.utils.getaddresses(tos)
 
 
 def parse_email_addr(string):
@@ -220,7 +221,8 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
 
     msg['From'] = From
     msg['To'] = ",".join(To)
-    msg['Cc'] = ",".join(Cc)
+    if Cc:
+        msg['Cc'] = ",".join(Cc)
     msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
