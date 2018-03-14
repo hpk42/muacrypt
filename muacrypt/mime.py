@@ -12,6 +12,7 @@ from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
+from email.utils import getaddresses, formataddr  # noqa
 from email.generator import _make_boundary
 import six
 
@@ -226,8 +227,10 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
     if _extra:
         for name, value in _extra.items():
             msg.add_header(name, value)
-    if _dto:
+    if _dto is True:
         msg["Delivered-To"] = To[0]
+    elif isinstance(_dto, six.text_type):
+        msg["Delivered-To"] = _dto
     if Autocrypt:
         msg["Autocrypt"] = Autocrypt
     return msg
