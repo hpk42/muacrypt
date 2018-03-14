@@ -4,6 +4,7 @@
 """Mime message parsing and manipulation functions for Autocrypt usage. """
 
 from __future__ import unicode_literals, print_function
+import logging
 import email.parser
 import base64
 import quopri
@@ -11,6 +12,7 @@ from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
+from email.utils import formataddr  # noqa
 from email.generator import _make_boundary
 import six
 
@@ -45,6 +47,7 @@ def msg2bytes(msg):
 # main functions
 
 def make_ac_header_value(addr, keydata, prefer_encrypt="nopreference"):
+    addr = parse_email_addr(addr)
     assert keydata
     key = base64.b64encode(keydata) if isinstance(keydata, bytes) else keydata
     if isinstance(key, bytes):
@@ -65,11 +68,12 @@ def indented_split(value, maxlen=78, indent="  "):
 
 
 def get_target_emailadr(msg):
-    l = []
-    tos = msg.get_all("to") + (msg.get_all("cc") or [])
-    for realname, emailadr in email.utils.getaddresses(tos):
-        l.append(emailadr)
-    return l
+    return [x[1] for x in get_target_fulladr(msg)]
+
+
+def get_target_fulladr(msg):
+    tos = (msg.get_all("to") or []) + (msg.get_all("cc") or [])
+    return email.utils.getaddresses(tos)
 
 
 def parse_email_addr(string):
@@ -96,6 +100,14 @@ def parse_message_from_string(string):
     return parse_message_from_file(stream)
 
 
+def is_encrypted(msg):
+    if msg.get_content_type() == "multipart/encrypted":
+        parts = msg.get_payload()
+        return (len(parts) == 2 and
+                parts[0].get_content_type() == 'application/pgp-encrypted' and
+                parts[1].get_content_type() == 'application/octet-stream')
+
+
 def parse_one_ac_header_from_string(string):
     msg = parse_message_from_string(string)
     return parse_one_ac_header_from_msg(msg)
@@ -111,10 +123,13 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
     err_results = []
     for ac_header_value in msg.get_all("Autocrypt") or []:
         r = parse_ac_headervalue(ac_header_value)
-        if not r.error and (not FromList or r.addr in FromList):
-            results.append(r)
-        else:
+        if r.error:
             err_results.append(r)
+        elif FromList and r.addr not in FromList:
+            e = ACParseResult(error="addr %r does not match %r" % (r.addr, FromList))
+            err_results.append(e)
+        else:
+            results.append(r)
 
     if len(results) == 1:
         return results[0]
@@ -122,8 +137,19 @@ def parse_one_ac_header_from_msg(msg, FromList=None):
         return ACParseResult(error="more than one valid Autocrypt header found")
     if err_results:
         return err_results[0]
-    else:
-        return ACParseResult(error="no valid Autocrypt header found")
+    return ACParseResult(error="no valid Autocrypt header found")
+
+
+def get_gossip_headers_from_msg(msg):
+    results = {}
+    for ac_header_value in msg.get_all("Autocrypt-Gossip") or []:
+        r = parse_ac_headervalue(ac_header_value)
+        if not r.error:
+            results[r.addr] = r
+        else:
+            logging.error(r.error)
+
+    return results
 
 
 def parse_ac_headervalue(value):
@@ -176,10 +202,14 @@ class ACParseResult(object):
     error = attrib_text_or_none()
 
 
-def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
-                 Date=None, _dto=False, MessageID=None, payload='Autoresponse\n',
+def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
+                 Subject="testmail", Date=None, _dto=False,
+                 MessageID=None, payload='Autoresponse\n',
                  charset=None):
+    if Cc is None:
+        Cc = []
     assert isinstance(To, (list, tuple))
+    assert isinstance(Cc, (list, tuple))
     if MessageID is None:
         MessageID = make_msgid()
 
@@ -191,14 +221,18 @@ def gen_mail_msg(From, To, _extra=None, Autocrypt=None, Subject="testmail",
 
     msg['From'] = From
     msg['To'] = ",".join(To)
+    if Cc:
+        msg['Cc'] = ",".join(Cc)
     msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
     msg['Date'] = Date or formatdate()
     if _extra:
         for name, value in _extra.items():
             msg.add_header(name, value)
-    if _dto:
+    if _dto is True:
         msg["Delivered-To"] = To[0]
+    elif isinstance(_dto, six.text_type):
+        msg["Delivered-To"] = _dto
     if Autocrypt:
         msg["Autocrypt"] = Autocrypt
     return msg

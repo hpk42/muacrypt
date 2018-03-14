@@ -93,6 +93,15 @@ class MsgEntry(object):
     keyhandle = attrib_text()
 
 
+@attr.s
+class MsgGossipEntry(object):
+    TAG = "mge"
+    msg_id = attrib_text()
+    msg_date = attrib_float()
+    keydata = attrib_bytes()
+    keyhandle = attrib_text()
+
+
 @attrs
 class PeerState(object):
     """Synthesized Autocrypt state from parsing messages from a peer. """
@@ -120,18 +129,22 @@ class PeerState(object):
         return getattr(self._latest_ac_entry(), "keyhandle", '')
 
     @property
-    def prefer_encrypt(self):
-        return getattr(self._latest_ac_entry(), "prefer_encrypt", '')
-
-    @property
     def public_keydata(self):
         return getattr(self._latest_ac_entry(), "keydata", b'')
+
+    @property
+    def prefer_encrypt(self):
+        return getattr(self._latest_ac_entry(), "prefer_encrypt", '')
 
     def _latest_ac_entry(self):
         """ Return latest message with Autocrypt header. """
         for entry in self._chain.iter_entries(MsgEntry):
             if entry.keydata:
                 return entry
+
+    def latest_gossip_entry(self):
+        """ Return latest gossip entry. """
+        return self._chain.latest_entry_of(MsgGossipEntry)
 
     def _latest_msg_entry(self):
         """ Return latest message with or without Autocrypt header. """
@@ -154,10 +167,25 @@ class PeerState(object):
             keydata=keydata or b'', keyhandle=keyhandle or '',
         )
 
+    def update_from_msg_gossip(self, msg_id, effective_date, keydata, keyhandle):
+        if effective_date < self.autocrypt_timestamp:
+            return
+        assert keydata
+        self._append_ac_gossip_entry(
+            msg_id=msg_id, msg_date=effective_date,
+            keydata=keydata, keyhandle=keyhandle,
+        )
+
     def _append_ac_entry(self, msg_id, msg_date, prefer_encrypt, keydata, keyhandle):
         """append an Autocrypt message entry. """
         self._chain.append_entry(MsgEntry(
             msg_id=msg_id, msg_date=msg_date, prefer_encrypt=prefer_encrypt,
+            keydata=keydata, keyhandle=keyhandle))
+
+    def _append_ac_gossip_entry(self, msg_id, msg_date, keydata, keyhandle):
+        """append an Autocrypt gossip entry. """
+        self._chain.append_entry(MsgGossipEntry(
+            msg_id=msg_id, msg_date=msg_date,
             keydata=keydata, keyhandle=keyhandle))
 
     def _append_noac_entry(self, msg_id, msg_date):

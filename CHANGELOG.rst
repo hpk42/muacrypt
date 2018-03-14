@@ -1,3 +1,16 @@
+0.8.0.dev5 - unreleased
+-----------------------
+
+- reply to multiple CC'ed recipients with the bot so we can test
+  gossip.
+
+- add Autocrypt-Gossip headers to mails with multiple recipients.
+
+- parse gossip headers with the bot.
+
+
+
+
 0.8.0.dev4
 ----------
 

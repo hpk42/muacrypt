@@ -51,6 +51,16 @@ def test_make_and_parse_header_value():
     assert not r.extra_attr
 
 
+def test_make_and_parse_header_value_with_full_addr():
+    addr, keydata = "name <x@xy.z>", b64encode(b'123')
+    h = mime.make_ac_header_value(addr=addr, keydata=keydata)
+    r = mime.parse_ac_headervalue(h)
+    assert not r.error
+    assert r.keydata == keydata
+    assert r.addr == "x@xy.z"
+    assert not r.extra_attr
+
+
 def test_make_and_parse_header_prefer_encrypt():
     addr, keydata = "x@xy.z", b64encode(b'123')
     h = mime.make_ac_header_value(addr=addr, keydata=keydata, prefer_encrypt="notset")
@@ -108,6 +118,10 @@ class TestEmailCorpus:
     def test_rsa2048_unknown_critical(self, datadir):
         r = datadir.parse_ac_header_from_email("rsa2048-unknown-critical.eml")
         assert "unknown critical attr 'danger'" in r.error
+
+    def test_rsa2048_from_not_match(self, datadir):
+        r = datadir.parse_ac_header_from_email("rsa2048-from-not-match.eml")
+        assert "does not match" in r.error
 
     def test_unknown_type(self, datadir):
         r = datadir.parse_ac_header_from_email("unknown-type.eml")

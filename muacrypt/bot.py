@@ -20,7 +20,8 @@ from .cmdline_utils import (
 def send_reply(host, port, msg):
     import smtplib
     smtp = smtplib.SMTP(host, port)
-    return smtp.sendmail(msg["From"], msg["To"], msg.as_string())
+    recipients = mime.get_target_emailadr(msg)
+    return smtp.sendmail(msg["From"], recipients, msg.as_string())
 
 
 @mycommand("bot-reply")
@@ -34,9 +35,19 @@ def send_reply(host, port, msg):
 def bot_reply(ctx, smtp, fallback_delivto):
     """reply to stdin mail as a bot.
 
-    This command will generate a reply message and send it to stdout by default.
+    This command processes an incoming e-mail message for the bot
+    and sends a reply if the bot was addressed in a "To" header.
+    If the bot was only addressed in the CC header it will process
+    the mail but not reply.
+
+    If the bot replies, it will always do a group-reply: it replies
+    to the sender and CCs anyone that was in CC or To.
+
     The reply message contains an Autocrypt header and details of what
     was found and understood from the incoming mail.
+
+    If it is a group-reply and it is encrypted then the bot
+    also adds Autocrypt-Gossip headers as mandated by the Level 1 spec.
     """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
@@ -90,15 +101,26 @@ def bot_reply(ctx, smtp, fallback_delivto):
     log("P.P.S.: For this reply the encryption recommendation is {}"
         .format(ui_recommendation))
 
+    if delivto not in msg["To"]:
+        # if we are not addressed directly we don't reply (to prevent
+        # loops between CCed bots)
+        return
+
+    addrlist = mime.get_target_fulladr(msg)
+    newlist = []
+    for realname, addr in set(addrlist):
+        if addr and addr != delivto:
+            newlist.append(mime.formataddr((realname, addr)))
+
     reply_msg = mime.gen_mail_msg(
-        From=delivto, To=[From],
+        From=delivto, To=[From], Cc=newlist,
         Subject="Re: " + msg["Subject"],
         _extra={"In-Reply-To": msg["Message-ID"]},
         Autocrypt=account.make_ac_header(delivto),
         payload=six.text_type(log), charset="utf8",
     )
     if ui_recommendation == 'encrypt':
-        r = account.encrypt_mime(reply_msg, [From])
+        r = account.encrypt_mime(reply_msg, [From] + newlist)
         reply_msg = r.enc_msg
     if smtp:
         host, port = smtp.split(",")

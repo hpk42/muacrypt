@@ -9,14 +9,16 @@ import six
 import email
 from email.mime.image import MIMEImage
 import pytest
-from muacrypt.account import AccountManager, NotInitialized
+from muacrypt.account import Account, AccountManager, NotInitialized
 from muacrypt import mime
 
 
-def gen_ac_mail_msg(acc1, acc2, payload=None, charset=None, Date=None):
+def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None):
+    if isinstance(recipients, Account):
+        recipients = [recipients]
     return mime.gen_mail_msg(
-        From=acc1.addr, To=[acc2.addr],
-        Autocrypt=acc1.make_ac_header(acc1.addr),
+        From=sender.addr, To=[rec.addr for rec in recipients],
+        Autocrypt=sender.make_ac_header(sender.addr),
         payload=payload, charset=charset, Date=Date,
     )
 
@@ -195,7 +197,7 @@ class TestAccount:
         s = r2.dec_msg.get_payload(decode=True)
         assert six.text_type(s, "iso-8859-1") == u"angehört\n"
 
-    def test_encrypt_decrypt_mime_text_plain(self, account_maker, maildir):
+    def test_encrypt_decrypt_mime_text_plain(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()
 
         # send a mail from addr1 with autocrypt key to addr2
@@ -216,7 +218,7 @@ class TestAccount:
         assert dec.get_payload() == msg2.get_payload()
         assert dec.get_payload(decode=True) == msg2.get_payload(decode=True)
 
-    def test_encrypt_decrypt_mime_mixed(self, account_maker, maildir):
+    def test_encrypt_decrypt_mime_mixed(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()
 
         # send a mail from addr1 with autocrypt key to addr2
@@ -253,6 +255,50 @@ class TestAccount:
             recommend = recipient.get_recommendation([addr])
             assert recommend.ui_recommendation() == 'available'
             assert recommend.target_keyhandles()[sender.addr] == sender.ownstate.keyhandle
+
+    def test_encrypt_with_gossip(self, account_maker):
+        sender = account_maker()
+        rec1, rec2 = account_maker(), account_maker()
+
+        # make sure sender has all keys
+        sender.process_incoming(gen_ac_mail_msg(rec1, sender))
+        sender.process_incoming(gen_ac_mail_msg(rec2, sender))
+
+        # send an encrypted mail from sender to both recipients
+        gossip_msg = gen_ac_mail_msg(sender, [rec1, rec2])
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
+        r = rec1.process_incoming(enc_msg)
+
+        ps = rec1.get_peerstate(rec2.addr)
+        ge = ps.latest_gossip_entry()
+        assert ge.keyhandle == rec2.ownstate.keyhandle
+        assert r.gossip_pahs[rec2.addr].keydata == ge.keydata
+        assert not ps.public_keydata  # no direct key
+
+    def test_gossip_leaves_direct_key_alone(self, account_maker):
+        sender = account_maker()
+        rec1, rec2 = account_maker(), account_maker()
+        # sender gets all keys directly
+        sender.process_incoming(gen_ac_mail_msg(rec1, sender))
+        sender.process_incoming(gen_ac_mail_msg(rec2, sender))
+
+        # rec2 changes its key
+        rec2new = account_maker()
+        rec2new.addr = rec2.addr
+        assert rec2new.ownstate.keyhandle != rec2.ownstate.keyhandle
+
+        # one recipient gets a direct key from the other
+        rec1.process_incoming(gen_ac_mail_msg(rec2new, rec1))
+        ps = rec1.get_peerstate(rec2new.addr)
+        assert ps.public_keyhandle == rec2new.ownstate.keyhandle
+
+        # send an encrypted mail from sender to both recipients
+        gossip_msg = gen_ac_mail_msg(sender, [rec1, rec2])
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2new.addr]).enc_msg
+        rec1.process_incoming(enc_msg)
+
+        ps = rec1.get_peerstate(rec2new.addr)
+        assert ps.public_keyhandle == rec2new.ownstate.keyhandle
 
 
 class TestAccountManager:

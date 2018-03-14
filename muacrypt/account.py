@@ -301,34 +301,73 @@ class Account:
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: PeerState
+        :rtype: ProcessIncomingResult
         """
         From = mime.parse_email_addr(msg["From"])
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
-        r = mime.parse_one_ac_header_from_msg(msg, [From])
-        if r.error:
-            if "no valid Autocrypt" not in r.error:
-                logging.error("{}: {}".format(msg_id, r.error))
-            keyhandle = None
+        pah = self.process_autocrypt_header(msg, From, peerstate, msg_date, msg_id)
+        if mime.is_encrypted(msg):
+            dec_msg = self.decrypt_mime(msg).dec_msg
+            gossip_pahs = self.process_gossip_headers(dec_msg, msg_date, msg_id)
         else:
-            try:
-                keyhandle = self.bingpg.import_keydata(r.keydata)
-            except self.bingpg.InvocationFailure:
-                keyhandle = None
-                r.error = "failed to import key"
-        peerstate.update_from_msg(
-            msg_id=msg_id, effective_date=msg_date,
-            prefer_encrypt=r.prefer_encrypt, keydata=r.keydata, keyhandle=keyhandle,
-        )
+            gossip_pahs = {}
+
         return ProcessIncomingResult(
             msg_id=msg_id,
             msg_date=msg_date,
-            pah=r,
+            pah=pah,
+            gossip_pahs=gossip_pahs,
             peerstate=peerstate,
             account=self,
         )
+
+    def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
+        pah = mime.parse_one_ac_header_from_msg(msg, [From])
+        if pah.error:
+            if "no valid Autocrypt" not in pah.error:
+                logging.error("{}: {}".format(msg_id, pah.error))
+            keyhandle = None
+        else:
+            keyhandle = self._import_key(pah)
+        peerstate.update_from_msg(
+            msg_id=msg_id, effective_date=msg_date,
+            prefer_encrypt=pah.prefer_encrypt,
+            keydata=pah.keydata, keyhandle=keyhandle,
+        )
+        return pah
+
+    def process_gossip_headers(self, msg, msg_date, msg_id):
+        """ process gossip headers from payload mime part of mail message
+        and update state information from any gossip header for the
+        To or Cc recipients of the msg.
+
+        :type msg: email.message.Message
+        :param msg: decrypted message returned from decrypt_mime as dec_msg
+        :rtype: ProcessIncomingResult
+        """
+        recipients = mime.get_target_emailadr(msg)
+        processed = {}
+        addr2pah = mime.get_gossip_headers_from_msg(msg)
+        for recipient in recipients:
+            pah = addr2pah.get(recipient)
+            if pah is not None:
+                peerstate = self.get_peerstate(recipient)
+                keyhandle = self._import_key(pah)
+                peerstate.update_from_msg_gossip(
+                    msg_id=msg_id, effective_date=msg_date,
+                    keydata=pah.keydata, keyhandle=keyhandle,
+                )
+                processed[recipient] = pah
+        return processed
+
+    def _import_key(self, pah):
+        try:
+            return self.bingpg.import_keydata(pah.keydata)
+        except self.bingpg.InvocationFailure:
+            pah.error = "failed to import key"
+            return None
 
     def process_outgoing(self, msg):
         """ add Autocrypt header to outgoing message.
@@ -357,12 +396,15 @@ class Account:
         """
         assert toaddrs, "requires non-empty recipient list"
         keyhandles = []
+        m = mime.make_content_message_from_email(msg)
         for addr in toaddrs:
-            kh = self.get_peerstate(addr).public_keyhandle
+            peer = self.get_peerstate(addr)
+            kh = peer.public_keyhandle
             assert kh, "keyhandle not found for: " + addr
             keyhandles.append(kh)
+            value = mime.make_ac_header_value(addr, peer.public_keydata)
+            m.add_header('Autocrypt-Gossip', value)
 
-        m = mime.make_content_message_from_email(msg)
         clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
@@ -381,11 +423,8 @@ class Account:
         :param msg: message to be decrypted
         :rtype: DecryptMimeResult
         """
-        assert msg.get_content_type() == "multipart/encrypted"
+        assert mime.is_encrypted(msg)
         parts = msg.get_payload()
-        assert len(parts) == 2
-        assert parts[0].get_content_type() == 'application/pgp-encrypted'
-        assert parts[1].get_content_type() == 'application/octet-stream'
         enc_data = parts[1].get_payload().encode("ascii")
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
@@ -422,6 +461,7 @@ class ProcessIncomingResult(object):
     peerstate = attrib()
     account = attrib()
     pah = attrib()
+    gossip_pahs = attrib()
 
 
 @attrs

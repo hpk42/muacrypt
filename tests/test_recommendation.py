@@ -7,19 +7,19 @@ from muacrypt import mime
 def send_ac_mail(sender, recipient, Date=None):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
-        Autocrypt=sender.make_ac_header(recipient.addr),
+        Autocrypt=sender.make_ac_header(sender.addr),
         Date=Date)
     recipient.process_incoming(mail)
 
 
-def send_enc_ac_mail(sender, recipient):
+def send_enc_ac_mail(sender, recipients):
+    addrs = [r.addr for r in recipients]
     msg = mime.gen_mail_msg(
-        From=sender.addr, To=[recipient.addr],
-        Autocrypt=sender.make_ac_header(recipient.addr))
-    r = sender.encrypt_mime(msg, [recipient.addr])
-    recipient.process_incoming(r.enc_msg)
-    r = recipient.decrypt_mime(r.enc_msg)
-    return r.dec_msg
+        From=sender.addr, To=addrs,
+        Autocrypt=sender.make_ac_header(sender.addr))
+    r = sender.encrypt_mime(msg, addrs)
+    for rec in recipients:
+        rec.process_incoming(r.enc_msg)
 
 
 def send_no_ac_mail(sender, recipient):
@@ -115,11 +115,25 @@ class TestRecommendation:
     def test_encrypt_replies_to_encrypted(self, account_maker):
         composer, peer = account_maker(), account_maker()
         send_ac_mail(composer, peer)
-        send_enc_ac_mail(peer, composer)
+        send_enc_ac_mail(peer, [composer])
         rec = get_recommendation(composer, peer, reply_to_enc=True)
         peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
         assert rec.target_keyhandles()[peer.addr] == peer_keyhandle
         assert rec.ui_recommendation() == 'encrypt'
+
+    def test_gossip_keys_recommendation(self, account_maker):
+        composer, peer1, peer2 = account_maker(), account_maker(), account_maker()
+        send_ac_mail(peer1, composer)
+        send_ac_mail(peer2, composer)
+        send_enc_ac_mail(composer, [peer1, peer2])
+        rec = get_recommendation(peer1, peer2, reply_to_enc=True)
+        # peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.ui_recommendation() == 'encrypt'
+        assert rec.target_keyhandles()[peer2.addr]
+        rec = get_recommendation(peer1, peer2, reply_to_enc=False)
+        # peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.ui_recommendation() == 'discourage'
+        assert rec.target_keyhandles()[peer2.addr]
 
     def test_disable_if_one_key_is_missing(self, account_maker):
         composer, peer = account_maker(), account_maker()
