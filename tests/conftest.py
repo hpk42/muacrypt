@@ -263,8 +263,9 @@ def account_maker(tmpdir, gpgpath):
         i = next(count)
         bname = u"ac%d" % i
         basedir = tmpdir.mkdir(bname).strpath
+        accountdir = os.path.join(basedir, "accountdir")
         states = States(basedir)
-        account = Account(states, bname, pluggy=make_plugin_manager())
+        account = Account(states, bname, pluggy=make_plugin_manager(accountdir))
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )

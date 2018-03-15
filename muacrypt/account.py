@@ -6,6 +6,7 @@ per-account basis. """
 
 from __future__ import unicode_literals
 
+import os
 import logging
 import re
 import shutil
@@ -92,8 +93,10 @@ class AccountManager(object):
         account = Account(self._states, account_name, pluggy=self.pluggy)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
-        self.pluggy.hook.instantiate_account(plugin_manager=pm,
-                basedir=os.path.join(self.dir, account_name))
+        self.pluggy.hook.instantiate_account(
+            plugin_manager=self.pluggy,
+            basedir=os.path.join(self.dir, account_name)
+        )
         return account
 
     def list_account_names(self):
