@@ -10,7 +10,7 @@ import pytest
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
-from muacrypt.account import AccountManager, Account
+from muacrypt.account import AccountManager, Account, make_plugin_manager
 from muacrypt.states import States
 
 
@@ -264,7 +264,7 @@ def account_maker(tmpdir, gpgpath):
         bname = u"ac%d" % i
         basedir = tmpdir.mkdir(bname).strpath
         states = States(basedir)
-        account = Account(states, bname)
+        account = Account(states, bname, pluggy=make_plugin_manager())
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )

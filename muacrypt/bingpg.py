@@ -171,6 +171,7 @@ class BinGPG(object):
         # open the process with a C locale, pipe everything
         env = os.environ.copy()
         env["LANG"] = "C"
+        env["LANGUAGE"] = "C"
         env["LC_ALL"] = "en_US.UTF-8"
         popen = Popen(args, stdout=PIPE, stderr=PIPE, stdin=PIPE, env=env)
 

@@ -15,11 +15,19 @@ import email
 import uuid
 import time
 from .bingpg import cached_property, BinGPG
-from . import mime
+from . import mime, hookspec
 from .states import States
 from .recommendation import Recommendation
 from .myattr import attrib_text, attrib_float
 import email.utils
+import pluggy
+
+
+def make_plugin_manager(dir):
+    pm = pluggy.PluginManager("muacrypt")
+    pm.add_hookspecs(hookspec)
+    pm.load_setuptools_entrypoints("muacrypt")
+    return pm
 
 
 def parse_date_to_float(date):
@@ -66,6 +74,7 @@ class AccountManager(object):
         self.dir = dir
         self._states = States(dir)
         self.accountmanager_state = self._states.get_accountmanager_state()
+        self.pluggy = make_plugin_manager(dir)
 
     def init(self):
         assert self.accountmanager_state.version is None
@@ -80,9 +89,11 @@ class AccountManager(object):
 
     def get_account(self, account_name="default", check=True):
         self._ensure_init()
-        account = Account(self._states, account_name)
+        account = Account(self._states, account_name, pluggy=self.pluggy)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
+        self.pluggy.hook.instantiate_account(plugin_manager=pm,
+                basedir=os.path.join(self.dir, account_name))
         return account
 
     def list_account_names(self):
@@ -187,12 +198,13 @@ class Account:
     settings as well as per-peer ones derived from Autocrypt headers).
     """
 
-    def __init__(self, states, name):
+    def __init__(self, states, name, pluggy):
         """ shallow initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
         assert name.isalnum(), name
         self.name = name
         self._states = states
+        self.pluggy = pluggy
         self.ownstate = self._states.get_ownstate(name)
 
     def __repr__(self):
@@ -311,6 +323,11 @@ class Account:
         if mime.is_encrypted(msg):
             dec_msg = self.decrypt_mime(msg).dec_msg
             gossip_pahs = self.process_gossip_headers(dec_msg, msg_date, msg_id)
+            self.pluggy.hook.process_incoming_gossip(
+                addr2pagh=gossip_pahs,
+                account_key=self.ownstate.keyhandle,
+                dec_msg=dec_msg
+            )
         else:
             gossip_pahs = {}
 
