@@ -15,10 +15,10 @@ class TestPluginHooks:
         class Plugin:
             @hookimpl
             def instantiate_account(self, plugin_manager, basedir):
-                assert plugin_manager == manage1.pluggy
+                assert plugin_manager == manage1.plugin_manager
                 l.append(basedir)
 
-        manage1.pluggy.register(Plugin())
+        manage1.plugin_manager.register(Plugin())
         account1 = manage1.get_account()
         assert len(l) == 1
         assert os.path.basename(l[0]) == account1.name
@@ -42,7 +42,7 @@ class TestPluginHooks:
             def process_incoming_gossip(self, addr2pagh, account_key, dec_msg):
                 l.append((addr2pagh, account_key, dec_msg))
 
-        rec1.pluggy.register(Plugin())
+        rec1.plugin_manager.register(Plugin())
         rec1.process_incoming(enc_msg)
         assert len(l) == 1
         addr2pagh, account_key, dec_msg = l[0]

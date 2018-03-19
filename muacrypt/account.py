@@ -75,7 +75,7 @@ class AccountManager(object):
         self.dir = dir
         self._states = States(dir)
         self.accountmanager_state = self._states.get_accountmanager_state()
-        self.pluggy = make_plugin_manager(dir)
+        self.plugin_manager = make_plugin_manager(dir)
 
     def init(self):
         assert self.accountmanager_state.version is None
@@ -90,11 +90,11 @@ class AccountManager(object):
 
     def get_account(self, account_name="default", check=True):
         self._ensure_init()
-        account = Account(self._states, account_name, pluggy=self.pluggy)
+        account = Account(self._states, account_name, plugin_manager=self.plugin_manager)
         if check and not account.exists():
             raise AccountNotFound("account {!r} not known".format(account_name))
-        self.pluggy.hook.instantiate_account(
-            plugin_manager=self.pluggy,
+        self.plugin_manager.hook.instantiate_account(
+            plugin_manager=self.plugin_manager,
             basedir=os.path.join(self.dir, account_name)
         )
         return account
@@ -201,13 +201,13 @@ class Account:
     settings as well as per-peer ones derived from Autocrypt headers).
     """
 
-    def __init__(self, states, name, pluggy):
+    def __init__(self, states, name, plugin_manager):
         """ shallow initializer. Call create() for initializing this
         account. exists() tells whether that has happened already. """
         assert name.isalnum(), name
         self.name = name
         self._states = states
-        self.pluggy = pluggy
+        self.plugin_manager = plugin_manager
         self.ownstate = self._states.get_ownstate(name)
 
     def __repr__(self):
@@ -326,7 +326,7 @@ class Account:
         if mime.is_encrypted(msg):
             dec_msg = self.decrypt_mime(msg).dec_msg
             gossip_pahs = self.process_gossip_headers(dec_msg, msg_date, msg_id)
-            self.pluggy.hook.process_incoming_gossip(
+            self.plugin_manager.hook.process_incoming_gossip(
                 addr2pagh=gossip_pahs,
                 account_key=self.ownstate.keyhandle,
                 dec_msg=dec_msg
