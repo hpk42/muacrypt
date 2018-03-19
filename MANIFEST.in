@@ -4,7 +4,7 @@ include *.txt
 include LICENSE
 include *.rst
 include tox.ini
-recursive-include tests *.eml
-recursive-include tests *.py
-recursive-include tests *.secretkey
+recursive-include test_muacrypt *.eml
+recursive-include test_muacrypt *.py
+recursive-include test_muacrypt *.secretkey
 

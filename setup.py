@@ -29,7 +29,7 @@ def main():
                      'Topic :: Utilities',
                      'Intended Audience :: Developers',
                      'Programming Language :: Python'],
-        packages=['muacrypt'],
+        packages=['muacrypt', 'test_muacrypt'],
         entry_points='''
             [console_scripts]
             muacrypt=muacrypt.cmdline:autocrypt_main
