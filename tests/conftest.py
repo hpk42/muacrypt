@@ -7,10 +7,11 @@ import shutil
 import os
 import itertools
 import pytest
+import pluggy
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
-from muacrypt.account import AccountManager, Account
+from muacrypt.account import AccountManager, Account, make_plugin_manager
 from muacrypt.states import States
 
 
@@ -20,6 +21,10 @@ def pytest_addoption(parser):
 
     parser.addoption("--with-gpg2", action="store_true",
                      help="run tests also with gpg2")
+
+    parser.addoption("--with-plugins", action="store_true",
+                     help="run tests with enabled plugins (usually they are not loaded "
+                          "during core tests")
 
 
 @pytest.fixture
@@ -44,6 +49,13 @@ def gpgpath(request):
     if path is None:
         pytest.skip("can not find executable: %s" % request.name)
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_setuptools_entrypoints(request, get_next_cache, monkeypatch):
+    if not request.config.getoption("--with-plugins"):
+        monkeypatch.setattr(pluggy.PluginManager, "load_setuptools_entrypoints",
+                            lambda self, name: None)
 
 
 @pytest.fixture(autouse=True)
@@ -263,8 +275,9 @@ def account_maker(tmpdir, gpgpath):
         i = next(count)
         bname = u"ac%d" % i
         basedir = tmpdir.mkdir(bname).strpath
+        accountdir = os.path.join(basedir, "accountdir")
         states = States(basedir)
-        account = Account(states, bname)
+        account = Account(states, bname, plugin_manager=make_plugin_manager(accountdir))
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )
