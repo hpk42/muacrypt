@@ -74,14 +74,16 @@ class TestPluginHooks:
                 l.append((account_key, msg))
                 msg["Plugin-Header"] = "My own header"
 
-        rec1.plugin_manager.register(Plugin())
+        sender.plugin_manager.register(Plugin())
 
         # send an encrypted mail from sender to both recipients
         enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
 
+
         assert len(l) == 1
         account_key, msg = l[0]
         assert account_key == sender.ownstate.keyhandle
-        assert msg["Message-Id"] == gossip_msg["Message-Id"]
-        dec_msg = rec1.decrypt_mime(msg).dec_msg
+        # assert msg["Message-Id"] == gossip_msg["Message-Id"]
+        rec1.process_incoming(enc_msg)
+        dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
         assert dec_msg["Plugin-Header"] == "My own header"
