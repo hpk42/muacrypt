@@ -1,7 +1,7 @@
 import os.path
 import pluggy
 
-from test_account import gen_ac_mail_msg
+from test_muacrypt.test_account import gen_ac_mail_msg
 
 
 hookimpl = pluggy.HookimplMarker("muacrypt")
