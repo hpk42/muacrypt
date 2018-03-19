@@ -32,7 +32,7 @@ script:
   - gpg2 --version
   - echo $PATH
   - which gpg2
-  - tox -e $TESTENV --recreate -- --no-test-cache --with-gpg2 tests/
+  - tox -e $TESTENV --recreate -- --no-test-cache --with-gpg2 test_muacrypt/
 
 #notifications:
 #  irc:
