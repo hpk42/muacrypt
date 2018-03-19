@@ -56,3 +56,32 @@ class TestPluginHooks:
 
         assert addr2pagh[rec1.addr].keydata == getpk(rec1)
         assert addr2pagh[rec2.addr].keydata == getpk(rec2)
+
+    def test_process_outgoing_calls_hook(self, account_maker):
+        sender = account_maker()
+        rec1, rec2 = account_maker(), account_maker()
+
+        # make sure sender has all keys
+        sender.process_incoming(gen_ac_mail_msg(rec1, sender))
+        sender.process_incoming(gen_ac_mail_msg(rec2, sender))
+        gossip_msg = gen_ac_mail_msg(sender, [rec1, rec2])
+
+        l = []
+
+        class Plugin:
+            @hookimpl
+            def process_outgoing_before_encryption(self, account_key, msg):
+                l.append((account_key, msg))
+                msg["Plugin-Header"] = "My own header"
+
+        rec1.plugin_manager.register(Plugin())
+
+        # send an encrypted mail from sender to both recipients
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
+
+        assert len(l) == 1
+        account_key, msg = l[0]
+        assert account_key == sender.ownstate.keyhandle
+        assert msg["Message-Id"] == gossip_msg["Message-Id"]
+        dec_msg = rec1.decrypt_mime(msg).dec_msg
+        assert dec_msg["Plugin-Header"] == "My own header"
