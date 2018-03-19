@@ -426,8 +426,9 @@ class Account:
             m.add_header('Autocrypt-Gossip', value)
 
         self.plugin_manager.hook.process_outgoing_before_encryption(
-                account_key=self.ownstate.keyhandle,
-                msg=m)
+            account_key=self.ownstate.keyhandle,
+            msg=m
+        )
 
         clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,

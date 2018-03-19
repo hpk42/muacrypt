@@ -79,11 +79,10 @@ class TestPluginHooks:
         # send an encrypted mail from sender to both recipients
         enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
 
-
         assert len(l) == 1
         account_key, msg = l[0]
         assert account_key == sender.ownstate.keyhandle
-        # assert msg["Message-Id"] == gossip_msg["Message-Id"]
+        assert enc_msg["Message-Id"] == gossip_msg["Message-Id"]
         rec1.process_incoming(enc_msg)
         dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
         assert dec_msg["Plugin-Header"] == "My own header"
