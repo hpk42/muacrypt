@@ -7,6 +7,7 @@ import shutil
 import os
 import itertools
 import pytest
+import pluggy
 from _pytest.pytester import LineMatcher
 from muacrypt.bingpg import find_executable, BinGPG
 from muacrypt import mime
@@ -20,6 +21,10 @@ def pytest_addoption(parser):
 
     parser.addoption("--with-gpg2", action="store_true",
                      help="run tests also with gpg2")
+
+    parser.addoption("--with-plugins", action="store_true",
+                     help="run tests with enabled plugins (usually they are not loaded "
+                          "during core tests")
 
 
 @pytest.fixture
@@ -44,6 +49,13 @@ def gpgpath(request):
     if path is None:
         pytest.skip("can not find executable: %s" % request.name)
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_setuptools_entrypoints(request, get_next_cache, monkeypatch):
+    if not request.config.getoption("--with-plugins"):
+        monkeypatch.setattr(pluggy.PluginManager, "load_setuptools_entrypoints",
+                            lambda self, name: None)
 
 
 @pytest.fixture(autouse=True)
