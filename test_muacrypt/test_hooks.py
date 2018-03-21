@@ -83,6 +83,7 @@ class TestPluginHooks:
         account_key, msg = l[0]
         assert account_key == sender.ownstate.keyhandle
         assert enc_msg["Message-Id"] == gossip_msg["Message-Id"]
+        assert msg['to'] == gossip_msg['to']
         rec1.process_incoming(enc_msg)
         dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
         assert dec_msg["Plugin-Header"] == "My own header"

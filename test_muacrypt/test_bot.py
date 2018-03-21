@@ -192,6 +192,7 @@ class TestBot:
         assert "no Autocrypt header" not in body
         assert "prefer_encrypt=nopreference" in body
         assert "recommendation is encrypt" in body
+        assert 0
 
     def test_encrypted_if_mutual(self, bcmd, ac_sender, linematch):
         bcmd.run_ok(["mod-account", "default", "--prefer-encrypt=mutual"])
