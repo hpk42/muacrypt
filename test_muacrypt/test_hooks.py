@@ -72,10 +72,10 @@ class TestPluginHooks:
         class Plugin:
             @hookimpl
             def process_before_encryption(self, sender_addr, sender_keyhandle,
-                                          recipient2keydata, payload_msg):
+                                          recipient2keydata, payload_msg, _account):
                 l.append((
                     sender_addr, sender_keyhandle,
-                    recipient2keydata, payload_msg,
+                    recipient2keydata, payload_msg, _account,
                 ))
                 payload_msg["My-Plugin-Header"] = "My own header"
 
@@ -86,7 +86,8 @@ class TestPluginHooks:
 
         assert len(l) == 1
         sender_addr, sender_keyhandle = l[0][:2]
-        recipient2keydata, payload_msg = l[0][2:]
+        recipient2keydata, payload_msg, _account = l[0][2:]
+        assert _account == sender
         assert sender_keyhandle == sender.ownstate.keyhandle
         assert sender_addr == sender.addr
         assert len(recipient2keydata) == 2

@@ -433,6 +433,7 @@ class Account:
             sender_keyhandle=self.ownstate.keyhandle,
             recipient2keydata=recipient2keydata,
             payload_msg=clear_payload_msg,
+            _account=self,
         )
 
         clear_data = mime.msg2bytes(clear_payload_msg)  # .replace(b'\n', b'\r\n') TBD for RFC?
