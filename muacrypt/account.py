@@ -416,21 +416,25 @@ class Account:
         """
         assert toaddrs, "requires non-empty recipient list"
         keyhandles = []
-        m = mime.make_content_message_from_email(msg)
+        recipient2keydata = {}
+        clear_payload_msg = mime.make_content_message_from_email(msg)
         for addr in toaddrs:
             peer = self.get_peerstate(addr)
             kh = peer.public_keyhandle
             assert kh, "keyhandle not found for: " + addr
             keyhandles.append(kh)
+            recipient2keydata[addr] = peer.public_keydata
             value = mime.make_ac_header_value(addr, peer.public_keydata)
-            m.add_header('Autocrypt-Gossip', value)
+            clear_payload_msg.add_header('Autocrypt-Gossip', value)
 
-        self.plugin_manager.hook.process_outgoing_before_encryption(
-            account_key=self.ownstate.keyhandle,
-            msg=m
+        self.plugin_manager.hook.process_before_encryption(
+            sender_addr=mime.parse_email_addr(msg["From"]),
+            sender_keyhandle=self.ownstate.keyhandle,
+            recipient2keydata=recipient2keydata,
+            payload_msg=clear_payload_msg,
         )
 
-        clear_data = mime.msg2bytes(m)  # .replace(b'\n', b'\r\n') TBD for RFC compliance
+        clear_data = mime.msg2bytes(clear_payload_msg)  # .replace(b'\n', b'\r\n') TBD for RFC?
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
         enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
