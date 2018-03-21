@@ -23,10 +23,10 @@ def attrib_bytes():
 
 
 def attrib_text_or_none():
-    return attrib(validator=v.instance_of((six.text_type, type(None))),
+    return attrib(validator=v.optional(v.instance_of(six.text_type)),
                   default=None)
 
 
 def attrib_bytes_or_none():
-    return attrib(validator=v.instance_of((bytes, type(None))),
+    return attrib(validator=v.optional(v.instance_of(bytes)),
                   default=None)
