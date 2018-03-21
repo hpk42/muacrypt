@@ -281,6 +281,7 @@ def account_maker(tmpdir, gpgpath):
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )
+        account._fulladdr = "%s <%s>" % (bname, account.addr)
         return account
     return maker
 

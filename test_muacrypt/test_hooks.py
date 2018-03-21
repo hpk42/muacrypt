@@ -7,6 +7,10 @@ from test_muacrypt.test_account import gen_ac_mail_msg
 hookimpl = pluggy.HookimplMarker("muacrypt")
 
 
+def get_own_pubkey(account):
+    return account.bingpg.get_public_keydata(account.ownstate.keyhandle)
+
+
 class TestPluginHooks:
     def test_get_account_pluggy_instantiate_account(self, manager_maker, datadir):
         manage1 = manager_maker()
@@ -51,11 +55,8 @@ class TestPluginHooks:
         assert rec1.addr in addr2pagh
         assert rec2.addr in addr2pagh
 
-        def getpk(account):
-            return account.bingpg.get_public_keydata(account.ownstate.keyhandle)
-
-        assert addr2pagh[rec1.addr].keydata == getpk(rec1)
-        assert addr2pagh[rec2.addr].keydata == getpk(rec2)
+        assert addr2pagh[rec1.addr].keydata == get_own_pubkey(rec1)
+        assert addr2pagh[rec2.addr].keydata == get_own_pubkey(rec2)
 
     def test_process_outgoing_calls_hook(self, account_maker):
         sender = account_maker()
@@ -70,19 +71,29 @@ class TestPluginHooks:
 
         class Plugin:
             @hookimpl
-            def process_outgoing_before_encryption(self, account_key, msg):
-                l.append((account_key, msg))
-                msg["Plugin-Header"] = "My own header"
+            def process_before_encryption(self, sender_addr, sender_keyhandle,
+                                          recipient2keydata, payload_msg, _account):
+                l.append((
+                    sender_addr, sender_keyhandle,
+                    recipient2keydata, payload_msg, _account,
+                ))
+                payload_msg["My-Plugin-Header"] = "My own header"
 
         sender.plugin_manager.register(Plugin())
 
         # send an encrypted mail from sender to both recipients
-        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1._fulladdr, rec2.addr]).enc_msg
 
         assert len(l) == 1
-        account_key, msg = l[0]
-        assert account_key == sender.ownstate.keyhandle
+        sender_addr, sender_keyhandle = l[0][:2]
+        recipient2keydata, payload_msg, _account = l[0][2:]
+        assert _account == sender
+        assert sender_keyhandle == sender.ownstate.keyhandle
+        assert sender_addr == sender.addr
+        assert len(recipient2keydata) == 2
+        assert recipient2keydata[rec1.addr] == get_own_pubkey(rec1)
+        assert recipient2keydata[rec2.addr] == get_own_pubkey(rec2)
         assert enc_msg["Message-Id"] == gossip_msg["Message-Id"]
         rec1.process_incoming(enc_msg)
         dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
-        assert dec_msg["Plugin-Header"] == "My own header"
+        assert dec_msg["My-Plugin-Header"] == "My own header"
