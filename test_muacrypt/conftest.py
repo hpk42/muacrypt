@@ -52,7 +52,7 @@ def gpgpath(request):
 
 
 @pytest.fixture(autouse=True)
-def no_setuptools_entrypoints(request, get_next_cache, monkeypatch):
+def no_setuptools_entrypoints(request, monkeypatch):
     if not request.config.getoption("--with-plugins"):
         monkeypatch.setattr(pluggy.PluginManager, "load_setuptools_entrypoints",
                             lambda self, name: None)
