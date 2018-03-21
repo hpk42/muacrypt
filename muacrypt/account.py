@@ -418,6 +418,7 @@ class Account:
         keyhandles = []
         recipient2keydata = {}
         clear_payload_msg = mime.make_content_message_from_email(msg)
+        toaddrs = [mime.parse_email_addr(t) for t in toaddrs]
         for addr in toaddrs:
             peer = self.get_peerstate(addr)
             kh = peer.public_keyhandle

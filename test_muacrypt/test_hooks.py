@@ -82,7 +82,7 @@ class TestPluginHooks:
         sender.plugin_manager.register(Plugin())
 
         # send an encrypted mail from sender to both recipients
-        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1._fulladdr, rec2.addr]).enc_msg
 
         assert len(l) == 1
         sender_addr, sender_keyhandle = l[0][:2]
