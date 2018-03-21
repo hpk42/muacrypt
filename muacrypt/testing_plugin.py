@@ -282,6 +282,10 @@ def account_maker(tmpdir, gpgpath):
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )
         account._fulladdr = "%s <%s>" % (bname, account.addr)
+        account.plugin_manager.hook.instantiate_account(
+            plugin_manager=account.plugin_manager,
+            basedir=basedir,
+        )
         return account
     return maker
 
