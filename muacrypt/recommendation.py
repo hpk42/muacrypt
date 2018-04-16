@@ -44,20 +44,13 @@ class PeerRecommendation:
             return 'encrypt'
         return pre
 
-    def _get_direct_keyhandle(self):
-        return getattr(self.peer, 'public_keyhandle', None)
-
     def target_keyhandle(self):
-        kh = self._get_direct_keyhandle()
-        if kh:
-            return kh
-        ge = self.peer.latest_gossip_entry()
-        return getattr(ge, "keyhandle", None)
+        return getattr(self.peer.entry_for_encryption(), "keyhandle", None)
 
     def _preliminary_recommendation(self):
         if self.target_keyhandle() is None:
             return 'disable'
-        if not self._get_direct_keyhandle():
+        if not self.peer.has_direct_key():
             return 'discourage'
         timeout = 35 * 24 * 60 * 60
         if (self.peer.last_seen - self.peer.autocrypt_timestamp >
