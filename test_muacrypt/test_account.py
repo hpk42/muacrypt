@@ -273,7 +273,29 @@ class TestAccount:
         ge = ps.latest_gossip_entry()
         assert ge.keyhandle == rec2.ownstate.keyhandle
         assert r.gossip_pahs[rec2.addr].keydata == ge.keydata
-        assert not ps.public_keydata  # no direct key
+        assert not ps._latest_ac_entry()  # no direct key
+        assert not ps.prefer_encrypt
+
+    def test_using_gossip_key(self, account_maker):
+        sender = account_maker()
+        rec1, rec2 = account_maker(), account_maker()
+
+        # make sure sender has all keys
+        sender.process_incoming(gen_ac_mail_msg(rec1, sender))
+        sender.process_incoming(gen_ac_mail_msg(rec2, sender))
+
+        # send an encrypted mail from sender to both recipients
+        gossip_msg = gen_ac_mail_msg(sender, [rec1, rec2])
+        enc_msg = sender.encrypt_mime(gossip_msg, [rec1.addr, rec2.addr]).enc_msg
+        rec1.process_incoming(enc_msg)
+
+        # reply as one of the recipients
+        reply_msg = gen_ac_mail_msg(rec1, [sender, rec2])
+        enc_reply = rec1.encrypt_mime(reply_msg, [sender.addr, rec2.addr]).enc_msg
+        r = sender.process_incoming(enc_reply)
+
+        # gossiping the gossiped key
+        assert r.gossip_pahs[rec2.addr].keydata
 
     def test_gossip_leaves_direct_key_alone(self, account_maker):
         sender = account_maker()

@@ -126,15 +126,26 @@ class PeerState(object):
 
     @property
     def public_keyhandle(self):
-        return getattr(self._latest_ac_entry(), "keyhandle", '')
+        return getattr(self.entry_for_encryption(), "keyhandle", '')
 
     @property
     def public_keydata(self):
-        return getattr(self._latest_ac_entry(), "keydata", b'')
+        return getattr(self.entry_for_encryption(), "keydata", b'')
+
+    def has_direct_key(self):
+        return bool(getattr(self._latest_ac_entry(), "keyhandle", ''))
+
+    def entry_for_encryption(self):
+        direct = self._latest_ac_entry()
+        # TODO: perform propper checks on usability of ac entry here
+        if getattr(direct, "keyhandle", None):
+            return direct
+        else:
+            return self.latest_gossip_entry()
 
     @property
     def prefer_encrypt(self):
-        return getattr(self._latest_ac_entry(), "prefer_encrypt", '')
+        return getattr(self.entry_for_encryption(), "prefer_encrypt", '')
 
     def _latest_ac_entry(self):
         """ Return latest message with Autocrypt header. """
