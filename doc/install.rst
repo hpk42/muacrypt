@@ -19,8 +19,8 @@ in your ``PATH`` variable.
 See :doc:`getting started with the command line <cmdline>`.
 
 
-installation for development
-============================
+Installation for development
+----------------------------
 
 If you plan to work/modify the sources and have
 a github checkout we recommend to create and activate

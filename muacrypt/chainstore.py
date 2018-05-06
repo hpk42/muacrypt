@@ -12,6 +12,7 @@ from __future__ import unicode_literals, print_function
 
 import os
 import time
+import sys
 import marshal
 import hashlib
 from pprint import pprint
@@ -176,6 +177,7 @@ class Chain(object):
         tag = getattr(entryclass, "TAG", None)
         for block in self._chainstore.iter_blocks():
             if block and (tag is None or block.type == tag):
+                print (block.args, file=sys.stderr)
                 yield entryclass(*block.args)
 
     def latest_entry_of(self, entryclass):
