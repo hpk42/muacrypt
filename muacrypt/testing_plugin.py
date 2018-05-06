@@ -152,6 +152,18 @@ class ClickRunner:
                 res.exit_code, code, res.output))
         return _perform_match(res.output, fnl)
 
+    def parse_recommendation(self, account_name, adrlist):
+        out = self.run_ok(["recommend", account_name] + list(adrlist))
+        return out.splitlines()[0].strip()
+
+    def send_mail(self, sender, receivers, ac=True):
+        sender_header = self.run_ok(["make-header", "--val", sender])
+        msg = mime.gen_mail_msg(From=sender, To=receivers, _dto=True)
+        if ac and sender_header:
+            msg["Autocrypt"] = sender_header
+        for rec in receivers:
+            self.run_ok(["process-incoming"], input=msg.as_string())
+
 
 def _perform_match(output, fnl):
     __tracebackhide__ = True

@@ -239,31 +239,40 @@ class TestRecommendation:
         mycmd.run_ok(["add-account", "home"])
         mycmd.run_ok(["recommend", "home", "unknown@email.org"])
 
-    def test_recommend_one(self, mycmd, account_maker):
+    def test_recommend_one(self, mycmd):
         addr1 = "a@a.org"
         addr2 = "b@b.org"
         mycmd.run_ok(["add-account", "ac1", "--email-regex", addr1])
         mycmd.run_ok(["add-account", "ac2", "--email-regex", addr2])
 
-        def send_one_mail(ac=True):
-            msg = mime.gen_mail_msg(From=addr2, To=[addr1], _dto=True)
-            if ac:
-                msg["Autocrypt"] = \
-                    mycmd.run_ok(["make-header", "--val", addr2])
-            mycmd.run_ok(["process-incoming"], input=msg.as_string())
-
-        send_one_mail()
-        out = mycmd.run_ok(["recommend", "ac1", addr2])
-        assert out.splitlines()[0].strip() == "available"
+        mycmd.send_mail(addr2, [addr1])
+        assert "available" == mycmd.parse_recommendation("ac1", [addr2])
 
         # switch addr2 and addr1 prefer_encrypt to "mutual", send a mail
         mycmd.run_ok(["mod-account", "ac1", "--prefer-encrypt", "mutual"])
         mycmd.run_ok(["mod-account", "ac2", "--prefer-encrypt", "mutual"])
-        send_one_mail()
-        out = mycmd.run_ok(["recommend", "ac1", addr2])
-        assert out.splitlines()[0].strip() == "encrypt"
+        mycmd.send_mail(addr2, [addr1])
+        assert "encrypt" == mycmd.parse_recommendation("ac1", [addr2])
 
         # send a non-ac mail and ask recommend again
-        send_one_mail(ac=False)
-        out = mycmd.run_ok(["recommend", "ac1", addr2])
-        assert out.splitlines()[0].strip() == "available"
+        mycmd.send_mail(addr2, [addr1], ac=False)
+        assert "available" == mycmd.parse_recommendation("ac1", [addr2])
+
+    def test_recommend_two(self, mycmd):
+        addrs = []
+        for i in range(1, 4):
+            addr = "%d@x.org" % i
+            mycmd.run_ok(["add-account", "ac%d" % i, "--email-regex", addr])
+            addrs.append(addr)
+        addr1, addr2, addr3 = addrs
+
+        mycmd.send_mail(addr2, [addr1])
+        mycmd.send_mail(addr3, [addr1])
+        assert "available" == mycmd.parse_recommendation("ac1", [addr2, addr2])
+
+        # switch all accounts to mutual
+        for name in "ac1 ac2 ac2".split():
+            mycmd.run_ok(["mod-account", name, "--prefer-encrypt", "mutual"])
+        mycmd.send_mail(addr2, [addr1])
+        mycmd.send_mail(addr3, [addr1])
+        assert "encrypt" == mycmd.parse_recommendation("ac1", [addr2, addr2])

@@ -187,7 +187,7 @@ def make_header(ctx, emailadr, val):
 
 @mycommand("recommend")
 @click.argument("account_name", type=str, required=True)
-@click.argument("emailadr", type=click.STRING)
+@click.argument("emailadr", type=click.STRING, nargs=-1)
 @click.pass_context
 def recommend(ctx, account_name, emailadr):
     """print AC Level 1 recommendation for sending from an
@@ -196,7 +196,7 @@ def recommend(ctx, account_name, emailadr):
     or "encrypt". Subsequent lines may contain additional information.
     """
     account = get_account(ctx, account_name)
-    recommend = account.get_recommendation([emailadr])
+    recommend = account.get_recommendation(list(emailadr))
     click.echo(recommend.ui_recommendation())
 
 
