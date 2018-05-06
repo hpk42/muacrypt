@@ -54,10 +54,20 @@ class TestRecommendation:
 
     def test_disable_after_receiving_no_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
+        rec = get_recommendation(composer, peer)
+        assert rec.ui_recommendation() == 'disable'
+
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
         assert rec.target_keyhandles()[peer.addr] is None
-        assert rec.ui_recommendation() == 'disable'
+
+    def test_available_after_receiving_no_ac_mail_after_ac_mail(self, account_maker):
+        composer, peer = account_maker(), account_maker()
+        send_ac_mail(peer, composer)
+        send_no_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer)
+        assert rec.ui_recommendation() == 'available'
+        assert rec.target_keyhandles()[peer.addr]
 
     def test_available_long_after_receiving_ac_mail(self, account_maker):
         long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
@@ -87,6 +97,13 @@ class TestRecommendation:
         peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
         assert rec.target_keyhandles()[peer.addr] == peer_keyhandle
         assert rec.ui_recommendation() == 'encrypt'
+
+        # send a mail without AC header and see that we get "available"
+        send_no_ac_mail(peer, composer)
+        rec = get_recommendation(composer, peer)
+        peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
+        assert rec.target_keyhandles()[peer.addr] == peer_keyhandle
+        assert rec.ui_recommendation() == 'available'
 
     def test_available_if_one_peer_without_prefer_encrypt(self, account_maker):
         composer, peer = account_maker(), account_maker()

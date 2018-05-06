@@ -8,6 +8,7 @@
 
 - parse gossip headers with the bot.
 
+- refine recommendations and add command line call
 
 
 

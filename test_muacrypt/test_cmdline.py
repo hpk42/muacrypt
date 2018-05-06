@@ -232,3 +232,38 @@ class TestProcessOutgoing:
         # make sure unknown option is passed to pipe
         assert "-f" in call.args
         assert "--qwe" in call.args
+
+
+class TestRecommendation:
+    def test_recommend_empty(self, mycmd):
+        mycmd.run_ok(["add-account", "home"])
+        mycmd.run_ok(["recommend", "home", "unknown@email.org"])
+
+    def test_recommend_one(self, mycmd, account_maker):
+        addr1 = "a@a.org"
+        addr2 = "b@b.org"
+        mycmd.run_ok(["add-account", "ac1", "--email-regex", addr1])
+        mycmd.run_ok(["add-account", "ac2", "--email-regex", addr2])
+
+        def send_one_mail(ac=True):
+            msg = mime.gen_mail_msg(From=addr2, To=[addr1], _dto=True)
+            if ac:
+                msg["Autocrypt"] = \
+                    mycmd.run_ok(["make-header", "--val", addr2])
+            mycmd.run_ok(["process-incoming"], input=msg.as_string())
+
+        send_one_mail()
+        out = mycmd.run_ok(["recommend", "ac1", addr2])
+        assert out.splitlines()[0].strip() == "available"
+
+        # switch addr2 and addr1 prefer_encrypt to "mutual", send a mail
+        mycmd.run_ok(["mod-account", "ac1", "--prefer-encrypt", "mutual"])
+        mycmd.run_ok(["mod-account", "ac2", "--prefer-encrypt", "mutual"])
+        send_one_mail()
+        out = mycmd.run_ok(["recommend", "ac1", addr2])
+        assert out.splitlines()[0].strip() == "encrypt"
+
+        # send a non-ac mail and ask recommend again
+        send_one_mail(ac=False)
+        out = mycmd.run_ok(["recommend", "ac1", addr2])
+        assert out.splitlines()[0].strip() == "available"
