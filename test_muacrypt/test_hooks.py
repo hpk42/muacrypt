@@ -2,6 +2,7 @@ import os.path
 import pluggy
 
 from test_muacrypt.test_account import gen_ac_mail_msg
+from muacrypt.cmdline import make_plugin_manager
 
 
 hookimpl = pluggy.HookimplMarker("muacrypt")
@@ -97,3 +98,17 @@ class TestPluginHooks:
         rec1.process_incoming(enc_msg)
         dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
         assert dec_msg["My-Plugin-Header"] == "My own header"
+
+    def test_add_subcommands(self, account_maker):
+        pm = make_plugin_manager()
+
+        l = []
+
+        class Plugin:
+            @hookimpl
+            def add_subcommands(self, command_group):
+                l.append(1)
+
+        pm.register(Plugin())
+        pm.hook.add_subcommands(command_group=[])
+        assert len(l) == 1

@@ -10,6 +10,8 @@
 
 - refine recommendations and add command line call
 
+- add way to add subcommands from a plugin
+
 
 
 0.8.0.dev4

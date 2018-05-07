@@ -9,13 +9,14 @@ import os
 import sys
 import subprocess
 import click
+import pluggy
 from .cmdline_utils import (
     get_account, get_account_manager, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
 from .account import AccountManager  # , AccountNotFound
 from .bingpg import find_executable
-from . import mime
+from . import mime, hookspec
 from .bot import bot_reply
 
 
@@ -23,13 +24,13 @@ from .bot import bot_reply
 @click.option("--basedir", type=click.Path(),
               default=click.get_app_dir("muacrypt"),
               envvar="MUACRYPT_BASEDIR",
-              help="directory where muacrypt state is statesd")
+              help="directory where muacrypt state is stored")
 @click.version_option()
 @click.pass_context
 def autocrypt_main(context, basedir):
     """access and manage Autocrypt keys, options, headers."""
     basedir = os.path.abspath(os.path.expanduser(basedir))
-    context.account_manager = AccountManager(basedir)
+    context.account_manager = AccountManager(basedir, _pluginmanager)
 
 
 @mycommand("destroy-all")
@@ -398,3 +399,15 @@ autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 autocrypt_main.add_command(bot_reply)
 autocrypt_main.add_command(destroy_all)
+
+
+# we need a plugin manager early to add sub commands
+def make_plugin_manager():
+    pm = pluggy.PluginManager("muacrypt")
+    pm.add_hookspecs(hookspec)
+    pm.load_setuptools_entrypoints("muacrypt")
+    pm.hook.add_subcommands(command_group=autocrypt_main)
+    return pm
+
+
+_pluginmanager = make_plugin_manager()

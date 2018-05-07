@@ -4,6 +4,11 @@ hookspec = pluggy.HookspecMarker("muacrypt")
 
 
 @hookspec
+def add_subcommands(command_group):
+    """add click sub commands to command group. """
+
+
+@hookspec
 def instantiate_account(plugin_manager, basedir):
     """called with the configuration dir"""
 

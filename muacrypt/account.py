@@ -16,19 +16,11 @@ import email
 import uuid
 import time
 from .bingpg import cached_property, BinGPG
-from . import mime, hookspec
+from . import mime
 from .states import States
 from .recommendation import Recommendation
 from .myattr import attrib_text, attrib_float
 import email.utils
-import pluggy
-
-
-def make_plugin_manager(dir):
-    pm = pluggy.PluginManager("muacrypt")
-    pm.add_hookspecs(hookspec)
-    pm.load_setuptools_entrypoints("muacrypt")
-    return pm
 
 
 def parse_date_to_float(date):
@@ -65,17 +57,20 @@ class AccountNotFound(AccountException):
 
 class AccountManager(object):
     """ Manage multiple accounts and route in/out messages to the appropriate account. """
-    def __init__(self, dir):
+    def __init__(self, dir, plugin_manager):
         """ Initialize multi-account configuration.
 
         :type dir: unicode
         :param dir:
              directory in which muacrypt will states state.
+        :type plugin_manager: pluggy.PluginManager
+        :param plugin_manager:
+             a plugin manager instance with hooks registered
         """
         self.dir = dir
         self._states = States(dir)
         self.accountmanager_state = self._states.get_accountmanager_state()
-        self.plugin_manager = make_plugin_manager(dir)
+        self.plugin_manager = plugin_manager
 
     def init(self):
         assert self.accountmanager_state.version is None
