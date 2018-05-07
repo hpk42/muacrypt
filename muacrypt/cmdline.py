@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
-"""Autocrypt Command line implementation.
+"""Muacrypt Command line implementation.
 """
 from __future__ import print_function
 
