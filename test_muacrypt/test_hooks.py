@@ -1,5 +1,4 @@
 import os.path
-import pluggy
 
 from test_muacrypt.test_account import gen_ac_mail_msg
 from muacrypt.cmdline import make_plugin_manager
