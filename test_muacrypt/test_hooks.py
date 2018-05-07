@@ -106,9 +106,9 @@ class TestPluginHooks:
 
         class Plugin:
             @hookimpl
-            def add_subcommands(self, command_group):
+            def add_subcommands(self, command_group, plugin_manager):
                 l.append(1)
 
         pm.register(Plugin())
-        pm.hook.add_subcommands(command_group=[])
+        pm.hook.add_subcommands(plugin_manager=pm, command_group=[])
         assert len(l) == 1

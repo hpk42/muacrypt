@@ -406,7 +406,7 @@ def make_plugin_manager():
     pm = pluggy.PluginManager("muacrypt")
     pm.add_hookspecs(hookspec)
     pm.load_setuptools_entrypoints("muacrypt")
-    pm.hook.add_subcommands(command_group=autocrypt_main)
+    pm.hook.add_subcommands(plugin_manager=pm, command_group=autocrypt_main)
     return pm
 
 
