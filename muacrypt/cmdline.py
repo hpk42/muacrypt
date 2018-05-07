@@ -31,6 +31,7 @@ def autocrypt_main(context, basedir):
     """access and manage Autocrypt keys, options, headers."""
     basedir = os.path.abspath(os.path.expanduser(basedir))
     context.account_manager = AccountManager(basedir, _pluginmanager)
+    context.plugin_manager = _pluginmanager
 
 
 @mycommand("destroy-all")

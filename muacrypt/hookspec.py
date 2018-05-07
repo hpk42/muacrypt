@@ -1,6 +1,7 @@
 import pluggy
 
 hookspec = pluggy.HookspecMarker("muacrypt")
+hookimpl = pluggy.HookimplMarker("muacrypt")
 
 
 @hookspec
