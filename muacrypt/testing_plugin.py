@@ -156,9 +156,9 @@ class ClickRunner:
         out = self.run_ok(["recommend", account_name] + list(adrlist))
         return out.splitlines()[0].strip()
 
-    def send_mail(self, sender, receivers, ac=True):
+    def send_mail(self, sender, receivers, ac=True, Date=None):
         sender_header = self.run_ok(["make-header", "--val", sender])
-        msg = mime.gen_mail_msg(From=sender, To=receivers, _dto=True)
+        msg = mime.gen_mail_msg(From=sender, To=receivers, Date=Date, _dto=True)
         if ac and sender_header:
             msg["Autocrypt"] = sender_header
         for rec in receivers:

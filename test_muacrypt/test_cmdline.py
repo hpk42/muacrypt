@@ -245,17 +245,17 @@ class TestRecommendation:
         mycmd.run_ok(["add-account", "ac1", "--email-regex", addr1])
         mycmd.run_ok(["add-account", "ac2", "--email-regex", addr2])
 
-        mycmd.send_mail(addr2, [addr1])
+        mycmd.send_mail(addr2, [addr1], Date=0)
         assert "available" == mycmd.parse_recommendation("ac1", [addr2])
 
         # switch addr2 and addr1 prefer_encrypt to "mutual", send a mail
         mycmd.run_ok(["mod-account", "ac1", "--prefer-encrypt", "mutual"])
         mycmd.run_ok(["mod-account", "ac2", "--prefer-encrypt", "mutual"])
-        mycmd.send_mail(addr2, [addr1])
+        mycmd.send_mail(addr2, [addr1], Date=1)
         assert "encrypt" == mycmd.parse_recommendation("ac1", [addr2])
 
         # send a non-ac mail and ask recommend again
-        mycmd.send_mail(addr2, [addr1], ac=False)
+        mycmd.send_mail(addr2, [addr1], ac=False, Date=2)
         assert "available" == mycmd.parse_recommendation("ac1", [addr2])
 
     def test_recommend_two(self, mycmd):

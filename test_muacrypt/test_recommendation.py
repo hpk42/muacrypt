@@ -1,30 +1,45 @@
 # -*- coding: utf-8 -*-
 # vim:ts=4:sw=4:expandtab
 
+import itertools
 from muacrypt import mime
+
+test_sendcount = itertools.count()
+
+
+def get_testdate(Date):
+    if Date is None:
+        Date = next(test_sendcount)
+    return Date
+
+
+def get_testdate_50daysago():
+    return get_testdate(-3600 * 24 * 50)
 
 
 def send_ac_mail(sender, recipient, Date=None):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
         Autocrypt=sender.make_ac_header(sender.addr),
-        Date=Date)
+        Date=get_testdate(Date))
     recipient.process_incoming(mail)
 
 
-def send_enc_ac_mail(sender, recipients):
+def send_enc_ac_mail(sender, recipients, Date=None):
     addrs = [r.addr for r in recipients]
     msg = mime.gen_mail_msg(
         From=sender.addr, To=addrs,
-        Autocrypt=sender.make_ac_header(sender.addr))
+        Autocrypt=sender.make_ac_header(sender.addr),
+        Date=get_testdate(Date))
     r = sender.encrypt_mime(msg, addrs)
     for rec in recipients:
         rec.process_incoming(r.enc_msg)
 
 
-def send_no_ac_mail(sender, recipient):
+def send_no_ac_mail(sender, recipient, Date=None):
     mail = mime.gen_mail_msg(
         From=sender.addr, To=[recipient.addr],
+        Date=get_testdate(Date),
     )
     recipient.process_incoming(mail)
 
@@ -70,9 +85,8 @@ class TestRecommendation:
         assert rec.target_keyhandles()[peer.addr]
 
     def test_available_long_after_receiving_ac_mail(self, account_maker):
-        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
         composer, peer = account_maker(), account_maker()
-        send_ac_mail(peer, composer, Date=long_ago)
+        send_ac_mail(peer, composer, Date=get_testdate_50daysago())
         rec = get_recommendation(composer, peer)
         peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
         assert rec.target_keyhandles()[peer.addr] == peer_keyhandle
@@ -80,8 +94,7 @@ class TestRecommendation:
 
     def test_discourage_on_outdated_ac_header(self, account_maker):
         composer, peer = account_maker(), account_maker()
-        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
-        send_ac_mail(peer, composer, Date=long_ago)
+        send_ac_mail(peer, composer, Date=get_testdate_50daysago())
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
         peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle
@@ -164,9 +177,8 @@ class TestRecommendation:
     def test_discourage_if_one_key_is_outdated(self, account_maker):
         composer, peer = account_maker(), account_maker()
         discourage_peer = account_maker()
-        long_ago = 'Sun, 15 Jan 2017 15:00:00 -0000'
         send_ac_mail(peer, composer)
-        send_ac_mail(discourage_peer, composer, Date=long_ago)
+        send_ac_mail(discourage_peer, composer, Date=get_testdate_50daysago())
         send_no_ac_mail(discourage_peer, composer)
         rec = get_recommendation(composer, {peer, discourage_peer})
         peer_keyhandle = composer.get_peerstate(peer.addr).public_keyhandle

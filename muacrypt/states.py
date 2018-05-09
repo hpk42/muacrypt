@@ -168,7 +168,7 @@ class PeerState(object):
         if effective_date < self.autocrypt_timestamp:
             return
         if not keydata:
-            if effective_date >= self.last_seen:
+            if effective_date > self.last_seen:
                 self._append_noac_entry(
                     msg_id=msg_id, msg_date=effective_date,
                 )
