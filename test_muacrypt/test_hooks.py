@@ -1,10 +1,8 @@
 import os.path
-import pluggy
 
 from test_muacrypt.test_account import gen_ac_mail_msg
-
-
-hookimpl = pluggy.HookimplMarker("muacrypt")
+from muacrypt.cmdline import make_plugin_manager
+from muacrypt.hookspec import hookimpl
 
 
 def get_own_pubkey(account):
@@ -97,3 +95,17 @@ class TestPluginHooks:
         rec1.process_incoming(enc_msg)
         dec_msg = rec1.decrypt_mime(enc_msg).dec_msg
         assert dec_msg["My-Plugin-Header"] == "My own header"
+
+    def test_add_subcommands(self, account_maker):
+        pm = make_plugin_manager()
+
+        l = []
+
+        class Plugin:
+            @hookimpl
+            def add_subcommands(self, command_group, plugin_manager):
+                l.append(1)
+
+        pm.register(Plugin())
+        pm.hook.add_subcommands(plugin_manager=pm, command_group=[])
+        assert len(l) == 1

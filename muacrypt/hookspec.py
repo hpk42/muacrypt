@@ -1,6 +1,12 @@
 import pluggy
 
 hookspec = pluggy.HookspecMarker("muacrypt")
+hookimpl = pluggy.HookimplMarker("muacrypt")
+
+
+@hookspec
+def add_subcommands(command_group, plugin_manager):
+    """add click sub commands to command group. """
 
 
 @hookspec

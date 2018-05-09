@@ -11,6 +11,7 @@ from email.mime.image import MIMEImage
 import pytest
 from muacrypt.account import Account, AccountManager, NotInitialized
 from muacrypt import mime
+from muacrypt.cmdline import make_plugin_manager
 
 
 def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None):
@@ -326,7 +327,7 @@ class TestAccount:
 class TestAccountManager:
     def test_account_handling(self, tmpdir):
         tmpdir = tmpdir.strpath
-        mc = AccountManager(tmpdir)
+        mc = AccountManager(tmpdir, plugin_manager=make_plugin_manager())
         assert not mc.exists()
         mc.init()
         assert mc.exists()

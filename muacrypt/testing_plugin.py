@@ -9,10 +9,11 @@ import itertools
 import pytest
 import pluggy
 from _pytest.pytester import LineMatcher
-from muacrypt.bingpg import find_executable, BinGPG
-from muacrypt import mime
-from muacrypt.account import AccountManager, Account, make_plugin_manager
-from muacrypt.states import States
+from .bingpg import find_executable, BinGPG
+from . import mime
+from .account import AccountManager, Account
+from .cmdline import make_plugin_manager
+from .states import States
 
 
 def pytest_addoption(parser):
@@ -287,9 +288,8 @@ def account_maker(tmpdir, gpgpath):
         i = next(count)
         bname = u"ac%d" % i
         basedir = tmpdir.mkdir(bname).strpath
-        accountdir = os.path.join(basedir, "accountdir")
         states = States(basedir)
-        account = Account(states, bname, plugin_manager=make_plugin_manager(accountdir))
+        account = Account(states, bname, plugin_manager=make_plugin_manager())
         account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
         account.addr = "%d@x.org" % (i, )
@@ -319,7 +319,7 @@ def manager_maker(tmpdir, gpgpath):
 
     def maker(init=True, addid=True):
         basedir = tmpdir.mkdir("a%d" % next(count)).strpath
-        mc = AccountManager(basedir)
+        mc = AccountManager(basedir, plugin_manager=make_plugin_manager())
         if init:
             mc.init()
             if addid:
