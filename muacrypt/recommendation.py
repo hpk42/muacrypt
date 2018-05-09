@@ -1,3 +1,6 @@
+import logging
+
+
 class Recommendation:
     """ Calculating recommendations for encryption """
 
@@ -41,13 +44,16 @@ class PeerRecommendation:
         if (pre == 'available' and
                 self.prefer_encrypt == 'mutual' and
                 self.peer.prefer_encrypt == 'mutual'):
-            return 'encrypt'
+            # check that the last message had an AC header
+            if self.peer._latest_msg_entry().keydata:
+                return 'encrypt'
         return pre
 
     def target_keyhandle(self):
         return getattr(self.peer.entry_for_encryption(), "keyhandle", None)
 
     def _preliminary_recommendation(self):
+        logging.debug("target_keyhandle=%s", self.target_keyhandle())
         if self.target_keyhandle() is None:
             return 'disable'
         if not self.peer.has_direct_key():

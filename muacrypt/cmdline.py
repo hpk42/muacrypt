@@ -172,12 +172,32 @@ def test_email(ctx, emailadr):
 
 
 @mycommand("make-header")
+@click.option("--val", default=False, is_flag=True,
+              help="only print autocrypt header value, not full header")
 @click.argument("emailadr", type=click.STRING)
 @click.pass_context
-def make_header(ctx, emailadr):
+def make_header(ctx, emailadr, val):
     """print Autocrypt header for an emailadr. """
     account_manager = get_account_manager(ctx)
-    click.echo(account_manager.make_header(emailadr))
+    header = account_manager.make_header(emailadr)
+    if val:
+        header = header.split("Autocrypt: ", 1)[1]
+    click.echo(header)
+
+
+@mycommand("recommend")
+@click.argument("account_name", type=str, required=True)
+@click.argument("emailadr", type=click.STRING, nargs=-1)
+@click.pass_context
+def recommend(ctx, account_name, emailadr):
+    """print AC Level 1 recommendation for sending from an
+    account to one or more target addresses. The first
+    line contains an ui recommendation of "discourage", "available"
+    or "encrypt". Subsequent lines may contain additional information.
+    """
+    account = get_account(ctx, account_name)
+    recommend = account.get_recommendation(list(emailadr))
+    click.echo(recommend.ui_recommendation())
 
 
 @mycommand("process-incoming")
@@ -372,6 +392,7 @@ autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
 autocrypt_main.add_command(test_email)
+autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)

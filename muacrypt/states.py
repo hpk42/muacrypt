@@ -10,6 +10,7 @@ crytographic hashes.
 from __future__ import unicode_literals, print_function
 
 import os
+import logging
 from .chainstore import HeadTracker, BlockService, Chain
 from .myattr import (
     v, attr, attrs, attrib, attrib_text, attrib_bytes,
@@ -171,6 +172,7 @@ class PeerState(object):
                 self._append_noac_entry(
                     msg_id=msg_id, msg_date=effective_date,
                 )
+                logging.debug("append noac %s", msg_id)
             return
         self._append_ac_entry(
             msg_id=msg_id, msg_date=effective_date,

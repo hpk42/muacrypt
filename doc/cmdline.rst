@@ -23,23 +23,24 @@ After :ref:`installation` let's see what sub commands we have::
 
     $ muacrypt
     Usage: muacrypt [OPTIONS] COMMAND [ARGS]...
-
+    
       access and manage Autocrypt keys, options, headers.
-
+    
     Options:
       --basedir PATH  directory where muacrypt state is statesd
       --version       Show the version and exit.
       -h, --help      Show this message and exit.
-
+    
     Commands:
       status             print account info and status.
       add-account        add a named account.
       mod-account        modify properties of an existing account.
       del-account        delete an account, its keys and all state.
-      process-incoming   parse Autocrypt headers from stdin mail.
-      process-outgoing   add Autocrypt header for outgoing mail.
+      process-incoming   parse Autocrypt headers from stdin-read mime...
+      process-outgoing   add Autocrypt header for outgoing mail if the...
       sendmail           as process-outgoing but submit to sendmail...
       test-email         test which account an email belongs to.
+      recommend          print AC Level 1 recommendation for sending...
       make-header        print Autocrypt header for an emailadr.
       export-public-key  print public key of own or peer account.
       export-secret-key  print secret key of own account.
@@ -55,8 +56,8 @@ For getting started we need to add a new Account::
       gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/default]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   234D174CD35B01FD
-      ^^ uid:           <3a649810c7754f6682f8208ba1af023e@random.muacrypt.org>
+      own-keyhandle:   7F11A102B709D0E2
+      ^^ uid:           <b9720e2f438b48c9be6865899cc4ff82@random.muacrypt.org>
       ---- no peers registered -----
 
 This created a default account which contains a new secret key and a few settings.
@@ -75,10 +76,10 @@ Let's check out account info again with the ``status`` subcommand::
       gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/default]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   234D174CD35B01FD
-      ^^ uid:           <3a649810c7754f6682f8208ba1af023e@random.muacrypt.org>
+      own-keyhandle:   7F11A102B709D0E2
+      ^^ uid:           <b9720e2f438b48c9be6865899cc4ff82@random.muacrypt.org>
       ---- no peers registered -----
-
+    
 
 This shows our own keyhandle of our Autocrypt OpenPGP key.
 
@@ -88,63 +89,82 @@ you could add to your email configuration (substitute
 
     $ muacrypt make-header a@example.org
     Autocrypt: addr=a@example.org; keydata=
-      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
+      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
+      MGLAaueL40RjrDdTwnk3FMQXfjA/E=
 
 Getting our own public encryption key in armored format::
 
     $ muacrypt export-public-key
     -----BEGIN PGP PUBLIC KEY BLOCK-----
     Version: GnuPG v1
-
-    mQENBFpXm7UBCADKWE+prMRM9MvrZup6cOsVQPem6kbXDLobJjYjD2whgiiHvU0v
-    V9Zy7MR6J/VrRxZrwDDJvkqKih/t0IFC24ntb4JI1snVPJCKikPUUk/rkhv6ZhMt
-    mZAE5E76VSGSjqTeVptQHKQbyLNS+y1viqWX+kkQhf3moGMD9a/ZcjWyplOa5gnB
-    1hUElckBax66NTIC0fcTuvYw9pLDpVZ+XuU7Qrka6rCxqiLoCRDxlpttZLL1pWXp
-    lHZYTjicaiUiCSAIPGbFrGg57NqPbTsvXy9gW46uzL8cv+gE4Lm65imtvHHR+QiF
-    FmHRN/o3jdaQ9W5TtInSIKOxPnBS5KbsXykZABEBAAG0NyA8M2E2NDk4MTBjNzc1
-    NGY2NjgyZjgyMDhiYTFhZjAyM2VAcmFuZG9tLm11YWNyeXB0Lm9yZz6JATgEEwEC
-    ACIFAlpXm7UCGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJECNNF0zTWwH9
-    tv0H/2VdCCEYrqSDIJlbu4Yq+chBmAeCsjNDd5L0aAAHxDTMOLavYCcoWEgPT/eF
-    nWMU4N4tLE9/sW81hQHbbfewoX4zYWO8les/bIjtbNhCRfrE80losuHG8YT71fqR
-    EMuUkqYQL/kJ2RAetV6SMTq1Thi2aljz8Ap1AP9bOpG2Y7R6aXR45pbjCPjb5DEu
-    HNT0M52cTNXV4blPaArOIzDk2Utxax6AGlsu3SV3TSfPF2K1K7666qGnjXCFU/lM
-    P4cpe8VQufaqemOwygOSu3698ltcqVXtMBA8QIJjJKodzyuAUKcmr0CaVCjcUYYG
-    GvFv+aFp59zSR7LMHMqQR9lTjne5AQ0EWlebtQEIAOF0OeEE/i7Kc1XVd8vGVYM8
-    2lDWvn2Y88499KmFcqHf9oIPxtHQZUlYG4SIkl7a21dFxD0Cv+J0Aq+8UG1qmX7O
-    HFOzUNB4OmcfLU64DpYQ/8FcWwMTNbp6RKCLu5MyiRvxfc3rby2aHBEc69vQk7Mv
-    bzMzEdCM3Vj/+NlpsFs0hVmPZfJ3ZpcdmVwHT0szwqtUb4Mf5KrncFRoUPQKnc/f
-    cRPFCa95dChLEwMqWTk0N25uHGy58C5iuC5pb515n2u/PVYC5UIvH04YT3H7ldDP
-    czZbFod9mafGb1Re/Kj+eEpSXnkmpS1hnTYD3rkc45W8a3cvq9/59/HlYB16moMA
-    EQEAAYkBHwQYAQIACQUCWlebtQIbDAAKCRAjTRdM01sB/UCzB/0bY8Gc+AkPLGzI
-    +FohC6z2Zz8eul1ZN7gK8KEkxNSFSUR36H6tFKJFOM3CvV/P8siuR+8C8OreDapm
-    fUdhJjAJVpUMOmlUldezcjV+EX3zHRi3fYvbilYXhA9Hx/rU/tzxJ0td/4+SpcTP
-    cJvzA4+gs00xeAl8s+9x5kkOiSfontFuKTyunOMI0iCmI+mY8A7asAyk380sDZTP
-    nsaGxyjYgcZzk6T1rMvML1q5IsIFQTAyO16JsY+W39dKxSoUFlOda+8hPvtL1b1w
-    b69wgj1aahWdf5dhjP56Gmnzt1sJQkUvhpECXXiMZajuAkRF9egTLZaUAkJ3XLOW
-    r6VZJJQr
-    =0dOZ
+    
+    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
+    =GCYm
     -----END PGP PUBLIC KEY BLOCK-----
-
+    
 
 .. _syskeyring:
 
@@ -173,11 +193,11 @@ Let's run gpg to create this Autocrypt type 1 key::
     gpg: keyring `/tmp/home/.gnupg/secring.gpg' created
     gpg: keyring `/tmp/home/.gnupg/pubring.gpg' created
     +++++
-    ....+++++
-    .+++++
-    ..+++++
+    .....+++++
+    .......+++++
+    +++++
     gpg: /tmp/home/.gnupg/trustdb.gpg: trustdb created
-    gpg: key F9C77680 marked as ultimately trusted
+    gpg: key 179645AB marked as ultimately trusted
 
 We now have a key generated in the system key ring and
 can initialize autocrypt using this key.  First, for our
@@ -197,7 +217,7 @@ and then we add a new default account tied to the key we want to use from the sy
       gpgmode:         system
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   66459704F9C77680
+      own-keyhandle:   C4D9D25C179645AB
       ^^ uid:           <test@autocrypt.org>
       ---- no peers registered -----
 
@@ -250,8 +270,8 @@ Let's add a new "home" account::
       gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/home]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   D08197FB89A6F19D
-      ^^ uid:           <693ffd87aa804cc795565da24971f099@random.muacrypt.org>
+      own-keyhandle:   8FB95124DA7300F4
+      ^^ uid:           <d4322ddd08b44615b9f5c6bdc3c61124@random.muacrypt.org>
       ---- no peers registered -----
 
 This creates an decryption/encryption key pair and ties it to the name
@@ -267,8 +287,8 @@ And now let's create an ``office`` account::
       gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/office]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  nopreference
-      own-keyhandle:   35B7EFDCE0A62C6E
-      ^^ uid:           <22ead00fddde435fbe483ac63cf4315d@random.muacrypt.org>
+      own-keyhandle:   2C240E5B11CDC79C
+      ^^ uid:           <b8eca84a5af84863921c3e9a7a177b45@random.muacrypt.org>
       ---- no peers registered -----
 
 We have now configured two accounts.  Let's test if muacrypt matches
@@ -292,8 +312,8 @@ that we prefer receiving encrypted mails::
       gpgmode:         own [home: /tmp/home/.config/muacrypt/gpg/home]
       gpgbin:          gpg [currently resolves to: /usr/bin/gpg]
       prefer-encrypt:  mutual
-      own-keyhandle:   D08197FB89A6F19D
-      ^^ uid:           <693ffd87aa804cc795565da24971f099@random.muacrypt.org>
+      own-keyhandle:   8FB95124DA7300F4
+      ^^ uid:           <d4322ddd08b44615b9f5c6bdc3c61124@random.muacrypt.org>
       ---- no peers registered -----
 
 This new ``prefer-encrypt: mutual`` setting tells our peers that we prefer
@@ -304,27 +324,36 @@ We can check the setting works with the `make-header`_ subcommand::
 
     $ muacrypt make-header wonder@testsuite.autocrypt.org
     Autocrypt: addr=wonder@testsuite.autocrypt.org; prefer-encrypt=mutual; keydata=
-      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
+      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
+      OVWiEMeA2OgCiEqNda+DWjwfnlbSQ=
 
 When you pipe a message with a From-address matching Alice's home addresses into
 the `process-outgoing`_ subcommand then it will add this header. By using the sendmail_

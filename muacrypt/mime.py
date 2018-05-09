@@ -8,6 +8,7 @@ import logging
 import email.parser
 import base64
 import quopri
+import time
 from .myattr import attrs, attrib, attrib_bytes_or_none, attrib_text_or_none
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -225,7 +226,10 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
         msg['Cc'] = ",".join(Cc)
     msg['Message-ID'] = MessageID
     msg['Subject'] = Subject
-    msg['Date'] = Date or formatdate()
+    Date = 0 if not Date else Date
+    if isinstance(Date, int):
+        Date = formatdate(time.time() + Date)
+    msg['Date'] = Date
     if _extra:
         for name, value in _extra.items():
             msg.add_header(name, value)
