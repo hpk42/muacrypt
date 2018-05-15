@@ -1,23 +1,24 @@
-muacrypt: Autocrypt and more for mail user agents
-=================================================
+muacrypt: Autocrypt encryption for mail agents
+==============================================
 
-**this tool is under heavy development, use at your own risk**
-
-``muacrypt`` helps mail user agents to process incoming and outgoing
-mails and keep Autocrypt state according to the `Autocrypt Level 1
-specification <https://autocrypt.org/autocrypt-spec-1.0.0.pdf>`_.
-``muacrypt`` manages accounts which maintain Autocrypt related state.
-Each account processes incoming and outgoing mail, parsing and adding
-Autocrypt headers as appropriate.  Functionality is exposed through
-a command line tool ``muacrypt`` and a Python api ``import muacrypt``.
+``muacrypt`` is a support tool for implementing `Autocrypt Level 1
+<https://autocrypt.org/autocrypt-spec-1.0.0.pdf>`_ compliant mail agents.
+Autocrypt state is kept in an one more accounts which process and produce
+autocrypt headers from incoming and outgoing e-mail. Each account is
+tied to a set of e-mail addresses, specified as a regular expression.
+Functionality is exposed through a command line tool ``muacrypt`` and a
+Python api obtained through ``import muacrypt``. There is an evolving plugin
+architecture which allows to add and modify behaviour of muacrypt.
 
 This README is intended to help contributors to get setup with running
-tests and using the command line. The online docs at
-https://muacrypt.readthedocs.io contain
-more documentation about overall goals of the project.
+tests and using the command line tool.  The online docs at
+
+https://muacrypt.readthedocs.io
+
+contain more documentation about overall goals of the project.
 
 testing
-+++++++
+-------
 
 To use the code and run tests you need to have installed:
 
@@ -42,7 +43,7 @@ Afterwards you can run all tests::
 
 
 installation
-++++++++++++
+------------
 
 You'll need the command line client "gpg", optionally "gpg2",
 available through "gnupg" and "gnugp2" on debian.
