@@ -225,7 +225,8 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
     if Cc:
         msg['Cc'] = ",".join(Cc)
     msg['Message-ID'] = MessageID
-    msg['Subject'] = Subject
+    if Subject is not None:
+        msg['Subject'] = Subject
     Date = 0 if not Date else Date
     if isinstance(Date, int):
         Date = formatdate(time.time() + Date)

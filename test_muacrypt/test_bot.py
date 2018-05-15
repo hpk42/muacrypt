@@ -101,6 +101,15 @@ class TestBot:
         assert reply_msg["To"] == msg["From"]
         assert reply_msg["Autocrypt"]
 
+    def test_empty_subject(self, bcmd, ac_sender):
+        send_adr = ac_sender.adr
+        msg = mime.gen_mail_msg(
+            From=send_adr, To=[bcmd.bot_adr],
+            Autocrypt=ac_sender.ac_headerval,
+            Subject=None, _dto=True)
+
+        bcmd.run_ok(["bot-reply"], input=msg.as_string())
+
     def test_reply_with_autocrypt(self, bcmd, ac_sender, linematch):
         send_adr = ac_sender.adr
         msg = mime.gen_mail_msg(
