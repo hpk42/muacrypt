@@ -265,9 +265,11 @@ def dump_info_outgoing_result(r):
 
 
 @click.command(cls=MyCommandUnknownOptions)
+@click.option("--sendmail", default="sendmail", required=False,
+              help="specify an alternate sendmail-like utility to send emails")
 @click.argument("args", nargs=-1)
 @click.pass_context
-def sendmail(ctx, args):
+def sendmail(ctx, sendmail, args):
     """as process-outgoing but submit to sendmail binary.
 
     Processes mail from stdin by adding an Autocrypt
@@ -278,18 +280,25 @@ def sendmail(ctx, args):
     Note that unknown options and all arguments are passed through to the
     "sendmail" program.
     """
-    assert args
-    args = list(args)
     msg = _process_outgoing(ctx)
     input = msg.as_string()
-    # with open("/tmp/mail", "w") as f:
-    #    f.write(input)
-    log_info("piping to: {}".format(" ".join(args)))
-    sendmail = find_executable("sendmail")
+
+    sendmail = find_executable(sendmail)
     if not sendmail:
         sendmail = "/usr/sbin/sendmail"
 
+    if args:
+        args = list(args)
+        # with open("/tmp/mail", "w") as f:
+        #    f.write(input)
+    else:
+        args = []
+
+    log_info("piping to: {}".format(" ".join(args)))
     args.insert(0, sendmail)
+
+    print(args)
+
     popen = subprocess.Popen(args, stdin=subprocess.PIPE)
     popen.communicate(input=input)
     ret = popen.wait()
