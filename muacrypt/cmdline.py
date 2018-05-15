@@ -203,8 +203,10 @@ def recommend(ctx, account_name, emailadr):
 
 
 @mycommand("process-incoming")
+@click.option("cat", "-c", default=False, is_flag=True,
+              help="outputs the content of the processed message")
 @click.pass_context
-def process_incoming(ctx):
+def process_incoming(ctx, cat):
     """parse Autocrypt headers from stdin-read mime message
     if it was delivered to one of our managed accounts.
     """
@@ -214,11 +216,16 @@ def process_incoming(ctx):
     account = account_manager.get_account_from_emailadr(delivto, raising=True)
     r = account.process_incoming(msg)
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
-        msg = "found: " + str(r.peerstate)
+        outmsg = "found: " + str(r.peerstate)
     else:
-        msg = "no Autocrypt header found"
+        outmsg = "no Autocrypt header found"
+    output_to_stderr = False
+    if cat is True:
+        click.echo(msg.as_string())
+        output_to_stderr = True
     click.echo("processed mail for account '{}', {}".format(
-               r.account.name, msg))
+               r.account.name, outmsg), err=output_to_stderr)
+
 
 
 @mycommand("process-outgoing")
