@@ -217,7 +217,7 @@ def process_incoming(ctx, cat):
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
 
-    outmsg=""
+    outmsg = ""
     try:
         delivto = mime.get_delivered_to(msg)
     except ValueError as e:
@@ -233,9 +233,9 @@ def process_incoming(ctx, cat):
         click.echo("processed mail for account '{}', {}".format(
                    r.account.name, outmsg), err=output_to_stderr)
 
-
     if cat is True:
         click.echo(msg.as_string())
+
 
 @mycommand("process-outgoing")
 @click.pass_context
