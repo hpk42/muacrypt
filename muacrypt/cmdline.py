@@ -300,7 +300,7 @@ def sendmail(ctx, sendmail, args):
     print(args)
 
     popen = subprocess.Popen(args, stdin=subprocess.PIPE)
-    popen.communicate(input=input)
+    popen.communicate(input=input.encode('utf-8'))
     ret = popen.wait()
     if ret != 0:
         out_red("sendmail return {!r} exitcode, path: {}".format(
