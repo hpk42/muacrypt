@@ -19,14 +19,17 @@ Aims and goals
   <https://autocrypt.org/level1.html>`_ compliant API and command line tool,
   for use by mail user agents (MUAs) and remailers.
 
-- an extendable architecture with plugins such as
+- a plugin architecture to integrate other techniques with autocrypt
+  related mail processing. A first example is
   `muacryptcc <https://github.com/nextleap-project/muacryptcc>`_ which
   implements the `decentralized ClaimChain key consistency protocol
   <https://claimchain.github.io/>`_.
 
-- a `kappa-style architecture
-  <http://milinda.pathirage.org/kappa-architecture.com/>`_ for storing
-  state in an append-only log which is addressable through immutable hashes.
+- integrate ``muacrypt`` with mailman3 in order to achieve
+  opportunisitically encrypted mailing lists.
+
+- integrate ``muacrypt`` with mutt and other MUA setups that
+  call out into commandline tools to achieve e-mail e2e encryption
 
 
 Documentation, getting started
