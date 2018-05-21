@@ -277,7 +277,7 @@ def sendmail(ctx, args):
     input = msg.as_string()
     # with open("/tmp/mail", "w") as f:
     #    f.write(input)
-    log_info("piping to: {}".format(" ".join(args)))
+    log_info(u"piping to: {}".format(" ".join(args)))
     sendmail = find_executable("sendmail")
     if not sendmail:
         sendmail = "/usr/sbin/sendmail"
