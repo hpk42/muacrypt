@@ -1,3 +1,10 @@
+0.8.1
+-----------------------
+
+- fixed changelog
+
+- #74 allow unicode To addresses in process-sendmail/outgoing
+
 0.8.0
 -----------------------
 
