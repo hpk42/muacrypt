@@ -1,7 +1,11 @@
+# -*- coding: utf-8 -*-
+# vim:ts=4:sw=4:expandtab
+
 from __future__ import print_function, unicode_literals
 import os
 import re
 import six
+import pytest
 from muacrypt import mime
 
 
@@ -151,6 +155,7 @@ class TestAccountCommands:
 
 
 class TestProcessOutgoing:
+
     def test_simple(self, mycmd, gen_mail):
         mycmd.run_ok(["add-account", "home"])
         mail = gen_mail()
@@ -190,10 +195,11 @@ class TestProcessOutgoing:
         x2 = mime.parse_ac_headervalue(gen_header)
         assert x1 == x2
 
-    def test_sendmail(self, mycmd, gen_mail, popen_mock):
+    @pytest.mark.parametrize("addr", ["a@a.org", "ño@example.org"])
+    def test_sendmail(self, mycmd, gen_mail, popen_mock, addr):
         mycmd.run_ok(["add-account", "account1"])
         mail = gen_mail().as_string()
-        pargs = ["-oi", "b@b.org"]
+        pargs = ["-oi", addr]
         mycmd.run_ok(["sendmail", "-f", "--"] + pargs, input=mail)
         assert len(popen_mock.calls) == 1
         call = popen_mock.pop_next_call()

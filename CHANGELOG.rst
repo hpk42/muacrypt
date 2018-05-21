@@ -1,8 +1,11 @@
-0.8.0.dev5 - unreleased
+0.8.0
 -----------------------
 
 - reply to multiple CC'ed recipients with the bot so we can test
   gossip.
+
+- introduce plugin architecture with hooks on incoming/outgoing mail
+  and for adding new subcommands.
 
 - add Autocrypt-Gossip headers to mails with multiple recipients.
 
@@ -11,11 +14,6 @@
 - refine recommendations and add command line call
 
 - add way to add subcommands from a plugin
-
-
-
-0.8.0.dev4
-----------
 
 - moved repo to hpk42/py-autocrypt and refined entry pages to link
   to new IRC channel and mailing list and describe the aims.
