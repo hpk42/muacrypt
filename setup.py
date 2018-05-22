@@ -13,7 +13,7 @@ def main():
 
     setup(
         name='muacrypt',
-        description='Autocrypt: E-mail Encryption for Everyone example implementation',
+        description='support tool and API for Autocrypt mail agents',
         long_description = long_desc,
         version=version,
         url='https://muacrypt.readthedocs.io',
