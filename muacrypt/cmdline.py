@@ -203,7 +203,7 @@ def recommend(ctx, account_name, emailadr):
 
 
 @mycommand("process-incoming")
-@click.option("cat", "-c", default=False, is_flag=True,
+@click.option("--cat", "-c", default=False, is_flag=True,
               help="outputs the content of the processed message")
 @click.pass_context
 def process_incoming(ctx, cat):
