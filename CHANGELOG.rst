@@ -3,6 +3,8 @@
 
 - adapt test integration with latest pytest
 
+- fix py27/py35 str/bytes configuration saving issue
+
 0.8.2
 -----------------------
 

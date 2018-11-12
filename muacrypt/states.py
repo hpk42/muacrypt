@@ -226,10 +226,16 @@ class KeygenEntry(object):
     keyhandle = attrib_text_or_none()
 
 
+def convert_bytes(x):
+    if hasattr(x, "decode"):
+        return x.decode("ascii")
+    return x
+
+
 @attr.s
 class OwnConfigEntry(object):
     TAG = "cfg"
-    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']))
+    prefer_encrypt = attrib(validator=v.in_(['nopreference', 'mutual']), converter=convert_bytes)
     name = attrib_text()
     email_regex = attrib_text()
     gpgmode = attrib(validator=v.in_(['system', 'own']))

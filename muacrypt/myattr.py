@@ -19,7 +19,7 @@ def attrib_text():
 
 
 def attrib_bytes():
-    return attrib(validator=v.instance_of(bytes))
+    return attrib(validator=v.instance_of(bytes), converter=str2bytes)
 
 
 def attrib_text_or_none():
@@ -29,4 +29,10 @@ def attrib_text_or_none():
 
 def attrib_bytes_or_none():
     return attrib(validator=v.optional(v.instance_of(bytes)),
-                  default=None)
+                  default=None, converter=str2bytes)
+
+
+def str2bytes(x):
+    if x is not None and not isinstance(x, bytes):
+        return x.encode("ascii")
+    return x
