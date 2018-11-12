@@ -344,8 +344,8 @@ class BinGPG(object):
         keyinfos = []
         while lines:
             line1 = lines.pop(0)
-            m = re.match("gpg.*with (\d+)-bit (\w+).*"
-                         "ID (\w+).*created (.*)", line1)
+            m = re.match(r"gpg.*with (\d+)-bit (\w+).*"
+                         r"ID (\w+).*created (.*)", line1)
             if m:
                 bits, keytype, id, date = m.groups()
                 line2 = lines.pop(0)

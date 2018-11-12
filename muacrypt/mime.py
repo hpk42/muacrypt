@@ -104,9 +104,9 @@ def parse_message_from_string(string):
 def is_encrypted(msg):
     if msg.get_content_type() == "multipart/encrypted":
         parts = msg.get_payload()
-        return (len(parts) == 2 and
-                parts[0].get_content_type() == 'application/pgp-encrypted' and
-                parts[1].get_content_type() == 'application/octet-stream')
+        return (len(parts) == 2
+                and parts[0].get_content_type() == 'application/pgp-encrypted'
+                and parts[1].get_content_type() == 'application/octet-stream')
 
 
 def parse_one_ac_header_from_string(string):
@@ -320,9 +320,9 @@ def render_mime_structure(msg, prefix='└'):
     else:
         subject = ''
     if (msg.is_multipart()):
-        print(prefix + '┬╴' + msg.get_content_type() + cset +
-              disposition + fname, str(len(msg.as_string())) +
-              ' bytes' + subject, file=stream)
+        print(prefix + '┬╴' + msg.get_content_type() + cset
+              + disposition + fname, str(len(msg.as_string()))
+              + ' bytes' + subject, file=stream)
         if prefix.endswith('└'):
             prefix = prefix.rpartition('└')[0] + ' '
         if prefix.endswith('├'):
