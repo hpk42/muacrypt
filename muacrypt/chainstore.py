@@ -37,7 +37,8 @@ class BlockService:
         return Block(cid, data, bs=self)
 
     def get_block(self, cid):
-        path = os.path.join(self._basedir, cid)
+        fn_cid = cid if not isinstance(cid, bytes) else cid.decode("ascii")
+        path = os.path.join(self._basedir, fn_cid)
         if os.path.exists(path):
             with open(path, "rb") as f:
                 data = marshal.load(f)

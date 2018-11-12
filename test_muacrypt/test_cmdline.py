@@ -53,6 +53,12 @@ def test_exports_and_status_plain(mycmd):
         *prefer-encrypt*nopreference*
         *own-keyhandle:*
     """)
+    out = mycmd.run_ok(["status", "-v"], """
+        account-dir:*
+        *account*default*
+        *prefer-encrypt*nopreference*
+        *own-keyhandle:*
+    """)
 
 
 def check_ascii(out):

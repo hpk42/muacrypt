@@ -5,6 +5,10 @@
 
 - fix py27/py35 str/bytes configuration saving issue
 
+- with "muacrypt status" only show
+  peer-information when "-v|--verbose" is specified
+
+
 0.8.2
 -----------------------
 

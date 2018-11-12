@@ -152,12 +152,15 @@ def del_account(ctx, account_name):
     account_manager = get_account_manager(ctx)
     account_manager.del_account(account_name)
     click.echo("account deleted: {!r}".format(account_name))
-    _status(account_manager)
+    _status(account_manager, verbose=True)
 
 
 account_option = click.option(
     "-a", "--account", default=u"default", metavar="name",
     help="perform lookup through this account")
+
+verbose_option = click.option(
+    "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
 
 
 @mycommand("test-email")
@@ -315,17 +318,18 @@ def export_secret_key(ctx, account):
 
 @mycommand()
 @click.argument("account_name", type=str, required=False, default=None)
+@verbose_option
 @click.pass_context
-def status(ctx, account_name):
+def status(ctx, account_name, verbose):
     """print account info and status. """
     if account_name is None:
         account_manager = get_account_manager(ctx)
-        _status(account_manager)
+        _status(account_manager, verbose)
     else:
-        _status_account(get_account(ctx, account_name))
+        _status_account(get_account(ctx, account_name), verbose)
 
 
-def _status(account_manager):
+def _status(account_manager, verbose):
     click.echo("account-dir: " + account_manager.dir)
     names = account_manager.list_account_names()
     if not names:
@@ -333,11 +337,11 @@ def _status(account_manager):
         return
     for name in names:
         account = account_manager.get_account(name)
-        _status_account(account)
+        _status_account(account, verbose)
         click.echo("")
 
 
-def _status_account(account):
+def _status_account(account, verbose=False):
     ic = account.ownstate
     click.secho("account: {!r}".format(ic.name), bold=True)
 
@@ -366,24 +370,25 @@ def _status_account(account):
     for uid in uids:
         kecho("^^ uid", uid)
 
-    # print info on peers
-    peernames = account.get_peername_list()
-    if peernames:
-        click.echo("  ----peers-----")
-        for name in peernames:
-            pi = account.get_peerstate(name)
-            # when = time.ctime(pi.last_seen) if pi.last_seen else "never"
-            if pi.last_seen == pi.autocrypt_timestamp:
-                status = "last-was-autocrypt"
-            elif pi.public_keyhandle:
-                status = "past-autocrypt"
-            else:
-                continue
-            click.echo("  {to}: last seen key {keyhandle}, status: {status}".format(
-                       to=pi.addr, keyhandle=pi.public_keyhandle,
-                       status=status))
-    else:
-        click.echo("  ---- no peers registered -----")
+    if verbose:
+        # print info on peers
+        peernames = account.get_peername_list()
+        if peernames:
+            click.echo("  ----peers-----")
+            for name in peernames:
+                pi = account.get_peerstate(name)
+                # when = time.ctime(pi.last_seen) if pi.last_seen else "never"
+                if pi.last_seen == pi.autocrypt_timestamp:
+                    status = "last-was-autocrypt"
+                elif pi.public_keyhandle:
+                    status = "past-autocrypt"
+                else:
+                    continue
+                click.echo("  {to}: last seen key {keyhandle}, status: {status}".format(
+                           to=pi.addr, keyhandle=pi.public_keyhandle,
+                           status=status))
+        else:
+            click.echo("  ---- no peers registered -----")
 
 
 autocrypt_main.add_command(status)
