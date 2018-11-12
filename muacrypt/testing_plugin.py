@@ -238,16 +238,16 @@ def get_next_cache(pytestconfig):
     def next_cache(basekey):
         count = counters.setdefault(basekey, itertools.count())
         key = basekey + str(next(count))
-        return DirCache(cache, key)
+        return DirCache(cache, key, pytestconfig)
     return next_cache
 
 
 class DirCache:
-    def __init__(self, cache, key):
+    def __init__(self, cache, key, pytestconfig):
         self.cache = cache
-        self.disabled = cache.config.getoption("--no-test-cache")
+        self.disabled = pytestconfig.getoption("--no-test-cache")
         self.key = key
-        self.backup_path = self.cache._cachedir.join(self.key)
+        self.backup_path = self.cache._cachedir.joinpath(self.key)
 
     def exists(self):
         dummy = object()
@@ -265,13 +265,13 @@ class DirCache:
             # ignore gpg socket special files
             return [n for n in names if n.startswith("S.")]
 
-        shutil.copytree(path, self.backup_path.strpath, ignore=ignore)
+        shutil.copytree(path, str(self.backup_path), ignore=ignore)
         self.cache.set(self.key, ret)
 
     def restates(self, path):
         if os.path.exists(path):
             shutil.rmtree(path)
-        shutil.copytree(self.backup_path.strpath, path)
+        shutil.copytree(str(self.backup_path), path)
         return self.cache.get(self.key, None)
 
 

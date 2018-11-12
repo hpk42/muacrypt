@@ -1,3 +1,8 @@
+0.8.3
+-----------------------
+
+- adapt test integration with latest pytest
+
 0.8.2
 -----------------------
 
