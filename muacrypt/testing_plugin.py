@@ -257,9 +257,10 @@ class DirCache:
 
     def states(self, path, ret):
         if self.backup_path.exists():
-            self.backup_path.remove()
+            shutil.rmtree(str(self.backup_path))
         else:
-            self.backup_path.dirpath().ensure(dir=1)
+            if not self.backup_path.parent.exists():
+                os.makedirs(str(self.backup_path.parent))
 
         def ignore(src, names):
             # ignore gpg socket special files
