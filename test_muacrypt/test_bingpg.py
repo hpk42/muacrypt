@@ -78,7 +78,7 @@ class TestBinGPG:
         assert len(packets) == 5
         assert packets[0][0] == "secret key packet"
         assert packets[1][0] == "user ID packet"
-        assert packets[1][1] == '" <hello@xyz.org>"'
+        assert "hello@xyz.org" in packets[1][1]
         assert packets[2][0] == "signature packet"
         assert packets[3][0] == "secret sub key packet"
         assert packets[4][0] == "signature packet"
@@ -88,7 +88,7 @@ class TestBinGPG:
         assert len(packets) == 5
         assert packets[0][0] == "public key packet" == packets[0][0]
         assert packets[1][0] == "user ID packet"
-        assert packets[1][1] == '" <hello@xyz.org>"'
+        assert "hello@xyz.org" in packets[1][1]
         assert packets[2][0] == "signature packet"
         assert packets[3][0] == "public sub key packet"
         assert packets[4][0] == "signature packet"
