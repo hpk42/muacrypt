@@ -117,13 +117,13 @@ class TestAccount:
         acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         msg1 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
-            Autocrypt=acc2.make_ac_header(acc1.addr))
-        r = acc1.process_incoming(msg1)
-        assert r.peerstate.public_keyhandle == acc2.ownstate.keyhandle
+            Autocrypt=acc1.make_ac_header(acc1.addr))
+        r = acc2.process_incoming(msg1)
+        assert r.peerstate.public_keyhandle == acc1.ownstate.keyhandle
         msg2 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
             Autocrypt=acc3.make_ac_header(acc1.addr))
-        r2 = acc1.process_incoming(msg2)
+        r2 = acc2.process_incoming(msg2)
         assert r2.peerstate.public_keyhandle == acc3.ownstate.keyhandle
 
     def test_parse_incoming_mails_effective_date(self, account_maker, monkeypatch):
@@ -140,17 +140,19 @@ class TestAccount:
         acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         addr = acc1.addr
         msg2 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=acc3.make_ac_header(addr),
+            From=addr, To=["b@b.org"], Autocrypt=acc1.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 15:00:00 -0000')
+        r = acc2.process_incoming(msg2)
+        assert r.account.get_peerstate(addr).public_keyhandle == acc1.ownstate.keyhandle
+        assert r.msg_date == r.peerstate.autocrypt_timestamp
+
         msg1 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=acc2.make_ac_header(addr),
+            From=addr, To=["b@b.org"], Autocrypt=acc3.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 13:00:00 -0000')
-        r = acc1.process_incoming(msg2)
-        assert r.account.get_peerstate(addr).public_keyhandle == acc3.ownstate.keyhandle
-        r2 = acc1.process_incoming(msg1)
-        assert r2.peerstate.public_keyhandle == \
-            acc3.ownstate.keyhandle
+        r2 = acc2.process_incoming(msg1)
+        assert r2.peerstate.public_keyhandle == acc1.ownstate.keyhandle
         assert r2.msg_date < r.msg_date
+        assert r2.peerstate.autocrypt_timestamp == r.peerstate.autocrypt_timestamp
 
         msg3 = mime.gen_mail_msg(
             From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,

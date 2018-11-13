@@ -3,7 +3,9 @@
 
 - fix test suite with --no-test-cache run
 - disable warnings for pytest_localserver's smtp support
-- add muacrypt version
+- add muacrypt version to pytest report header
+- refine tests for process-incoming and autocrypt timestamps
+
 
 0.8.3
 -----------------------
