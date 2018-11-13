@@ -48,7 +48,7 @@ def gpgpath(request):
         pytest.skip("skipped gpg2 tests (specify --with-gpg2 to run)")
     path = find_executable(name)
     if path is None:
-        pytest.skip("can not find executable: %s" % request.name)
+        pytest.skip("can not find executable: %s" % request.param)
     return path
 
 
