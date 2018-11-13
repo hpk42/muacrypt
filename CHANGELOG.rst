@@ -3,6 +3,7 @@
 
 - fix test suite with --no-test-cache run
 - disable warnings for pytest_localserver's smtp support
+- add muacrypt version
 
 0.8.3
 -----------------------

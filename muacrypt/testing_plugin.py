@@ -14,6 +14,7 @@ from . import mime
 from .account import AccountManager, Account
 from .cmdline import make_plugin_manager
 from .states import States
+import muacrypt
 
 
 def pytest_addoption(parser):
@@ -228,6 +229,15 @@ def datadir(request):
             return mime.parse_one_ac_header_from_msg(msg, FromList=[From])
 
     return D(request.fspath.dirpath("data"))
+
+
+def pytest_report_header():
+    from muacrypt.cmdline import make_plugin_manager
+    l = ["muacrypt-{}".format(muacrypt.__version__)]
+    pm = make_plugin_manager()
+    for name, dist in pm.list_plugin_distinfo():
+        l.append(repr(dist))
+    return "versions: " + ", ".join(l)
 
 
 @pytest.fixture(scope="session")
