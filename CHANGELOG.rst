@@ -1,9 +1,17 @@
-0.8.4.dev
+0.9.0.dev1
 -----------------------
 
+- support mutt/muacrypt integration, XXX document
+
+- make muacrypt fail by default in process-outgoing/sendmail
+  if no muacrypt account could be determined for an outgoing mail
+
 - fix test suite with --no-test-cache run
+
 - disable warnings for pytest_localserver's smtp support
+
 - add muacrypt version to pytest report header
+
 - refine tests for process-incoming and autocrypt timestamps
 
 

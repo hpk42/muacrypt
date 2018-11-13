@@ -14,13 +14,14 @@ from muacrypt import mime
 from muacrypt.cmdline import make_plugin_manager
 
 
-def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None):
+def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None, ENCRYPT=None):
     if isinstance(recipients, Account):
         recipients = [recipients]
     return mime.gen_mail_msg(
         From=sender.addr, To=[rec.addr for rec in recipients],
         Autocrypt=sender.make_ac_header(sender.addr),
         payload=payload, charset=charset, Date=Date,
+        ENCRYPT=ENCRYPT,
     )
 
 
@@ -324,6 +325,43 @@ class TestAccount:
 
         ps = rec1.get_peerstate(rec2new.addr)
         assert ps.public_keyhandle == rec2new.ownstate.keyhandle
+
+    @pytest.mark.parametrize("encrypt", ["opportunistic", "no", "yes"])
+    def test_process_outgoing_with_enc_header_nopreference(self, account_maker, encrypt):
+        sender, recipient = account_maker(), account_maker()
+
+        # let's first send a message to get the autocrypt haeder accross
+        msg = gen_ac_mail_msg(sender, [recipient])
+        r = recipient.process_incoming(msg)
+        assert r.pah.keydata
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT=encrypt)
+        r = recipient.process_outgoing(msg2)
+        assert "ENCRYPT" not in r.msg
+        if encrypt == "opportunistic" or encrypt == "no":
+            assert not mime.is_encrypted(r.msg)
+        elif encrypt == "yes":
+            assert mime.is_encrypted(r.msg)
+
+    @pytest.mark.parametrize("encrypt", ["opportunistic", "no", "yes"])
+    def test_process_outgoing_with_enc_header_mutual(self, account_maker, encrypt):
+        sender, recipient = account_maker(), account_maker()
+
+        sender.modify(prefer_encrypt="mutual")
+        recipient.modify(prefer_encrypt="mutual")
+
+        # let's first send a message to get the autocrypt haeder accross
+        msg = gen_ac_mail_msg(sender, [recipient])
+        r = recipient.process_incoming(msg)
+        assert r.pah.keydata
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT=encrypt)
+        r = recipient.process_outgoing(msg2)
+        assert "ENCRYPT" not in r.msg
+        if encrypt == "opportunistic" or encrypt == "yes":
+            assert mime.is_encrypted(r.msg)
+        elif encrypt == "no":
+            assert not mime.is_encrypted(r.msg)
 
 
 class TestAccountManager:

@@ -245,8 +245,7 @@ def _process_outgoing(ctx):
     addr = mime.parse_email_addr(msg["From"])
     account = account_manager.get_account_from_emailadr(addr)
     if account is None:
-        log_info("No Account associated with addr={!r}".format(addr))
-        return msg
+        raise click.ClickException("No Account associated for 'From: {}'".format(addr))
     else:
         r = account.process_outgoing(msg)
         dump_info_outgoing_result(r)
