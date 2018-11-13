@@ -232,10 +232,9 @@ def datadir(request):
 
 
 def pytest_report_header():
-    from muacrypt.cmdline import make_plugin_manager
+    from muacrypt.cmdline import _pluginmanager
     l = ["muacrypt-{}".format(muacrypt.__version__)]
-    pm = make_plugin_manager()
-    for name, dist in pm.list_plugin_distinfo():
+    for name, dist in _pluginmanager.list_plugin_distinfo():
         l.append(repr(dist))
     return "versions: " + ", ".join(l)
 
