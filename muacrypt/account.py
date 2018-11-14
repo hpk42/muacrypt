@@ -417,6 +417,8 @@ class Account:
                 if (rec == "encrypt" or (rec != "disable" and enc_header == "yes")):
                     r = self.encrypt_mime(msg, recipients)
                     msg = r.enc_msg
+                elif (enc_header == "yes"):
+                    raise ValueError("could not encrypt")
 
         return ProcessOutgoingResult(
             msg=msg, account=self, addr=addr,

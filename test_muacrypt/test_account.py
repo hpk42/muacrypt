@@ -363,6 +363,13 @@ class TestAccount:
         elif encrypt == "no":
             assert not mime.is_encrypted(r.msg)
 
+    def test_process_outgoing_with_enc_header_no_key(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT="yes")
+        with pytest.raises(ValueError):
+            recipient.process_outgoing(msg2)
+
 
 class TestAccountManager:
     def test_account_handling(self, tmpdir):
