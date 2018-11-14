@@ -248,7 +248,6 @@ class TestBot:
         print(body)
         assert "no valid autocrypt" in body.lower()
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @pytest.mark.parametrize("with_ac", [True, False])
     def test_send_reply(self, smtpserver, bcmd, ac_sender, with_ac, linematch):
         host, port = smtpserver.addr[:2]
