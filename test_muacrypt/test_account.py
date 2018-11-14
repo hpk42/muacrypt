@@ -370,6 +370,17 @@ class TestAccount:
         with pytest.raises(ValueError):
             recipient.process_outgoing(msg2)
 
+    def test_process_outgoing_with_extra_keydata(self, account_maker, datadir):
+        sender, recipient = account_maker(), account_maker()
+        recipient.addr = "test1@autocrypt.org"
+        keydata = datadir.read_bytes("test1_autocrypt_org.key")
+        sender.import_keydata_as_autocrypt(addr=recipient.addr,
+                                           prefer_encrypt="nopreference",
+                                           keydata=keydata)
+        msg2 = gen_ac_mail_msg(sender, recipient, ENCRYPT="yes")
+        r = sender.process_outgoing(msg2)
+        assert mime.is_encrypted(r.msg)
+
 
 class TestAccountManager:
     def test_account_handling(self, tmpdir):

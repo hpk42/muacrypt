@@ -418,7 +418,8 @@ class Account:
                     r = self.encrypt_mime(msg, recipients)
                     msg = r.enc_msg
                 elif (enc_header == "yes"):
-                    raise ValueError("could not encrypt")
+                    # XXX detail which addr we can't encrypt to
+                    raise ValueError("encryption requested, but not available")
 
         return ProcessOutgoingResult(
             msg=msg, account=self, addr=addr,
