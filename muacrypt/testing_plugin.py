@@ -155,7 +155,7 @@ class ClickRunner:
         return _perform_match(res.output, fnl)
 
     def parse_recommendation(self, account_name, adrlist):
-        out = self.run_ok(["recommend", account_name] + list(adrlist))
+        out = self.run_ok(["recommend", "-a", account_name] + list(adrlist))
         return out.splitlines()[0].strip()
 
     def send_mail(self, sender, receivers, ac=True, Date=None):

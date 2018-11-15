@@ -156,7 +156,7 @@ def del_account(ctx, account_name):
 
 
 account_option = click.option(
-    "-a", "--account", default=u"default", metavar="name",
+    "-a", "--account", "account_name", default=u"default", metavar="name",
     help="perform lookup through this account")
 
 verbose_option = click.option(
@@ -191,7 +191,7 @@ def make_header(ctx, emailadr, val):
 
 
 @mycommand("recommend")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @click.argument("emailadr", type=click.STRING, nargs=-1)
 @click.pass_context
 def recommend(ctx, account_name, emailadr):
@@ -304,13 +304,13 @@ def sendmail(ctx, args):
     "--email", type=str, default=None,
     help="associate key with this e-mail address")
 @click.pass_context
-def import_public_key(ctx, account, prefer_encrypt, email):
+def import_public_key(ctx, account_name, prefer_encrypt, email):
     """import public key data as an Autocrypt key.
 
     this commands reads from stdin an ascii-armored or binary
     public PGP key
     """
-    acc = get_account(ctx, account)
+    acc = get_account(ctx, account_name)
     keydata = sys.stdin.read().encode("ascii")
     r = acc.import_keydata_as_autocrypt(
         keydata=keydata, prefer_encrypt=prefer_encrypt, addr=email
@@ -325,9 +325,9 @@ def import_public_key(ctx, account, prefer_encrypt, email):
 @account_option
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
-def export_public_key(ctx, account, keyhandle_or_email):
+def export_public_key(ctx, account_name, keyhandle_or_email):
     """print public key of own or peer account."""
-    account = get_account(ctx, account)
+    account = get_account(ctx, account_name)
     data = account.export_public_key(keyhandle_or_email)
     click.echo(data)
 
@@ -335,9 +335,9 @@ def export_public_key(ctx, account, keyhandle_or_email):
 @mycommand("export-secret-key")
 @account_option
 @click.pass_context
-def export_secret_key(ctx, account):
+def export_secret_key(ctx, account_name):
     """print secret key of own account."""
-    account = get_account(ctx, account)
+    account = get_account(ctx, account_name)
     data = account.export_secret_key()
     click.echo(data)
 

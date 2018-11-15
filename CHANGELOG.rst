@@ -3,6 +3,9 @@
 
 - support mutt/muacrypt integration, XXX document
 
+- change invocation of "muacrypt recommend"
+  to work with the "-a" option
+
 - add "muacrypt import-public-key" subcommand to integrate
   a key with a specified prefer-encrypt setting and e-mail
   address.

@@ -249,24 +249,24 @@ class TestProcessOutgoing:
         mycmd.run_ok(["add-account", "default"])
         keydata = datadir.read_bytes("test1_autocrypt_org.key")
         mycmd.run_ok(["import-public-key"], input=keydata)
-        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
         assert "available" in out
 
         mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
-        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
         assert "available" in out
 
         mycmd.run_ok(["mod-account", "default", "--prefer-encrypt", "mutual"])
         out = mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
         assert "imported" in out
-        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
         assert "encrypt" in out
 
 
 class TestRecommendation:
     def test_recommend_empty(self, mycmd):
         mycmd.run_ok(["add-account", "home"])
-        mycmd.run_ok(["recommend", "home", "unknown@email.org"])
+        mycmd.run_ok(["recommend", "-a", "home", "unknown@email.org"])
 
     def test_recommend_one(self, mycmd):
         addr1 = "a@a.org"
