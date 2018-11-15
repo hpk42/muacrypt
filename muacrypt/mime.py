@@ -179,7 +179,7 @@ def parse_ac_headervalue(value):
         elif name == "prefer-encrypt":
             name = "prefer_encrypt"
             if value not in ("nopreference", "mutual"):
-                return ACParseResult(error="unknown prefer-encryp setting '%s'" % value)
+                return ACParseResult(error="unknown prefer-encrypt setting '%s'" % value)
         elif name == "addr":
             pass
         elif name[0] != "_":

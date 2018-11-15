@@ -3,6 +3,10 @@
 
 - support mutt/muacrypt integration, XXX document
 
+- add "muacrypt import-public-key" subcommand to integrate
+  a key with a specified prefer-encrypt setting and e-mail
+  address.
+
 - make muacrypt fail by default in process-outgoing/sendmail
   if no muacrypt account could be determined for an outgoing mail
 

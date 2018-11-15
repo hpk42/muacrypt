@@ -356,6 +356,43 @@ class Account:
         )
         return pah
 
+    def import_keydata_as_autocrypt(self, addr, keydata, prefer_encrypt):
+        """ process incoming mail message and states information
+        from any Autocrypt header for the From/Autocrypt peer
+        which created the message.
+
+        :type addr: string or None
+        :param addr: e-mail address or None if should be extracted from UID of keydata.
+        :type keydata: bytes
+        :param keydata: keydata to be imported
+        :rtype: ImportKeyResult
+        """
+        if hasattr(prefer_encrypt, "decode"):
+            prefer_encrypt = prefer_encrypt.decode("ascii")
+        kh = self.bingpg.import_keydata(keydata)
+        uid_addrs = []
+        if addr is not None:
+            uid_addrs.append(mime.parse_email_addr(addr))
+        else:
+            for keyinfo in self.bingpg.list_public_keyinfos(kh):
+                if keyinfo.id == kh:
+                    uid_addrs.extend(map(mime.parse_email_addr, keyinfo.uids))
+                    break
+
+        kh = self.bingpg.import_keydata(keydata, minimize=True)
+        for addr in uid_addrs:
+            peerstate = self.get_peerstate(addr)
+            peerstate.update_from_msg(
+                msg_id='', effective_date=time.time(),
+                prefer_encrypt=prefer_encrypt,
+                keydata=self.bingpg.get_public_keydata(kh), keyhandle=kh
+            )
+        return ImportKeyResult(account=self.name,
+                               prefer_encrypt=prefer_encrypt,
+                               addrs=uid_addrs,
+                               keydata=self.bingpg.get_public_keydata(kh),
+                               keyhandle=kh)
+
     def process_gossip_headers(self, msg, msg_date, msg_id):
         """ process gossip headers from payload mime part of mail message
         and update state information from any gossip header for the
@@ -528,3 +565,12 @@ class ProcessOutgoingResult(object):
     addr = attrib_text()
     added_autocrypt = attrib()
     had_autocrypt = attrib()
+
+
+@attrs
+class ImportKeyResult(object):
+    account = attrib(type=six.text_type)
+    addrs = attrib()
+    prefer_encrypt = attrib_text()
+    keyhandle = attrib_text()
+    keydata = attrib()

@@ -276,7 +276,7 @@ def sendmail(ctx, args):
     assert args
     args = list(args)
     msg = _process_outgoing(ctx)
-    input = msg.as_string()
+    input = msg.as_string().encode("utf-8")
     # with open("/tmp/mail", "w") as f:
     #    f.write(input)
     log_info(u"piping to: {}".format(" ".join(args)))
@@ -292,6 +292,33 @@ def sendmail(ctx, args):
         out_red("sendmail return {!r} exitcode, path: {}".format(
                 ret, sendmail))
         ctx.exit(ret)
+
+
+@mycommand("import-public-key")
+@account_option
+@click.option(
+    "--prefer-encrypt", default="nopreference",
+    type=click.Choice(["nopreference", "mutual"]),
+    help="prefer-encrypt setting for imported key")
+@click.option(
+    "--email", type=str, default=None,
+    help="associate key with this e-mail address")
+@click.pass_context
+def import_public_key(ctx, account, prefer_encrypt, email):
+    """import public key data as an Autocrypt key.
+
+    this commands reads from stdin an ascii-armored or binary
+    public PGP key
+    """
+    acc = get_account(ctx, account)
+    keydata = sys.stdin.read().encode("ascii")
+    r = acc.import_keydata_as_autocrypt(
+        keydata=keydata, prefer_encrypt=prefer_encrypt, addr=email
+    )
+    click.echo("imported key {!r} with prefer-encrypt={} for addresses".format(
+               r.keyhandle, r.prefer_encrypt))
+    for addr in r.addrs:
+        click.echo(" " + addr)
 
 
 @mycommand("export-public-key")
@@ -400,6 +427,7 @@ autocrypt_main.add_command(sendmail)
 autocrypt_main.add_command(test_email)
 autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(make_header)
+autocrypt_main.add_command(import_public_key)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 autocrypt_main.add_command(bot_reply)

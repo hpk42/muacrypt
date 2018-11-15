@@ -213,7 +213,7 @@ class TestProcessOutgoing:
             assert x in call.args
         # make sure unknown option is passed to pipe
         assert "-f" in call.args
-        out_msg = mime.parse_message_from_string(call.input)
+        out_msg = mime.parse_message_from_string(call.input.decode("utf8"))
         assert "Autocrypt" in out_msg, out_msg.as_string()
 
     def test_sendmail_no_account(self, mycmd, gen_mail, popen_mock):
@@ -244,6 +244,23 @@ class TestProcessOutgoing:
         # make sure unknown option is passed to pipe
         assert "-f" in call.args
         assert "--qwe" in call.args
+
+    def test_import_keydata(self, mycmd, datadir):
+        mycmd.run_ok(["add-account", "default"])
+        keydata = datadir.read_bytes("test1_autocrypt_org.key")
+        mycmd.run_ok(["import-public-key"], input=keydata)
+        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        assert "available" in out
+
+        mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
+        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        assert "available" in out
+
+        mycmd.run_ok(["mod-account", "default", "--prefer-encrypt", "mutual"])
+        out = mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
+        assert "imported" in out
+        out = mycmd.run_ok(["recommend", "default", "test1@autocrypt.org"])
+        assert "encrypt" in out
 
 
 class TestRecommendation:

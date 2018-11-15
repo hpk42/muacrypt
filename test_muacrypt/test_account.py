@@ -370,7 +370,7 @@ class TestAccount:
         with pytest.raises(ValueError):
             recipient.process_outgoing(msg2)
 
-    def test_process_outgoing_with_extra_keydata(self, account_maker, datadir):
+    def test_process_outgoing_with_imported_keydata(self, account_maker, datadir):
         sender, recipient = account_maker(), account_maker()
         recipient.addr = "test1@autocrypt.org"
         keydata = datadir.read_bytes("test1_autocrypt_org.key")
@@ -421,6 +421,7 @@ class TestAccountManager:
         assert not manager.list_account_names()
         assert not manager.get_account_from_emailadr("office@example.org")
 
+    @pytest.mark.filterwarnings("ignore:.*GNUPGHOME.*")
     def test_add_existing_key(self, manager_maker, datadir, gpgpath, monkeypatch):
         manage1 = manager_maker()
         account1 = manage1.get_account()
