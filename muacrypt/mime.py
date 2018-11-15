@@ -40,7 +40,7 @@ class MyBytesIO(six.BytesIO):
 
 
 def msg2bytes(msg):
-    f = MyBytesIO()
+    f = six.BytesIO()  # MyBytesIO()
     BytesGenerator(f).flatten(msg)
     return f.getvalue()
 
@@ -262,7 +262,7 @@ def make_message(content_type, payload=None):
 def make_content_message_from_email(msg, _h=("content-transfer-encoding",)):
     newmsg = make_message(
         content_type=msg["Content-Type"],
-        payload=msg.get_payload(decode=False)
+        payload=msg.get_payload(decode=True),
     )
     for x in _h:
         if x in msg:

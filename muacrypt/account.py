@@ -499,7 +499,8 @@ class Account:
             _account=self,
         )
 
-        clear_data = mime.msg2bytes(clear_payload_msg)  # .replace(b'\n', b'\r\n') TBD for RFC?
+        clear_data = mime.msg2bytes(clear_payload_msg)
+        # XXX .replace(b'\n', b'\r\n') TBD for RFC?
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
         enc = mime.make_message('application/pgp-encrypted', payload="version: 1")

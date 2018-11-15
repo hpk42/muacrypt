@@ -8,6 +8,7 @@ from __future__ import print_function
 import os
 import sys
 import subprocess
+import email
 import click
 import pluggy
 from .cmdline_utils import (
@@ -241,7 +242,7 @@ def process_outgoing(ctx):
 
 def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
-    msg = mime.parse_message_from_file(sys.stdin)
+    msg = email.parser.BytesParser().parse(click.get_binary_stream("stdin"))
     addr = mime.parse_email_addr(msg["From"])
     account = account_manager.get_account_from_emailadr(addr)
     if account is None:
