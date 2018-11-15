@@ -242,7 +242,8 @@ def process_outgoing(ctx):
 
 def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
-    msg = email.parser.BytesParser().parse(click.get_binary_stream("stdin"))
+    Parser = getattr(email.parser, "BytesParser", email.parser.Parser)
+    msg = Parser().parse(click.get_binary_stream("stdin"))
     addr = mime.parse_email_addr(msg["From"])
     account = account_manager.get_account_from_emailadr(addr)
     if account is None:
@@ -278,8 +279,6 @@ def sendmail(ctx, args):
     args = list(args)
     msg = _process_outgoing(ctx)
     input = msg.as_string().encode("utf-8")
-    # with open("/tmp/mail", "w") as f:
-    #    f.write(input)
     log_info(u"piping to: {}".format(" ".join(args)))
     sendmail = find_executable("sendmail")
     if not sendmail:

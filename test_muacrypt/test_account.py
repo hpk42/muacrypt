@@ -180,7 +180,6 @@ class TestAccount:
         data, descr_info = acc1.bingpg.decrypt(enc)
         assert data == b"123"
 
-    @pytest.mark.xfail("sys.version_info > (3,0)")
     def test_parse_incoming_mail_8bit(self, account_maker, datadir):
         acc1 = account_maker()
         acc1.process_incoming(gen_ac_mail_msg(acc1, acc1))
@@ -220,7 +219,6 @@ class TestAccount:
         dec = r.dec_msg
         assert dec.get_content_type() == "text/plain"
         assert dec.get_payload() == msg2.get_payload()
-        assert dec.get_payload(decode=True) == msg2.get_payload(decode=True)
 
     def test_encrypt_decrypt_mime_mixed(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()

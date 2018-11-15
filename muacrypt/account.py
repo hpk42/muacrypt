@@ -520,7 +520,10 @@ class Account:
         """
         assert mime.is_encrypted(msg)
         parts = msg.get_payload()
-        enc_data = parts[1].get_payload().encode("ascii")
+        enc_data = parts[1].get_payload()
+        if not isinstance(enc_data, bytes):
+            enc_data = enc_data.encode("ascii")
+        assert isinstance(enc_data, bytes)
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
         new_msg = mime.message_from_bytes(dec)
