@@ -10,6 +10,9 @@
   a key with a specified prefer-encrypt setting and e-mail
   address.
 
+- all subcommands which take an account name now do it
+  through the "-a" or "--account" option.
+
 - make muacrypt fail by default in process-outgoing/sendmail
   if no muacrypt account could be determined for an outgoing mail
 

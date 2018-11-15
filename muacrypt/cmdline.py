@@ -85,9 +85,20 @@ option_prefer_encrypt = click.option(
     type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
+account_option = click.option(
+    "-a", "--account", "account_name", default="default", metavar="name",
+    help="use this account name")
+
+account_option_none = click.option(
+    "-a", "--account", "account_name", default=None, metavar="name",
+    help="use this account name")
+
+verbose_option = click.option(
+    "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
+
 
 @mycommand("add-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @option_use_key
 @option_use_system_keyring
 @option_gpgbin
@@ -121,7 +132,7 @@ def add_account(ctx, account_name, use_system_keyring,
 
 
 @mycommand("mod-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @option_use_key
 @option_gpgbin
 @option_email_regex
@@ -143,7 +154,7 @@ def mod_account(ctx, account_name, use_key, gpgbin, email_regex, prefer_encrypt)
 
 
 @mycommand("del-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @click.pass_context
 def del_account(ctx, account_name):
     """delete an account, its keys and all state.
@@ -154,14 +165,6 @@ def del_account(ctx, account_name):
     account_manager.del_account(account_name)
     click.echo("account deleted: {!r}".format(account_name))
     _status(account_manager, verbose=True)
-
-
-account_option = click.option(
-    "-a", "--account", "account_name", default=u"default", metavar="name",
-    help="perform lookup through this account")
-
-verbose_option = click.option(
-    "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
 
 
 @mycommand("test-email")
@@ -343,7 +346,7 @@ def export_secret_key(ctx, account_name):
 
 
 @mycommand()
-@click.argument("account_name", type=str, required=False, default=None)
+@account_option_none
 @verbose_option
 @click.pass_context
 def status(ctx, account_name, verbose):

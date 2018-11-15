@@ -21,7 +21,7 @@ def ac_sender(manager_maker, request):
 @pytest.fixture
 def bcmd(mycmd):
     adr = "bot@autocrypt.org"
-    mycmd.run_ok(["add-account", "default", "--email-regex={}".format(adr)])
+    mycmd.run_ok(["add-account", "--email-regex={}".format(adr)])
     mycmd.bot_adr = adr
     return mycmd
 
@@ -203,7 +203,7 @@ class TestBot:
         assert "recommendation is encrypt" in body
 
     def test_encrypted_if_mutual(self, bcmd, ac_sender, linematch):
-        bcmd.run_ok(["mod-account", "default", "--prefer-encrypt=mutual"])
+        bcmd.run_ok(["mod-account", "--prefer-encrypt=mutual"])
         ac_sender.modify(prefer_encrypt='mutual')
         ac_sender.ac_headerval = ac_sender.make_ac_header(ac_sender.adr)
         send_adr = ac_sender.adr

@@ -58,6 +58,14 @@ class AccountNotFound(AccountException):
         return "AccountNotFound: {}".format(self.msg)
 
 
+@attrs
+class AccountExists(AccountException):
+    msg = attrib(type=six.text_type)
+
+    def __str__(self):
+        return "AccountExists: {}".format(self.msg)
+
+
 class AccountManager(object):
     """ Manage multiple accounts and route in/out messages to the appropriate account. """
     def __init__(self, dir, plugin_manager):
@@ -114,7 +122,8 @@ class AccountManager(object):
                         in the user's system gnupg keyring.
         """
         account = self.get_account(account_name, check=False)
-        assert not account.exists()
+        if account.exists():
+            raise AccountExists(account_name)
         if email_regex is None:
             email_regex = '.*'
         account.create(account_name, email_regex=email_regex, keyhandle=keyhandle,
