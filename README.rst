@@ -3,8 +3,8 @@ muacrypt: Autocrypt encryption for mail agents
 
 ``muacrypt`` is a support tool for implementing `Autocrypt Level 1
 <https://autocrypt.org/autocrypt-spec-1.0.0.pdf>`_ compliant mail agents.
-Autocrypt state is kept in an one more accounts which process and produce
-autocrypt headers from incoming and outgoing e-mail. Each account is
+Autocrypt state is kept in one or more accounts which process and produce
+autocrypt headers from respective incoming and outgoing e-mail. Each account is
 tied to a set of e-mail addresses, specified as a regular expression.
 Functionality is exposed through a command line tool ``muacrypt`` and a
 Python api obtained through ``import muacrypt``. There is an evolving plugin
@@ -88,7 +88,7 @@ initializing an Autocrypt account which will maintain
 its own keyring and not interfere with your possibly
 existing gpg default keyring::
 
-    $ muacrypt init
+    $ muacrypt add-account
 
 Afterwards you can create an Autocrypt header
 for an email address::
