@@ -44,8 +44,9 @@ from your system keyring when creating the account::
 
     muacrypt add-account --use-system-keyring --use-key MY_EMAIL_ADDRESS_OR_KEY_HANDLE
 
-You generate a new key for exclusive use by muacrypt/Autocrypt instead of
-re-using an existing key.
+You may generate a new dedicated Autocrypt key ("gpg --gen-key")
+and then reference it for use by mutt/muacrypt instead of
+re-using an already existing key.
 
 .. note::
 
@@ -62,7 +63,7 @@ The ``muacrypt sendmail`` command:
 - adds Autocrypt headers for outgoing mail from your own address,
 
 - potentially and transparently encrypts outgoing cleartext messages according to the
-  ``Autocrypt UI recommendation <https://autocrypt.org/level1.html#provide-a-recommendation-for-message-encryption>``,
+  `Autocrypt UI recommendation <https://autocrypt.org/level1.html#provide-a-recommendation-for-message-encryption>`_,
 
 - passes on the modified/amended mail to the ``sendmail`` command.
 
@@ -168,7 +169,7 @@ remote IMAP one.  Note that ``scan-incoming-dir`` is just a helper
 which eventually pipes each found mail/file into ``muacrypt process-incoming``.
 If you have other ways of piping new incoming messages through
 ``muacrypt process-incoming`` then, by all means, do it and
-please a PR against this documentation if it could be of use
+please file a PR against this documentation if it could be of use
 to other people.
 
 
