@@ -14,40 +14,43 @@ The muacrypt/mutt integration manages PGP keys automatically according to
 the `Autocrypt Level 1 specification <https://autocrypt.org/level1.html>`_.
 **You don't need to import keys or make decisions about them**.
 
-Apart from `installing muacrypt <install>` you will need to
+Apart from `installing muacrypt <install>`_ you will need to
 create a muacrypt account and configure the processing of incoming
 and outgoing mail with your particular mutt/mail setup. The
 example mutt/muacrypt integration below assumes that you already
 have a way of synchronizing remote imap folders to a local directory.
 
-.. note::
-
-    We assume you have a working config for mutt/pgp already and
-    are able to send/receive PGP-encrypted messages.
-    The proposed setup here does not require you to use
-    the PGP- and key-selection menus available
-    from mutt's compose screens.  That's exactly what
-    you won't need to care about with the muacrypt/mutt setup.
-    You may also mix your current mutt/PGP usage with Autocrypt usage
-    because muacrypt will leave already encrypted outgoing messages alone.
+We also assume you have a working config for mutt/pgp already and
+are able to send/receive PGP-encrypted messages.
+The proposed setup here does not require you to use
+the PGP- and key-selection menus available
+from mutt's compose screens.  That's exactly what
+you won't need to care about with the muacrypt/mutt setup.
+You may also mix your current mutt/PGP usage with Autocrypt usage
+because muacrypt will leave already encrypted outgoing messages alone.
 
 .. contents::
 
 Creating an muacrypt account
 ----------------------------
 
-For getting started we need to add a new muacrypt Account. All muacrypt
+First, you need to add a new muacrypt Account. All muacrypt
 state is typically kept in ``$HOME/.config/muacrypt``.
-Because of the existing mutt/pgp integration it's better to use a key
+Because we are working with your existing mutt/pgp integration
+for being able to decrypt messages it's a good idea to not use
+muacrypt's default account-creation because this would happen
+in a separate non-system keyring.  Instead we recommend to use a key
 from your system keyring when creating the account::
 
     muacrypt add-account --use-system-keyring --use-key MY_EMAIL_ADDRESS_OR_KEY_HANDLE
 
-You may use an existing key or generate a new one for exclusive use by muacrypt/Autocrypt.
+You generate a new key for exclusive use by muacrypt/Autocrypt instead of
+re-using an existing key.
 
 .. note::
 
-    muacrypt does not support secret keys using passphrases. See also Autocrytp's take on it:
+    muacrypt does not support secret keys using passphrases.
+    See also Autocrypt's take on it:
     https://autocrypt.org/level1.html#secret-key-protection-at-rest
 
 
@@ -56,12 +59,12 @@ Processing outgoing mail / sendmail pipelining
 
 The ``muacrypt sendmail`` command:
 
-- adds Autocrypt headers for outgoing mail from your own address
+- adds Autocrypt headers for outgoing mail from your own address,
 
-- potentially encrypts an outgoing cleartext message according to the
-  ``Autocrypt UI recommendation <https://autocrypt.org/level1.html#provide-a-recommendation-for-message-encryption>``.
+- potentially and transparently encrypts outgoing cleartext messages according to the
+  ``Autocrypt UI recommendation <https://autocrypt.org/level1.html#provide-a-recommendation-for-message-encryption>``,
 
-- passes on the modified/amended mail to the ``sendmail`` command
+- passes on the modified/amended mail to the ``sendmail`` command.
 
 In your ``.muttrc`` you need to add something like the following::
 
@@ -73,12 +76,12 @@ In your ``.muttrc`` you need to add something like the following::
     set crypt_replyencrypt=no
     set crypt_replysignencrypted=no
 
-This means that by default you don't work with the mutt/pgp menus at all
-and let ``muacrypt sendmail`` do its job of selecting the correct last-seen
+The idea here is that that in the composing-mail window you don't work with the
+mutt/pgp menus at all and let ``muacrypt sendmail`` do its job of selecting the correct last-seen
 keys for your recipients.  This will also add "Gossip" headers in the
 encrypted part of outgoing mails so that each of your recipients,
 if they are using an Autocrypt compliant Mail app, can safely
-group-reply encrypted.
+group-reply and maintain encryption.
 
 .. TODO::
 
@@ -133,10 +136,10 @@ Processing incoming mail from maildirs
 
     $ muacrypt scandir-incoming -h
     Usage: muacrypt scandir-incoming [OPTIONS] DIRECTORY
-    
+
       scan directory for new incoming messages and process Autocrypt and
       Autocrypt-gossip headers from them.
-    
+
     Options:
       -h, --help  Show this message and exit.
 
@@ -192,13 +195,13 @@ Please refer to the help for more info on how to change the defaults::
 
     $ muacrypt import-public-key -h
     Usage: muacrypt import-public-key [OPTIONS]
-    
+
       import public key data as an Autocrypt key.
-    
+
       This commands reads from stdin an ascii-armored public PGP key. By default
       all e-mail addresses contained in the UIDs will be associated with the
       key. Use options to change these default behaviours.
-    
+
     Options:
       -a, --account name              use this account name
       --prefer-encrypt [nopreference|mutual]
