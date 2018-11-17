@@ -22,6 +22,9 @@ from .recommendation import Recommendation
 from .myattr import attrib_text, attrib_float
 import email.utils
 
+# header which configures encryption mode for outgoing messages
+ENCRYPT_HEADER = "ENCRYPT"
+
 
 def parse_date_to_float(date):
     try:
@@ -53,6 +56,14 @@ class AccountNotFound(AccountException):
 
     def __str__(self):
         return "AccountNotFound: {}".format(self.msg)
+
+
+@attrs
+class AccountExists(AccountException):
+    msg = attrib(type=six.text_type)
+
+    def __str__(self):
+        return "AccountExists: {}".format(self.msg)
 
 
 class AccountManager(object):
@@ -111,7 +122,8 @@ class AccountManager(object):
                         in the user's system gnupg keyring.
         """
         account = self.get_account(account_name, check=False)
-        assert not account.exists()
+        if account.exists():
+            raise AccountExists(account_name)
         if email_regex is None:
             email_regex = '.*'
         account.create(account_name, email_regex=email_regex, keyhandle=keyhandle,
@@ -153,6 +165,10 @@ class AccountManager(object):
                 return account
         if raising:
             raise AccountNotFound(emailadr)
+
+    def get_matching_account_for_incoming_message(self, msg):
+        delivto = mime.get_delivered_to(msg)
+        return self.get_account_from_emailadr(delivto, raising=True)
 
     def remove(self):
         """ remove the account directory and reset this account configuration
@@ -305,9 +321,9 @@ class Account:
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
     def process_incoming(self, msg):
-        """ process incoming mail message and states information
-        from any Autocrypt header for the From/Autocrypt peer
-        which created the message.
+        """ process incoming mail message for Autocrypt headers
+        both in the cleartext and encrypted parts which will
+        be decrypted to process Autocrypt-Gossip headers.
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
@@ -339,6 +355,8 @@ class Account:
         )
 
     def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
+        if peerstate.has_message(msg_id):
+            return None
         pah = mime.parse_one_ac_header_from_msg(msg, [From])
         if pah.error:
             if "no valid Autocrypt" not in pah.error:
@@ -352,6 +370,43 @@ class Account:
             keydata=pah.keydata, keyhandle=keyhandle,
         )
         return pah
+
+    def import_keydata_as_autocrypt(self, addr, keydata, prefer_encrypt):
+        """ process incoming mail message and states information
+        from any Autocrypt header for the From/Autocrypt peer
+        which created the message.
+
+        :type addr: string or None
+        :param addr: e-mail address or None if should be extracted from UID of keydata.
+        :type keydata: bytes
+        :param keydata: keydata to be imported
+        :rtype: ImportKeyResult
+        """
+        if hasattr(prefer_encrypt, "decode"):
+            prefer_encrypt = prefer_encrypt.decode("ascii")
+        kh = self.bingpg.import_keydata(keydata)
+        uid_addrs = []
+        if addr is not None:
+            uid_addrs.append(mime.parse_email_addr(addr))
+        else:
+            for keyinfo in self.bingpg.list_public_keyinfos(kh):
+                if keyinfo.id == kh:
+                    uid_addrs.extend(map(mime.parse_email_addr, keyinfo.uids))
+                    break
+
+        kh = self.bingpg.import_keydata(keydata, minimize=True)
+        for addr in uid_addrs:
+            peerstate = self.get_peerstate(addr)
+            peerstate.update_from_msg(
+                msg_id='', effective_date=time.time(),
+                prefer_encrypt=prefer_encrypt,
+                keydata=self.bingpg.get_public_keydata(kh), keyhandle=kh
+            )
+        return ImportKeyResult(account=self.name,
+                               prefer_encrypt=prefer_encrypt,
+                               addrs=uid_addrs,
+                               keydata=self.bingpg.get_public_keydata(kh),
+                               keyhandle=kh)
 
     def process_gossip_headers(self, msg, msg_date, msg_id):
         """ process gossip headers from payload mime part of mail message
@@ -390,11 +445,34 @@ class Account:
         :param msg: outgoing message in mime format.
         :rtype: ProcessOutgoingResult
         """
+
+        # encryption header handling
+        enc_header = None
+        if ENCRYPT_HEADER in msg:
+            enc_header = msg[ENCRYPT_HEADER].strip()
+            assert enc_header in ["opportunistic", "yes", "no"], enc_header
+            del msg[ENCRYPT_HEADER]
+
         addr = mime.parse_email_addr(msg.get("From"))
         if "Autocrypt" in msg:
             added_autocrypt = None
         else:
             msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr)
+
+        if not mime.is_encrypted(msg) and enc_header:
+            recipients = mime.get_target_emailadr(msg)
+            froms = msg.get_all("From") or []
+            assert len(froms) == 1
+            rec = self.get_recommendation(recipients).ui_recommendation()
+            recipients.append(mime.parse_email_addr(froms[0]))
+            if enc_header != "no":
+                if (rec == "encrypt" or (rec != "disable" and enc_header == "yes")):
+                    r = self.encrypt_mime(msg, recipients)
+                    msg = r.enc_msg
+                elif (enc_header == "yes"):
+                    # XXX detail which addr we can't encrypt to
+                    raise ValueError("encryption requested, but not available")
+
         return ProcessOutgoingResult(
             msg=msg, account=self, addr=addr,
             added_autocrypt=added_autocrypt, had_autocrypt=msg["Autocrypt"]
@@ -417,11 +495,16 @@ class Account:
         for addr in toaddrs:
             peer = self.get_peerstate(addr)
             kh = peer.public_keyhandle
-            assert kh, "keyhandle not found for: " + addr
-            keyhandles.append(kh)
-            recipient2keydata[addr] = peer.public_keydata
-            value = mime.make_ac_header_value(addr, peer.public_keydata)
-            clear_payload_msg.add_header('Autocrypt-Gossip', value)
+            if not kh:
+                if re.match(self.ownstate.email_regex, addr):
+                    kh = self.ownstate.keyhandle
+                else:
+                    raise ValueError("keyhandle not found for: " + addr)
+            else:
+                recipient2keydata[addr] = peer.public_keydata
+                value = mime.make_ac_header_value(addr, peer.public_keydata)
+                clear_payload_msg.add_header('Autocrypt-Gossip', value)
+                keyhandles.append(kh)
 
         self.plugin_manager.hook.process_before_encryption(
             sender_addr=mime.parse_email_addr(msg["From"]),
@@ -431,7 +514,8 @@ class Account:
             _account=self,
         )
 
-        clear_data = mime.msg2bytes(clear_payload_msg)  # .replace(b'\n', b'\r\n') TBD for RFC?
+        clear_data = mime.msg2bytes(clear_payload_msg)
+        # XXX .replace(b'\n', b'\r\n') TBD for RFC?
         enc_data = self.bingpg.encrypt(data=clear_data, recipients=keyhandles,
                                        text=True, signkey=self.ownstate.keyhandle)
         enc = mime.make_message('application/pgp-encrypted', payload="version: 1")
@@ -451,7 +535,10 @@ class Account:
         """
         assert mime.is_encrypted(msg)
         parts = msg.get_payload()
-        enc_data = parts[1].get_payload().encode("ascii")
+        enc_data = parts[1].get_payload()
+        if not isinstance(enc_data, bytes):
+            enc_data = enc_data.encode("ascii")
+        assert isinstance(enc_data, bytes)
         dec, keyinfos = self.bingpg.decrypt(enc_data=enc_data)
         logging.debug("decrypted message {!r}".format(msg.get("message-id")))
         new_msg = mime.message_from_bytes(dec)
@@ -497,3 +584,12 @@ class ProcessOutgoingResult(object):
     addr = attrib_text()
     added_autocrypt = attrib()
     had_autocrypt = attrib()
+
+
+@attrs
+class ImportKeyResult(object):
+    account = attrib(type=six.text_type)
+    addrs = attrib()
+    prefer_encrypt = attrib_text()
+    keyhandle = attrib_text()
+    keydata = attrib()

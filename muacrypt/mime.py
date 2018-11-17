@@ -5,6 +5,7 @@
 
 from __future__ import unicode_literals, print_function
 import logging
+import copy
 import email.parser
 import base64
 import quopri
@@ -40,6 +41,7 @@ class MyBytesIO(six.BytesIO):
 
 
 def msg2bytes(msg):
+    # f = six.BytesIO()
     f = MyBytesIO()
     BytesGenerator(f).flatten(msg)
     return f.getvalue()
@@ -179,7 +181,7 @@ def parse_ac_headervalue(value):
         elif name == "prefer-encrypt":
             name = "prefer_encrypt"
             if value not in ("nopreference", "mutual"):
-                return ACParseResult(error="unknown prefer-encryp setting '%s'" % value)
+                return ACParseResult(error="unknown prefer-encrypt setting '%s'" % value)
         elif name == "addr":
             pass
         elif name[0] != "_":
@@ -206,6 +208,7 @@ class ACParseResult(object):
 def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
                  Subject="testmail", Date=None, _dto=False,
                  MessageID=None, payload='Autoresponse\n',
+                 ENCRYPT=None,
                  charset=None):
     if Cc is None:
         Cc = []
@@ -227,6 +230,8 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
     msg['Message-ID'] = MessageID
     if Subject is not None:
         msg['Subject'] = Subject
+    if ENCRYPT is not None:
+        msg['ENCRYPT'] = ENCRYPT
     Date = 0 if not Date else Date
     if isinstance(Date, int):
         Date = formatdate(time.time() + Date)
@@ -256,14 +261,12 @@ def make_message(content_type, payload=None):
     return msg
 
 
-def make_content_message_from_email(msg, _h=("content-transfer-encoding",)):
-    newmsg = make_message(
-        content_type=msg["Content-Type"],
-        payload=msg.get_payload(decode=False)
-    )
-    for x in _h:
-        if x in msg:
-            newmsg[x] = msg[x]
+def make_content_message_from_email(msg):
+    newmsg = copy.deepcopy(msg)
+    for key in newmsg.keys():
+        if key.lower() not in ("content-transfer-encoding",
+                               "content-type"):
+            del newmsg[key]
     return newmsg
 
 

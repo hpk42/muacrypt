@@ -14,13 +14,25 @@ from muacrypt import mime
 from muacrypt.cmdline import make_plugin_manager
 
 
-def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None):
+def gen_ac_mail_msg(sender, recipients, payload=None, charset=None,
+                    Date=None, ENCRYPT=None, _dto=False):
     if isinstance(recipients, Account):
         recipients = [recipients]
     return mime.gen_mail_msg(
         From=sender.addr, To=[rec.addr for rec in recipients],
         Autocrypt=sender.make_ac_header(sender.addr),
         payload=payload, charset=charset, Date=Date,
+        ENCRYPT=ENCRYPT, _dto=_dto,
+    )
+
+
+def gen_noac_mail_msg(sender, recipients, payload=None, charset=None, Date=None, _dto=False):
+    if isinstance(recipients, Account):
+        recipients = [recipients]
+    return mime.gen_mail_msg(
+        From=sender.addr, To=[rec.addr for rec in recipients],
+        payload=payload, charset=charset, Date=Date,
+        _dto=_dto,
     )
 
 
@@ -117,13 +129,13 @@ class TestAccount:
         acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         msg1 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
-            Autocrypt=acc2.make_ac_header(acc1.addr))
-        r = acc1.process_incoming(msg1)
-        assert r.peerstate.public_keyhandle == acc2.ownstate.keyhandle
+            Autocrypt=acc1.make_ac_header(acc1.addr))
+        r = acc2.process_incoming(msg1)
+        assert r.peerstate.public_keyhandle == acc1.ownstate.keyhandle
         msg2 = mime.gen_mail_msg(
             From=acc1.addr, To=[acc2.addr],
             Autocrypt=acc3.make_ac_header(acc1.addr))
-        r2 = acc1.process_incoming(msg2)
+        r2 = acc2.process_incoming(msg2)
         assert r2.peerstate.public_keyhandle == acc3.ownstate.keyhandle
 
     def test_parse_incoming_mails_effective_date(self, account_maker, monkeypatch):
@@ -140,17 +152,19 @@ class TestAccount:
         acc1, acc2, acc3 = account_maker(), account_maker(), account_maker()
         addr = acc1.addr
         msg2 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=acc3.make_ac_header(addr),
+            From=addr, To=["b@b.org"], Autocrypt=acc1.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 15:00:00 -0000')
+        r = acc2.process_incoming(msg2)
+        assert r.account.get_peerstate(addr).public_keyhandle == acc1.ownstate.keyhandle
+        assert r.msg_date == r.peerstate.autocrypt_timestamp
+
         msg1 = mime.gen_mail_msg(
-            From=addr, To=["b@b.org"], Autocrypt=acc2.make_ac_header(addr),
+            From=addr, To=["b@b.org"], Autocrypt=acc3.make_ac_header(addr),
             Date='Thu, 16 Feb 2017 13:00:00 -0000')
-        r = acc1.process_incoming(msg2)
-        assert r.account.get_peerstate(addr).public_keyhandle == acc3.ownstate.keyhandle
-        r2 = acc1.process_incoming(msg1)
-        assert r2.peerstate.public_keyhandle == \
-            acc3.ownstate.keyhandle
+        r2 = acc2.process_incoming(msg1)
+        assert r2.peerstate.public_keyhandle == acc1.ownstate.keyhandle
         assert r2.msg_date < r.msg_date
+        assert r2.peerstate.autocrypt_timestamp == r.peerstate.autocrypt_timestamp
 
         msg3 = mime.gen_mail_msg(
             From="Alice <%s>" % addr, To=["b@b.org"], _dto=True,
@@ -177,7 +191,6 @@ class TestAccount:
         data, descr_info = acc1.bingpg.decrypt(enc)
         assert data == b"123"
 
-    @pytest.mark.xfail("sys.version_info > (3,0)")
     def test_parse_incoming_mail_8bit(self, account_maker, datadir):
         acc1 = account_maker()
         acc1.process_incoming(gen_ac_mail_msg(acc1, acc1))
@@ -217,7 +230,6 @@ class TestAccount:
         dec = r.dec_msg
         assert dec.get_content_type() == "text/plain"
         assert dec.get_payload() == msg2.get_payload()
-        assert dec.get_payload(decode=True) == msg2.get_payload(decode=True)
 
     def test_encrypt_decrypt_mime_mixed(self, account_maker):
         acc1, acc2 = account_maker(), account_maker()
@@ -323,6 +335,61 @@ class TestAccount:
         ps = rec1.get_peerstate(rec2new.addr)
         assert ps.public_keyhandle == rec2new.ownstate.keyhandle
 
+    @pytest.mark.parametrize("encrypt", ["opportunistic", "no", "yes"])
+    def test_process_outgoing_with_enc_header_nopreference(self, account_maker, encrypt):
+        sender, recipient = account_maker(), account_maker()
+
+        # let's first send a message to get the autocrypt haeder accross
+        msg = gen_ac_mail_msg(sender, [recipient])
+        r = recipient.process_incoming(msg)
+        assert r.pah.keydata
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT=encrypt)
+        r = recipient.process_outgoing(msg2)
+        assert "ENCRYPT" not in r.msg
+        if encrypt == "opportunistic" or encrypt == "no":
+            assert not mime.is_encrypted(r.msg)
+        elif encrypt == "yes":
+            assert mime.is_encrypted(r.msg)
+
+    @pytest.mark.parametrize("encrypt", ["opportunistic", "no", "yes"])
+    def test_process_outgoing_with_enc_header_mutual(self, account_maker, encrypt):
+        sender, recipient = account_maker(), account_maker()
+
+        sender.modify(prefer_encrypt="mutual")
+        recipient.modify(prefer_encrypt="mutual")
+
+        # let's first send a message to get the autocrypt haeder accross
+        msg = gen_ac_mail_msg(sender, [recipient])
+        r = recipient.process_incoming(msg)
+        assert r.pah.keydata
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT=encrypt)
+        r = recipient.process_outgoing(msg2)
+        assert "ENCRYPT" not in r.msg
+        if encrypt == "opportunistic" or encrypt == "yes":
+            assert mime.is_encrypted(r.msg)
+        elif encrypt == "no":
+            assert not mime.is_encrypted(r.msg)
+
+    def test_process_outgoing_with_enc_header_no_key(self, account_maker):
+        sender, recipient = account_maker(), account_maker()
+
+        msg2 = gen_ac_mail_msg(recipient, sender, ENCRYPT="yes")
+        with pytest.raises(ValueError):
+            recipient.process_outgoing(msg2)
+
+    def test_process_outgoing_with_imported_keydata(self, account_maker, datadir):
+        sender, recipient = account_maker(), account_maker()
+        recipient.addr = "test1@autocrypt.org"
+        keydata = datadir.read_bytes("test1_autocrypt_org.key")
+        sender.import_keydata_as_autocrypt(addr=recipient.addr,
+                                           prefer_encrypt="nopreference",
+                                           keydata=keydata)
+        msg2 = gen_ac_mail_msg(sender, recipient, ENCRYPT="yes")
+        r = sender.process_outgoing(msg2)
+        assert mime.is_encrypted(r.msg)
+
 
 class TestAccountManager:
     def test_account_handling(self, tmpdir):
@@ -363,6 +430,7 @@ class TestAccountManager:
         assert not manager.list_account_names()
         assert not manager.get_account_from_emailadr("office@example.org")
 
+    @pytest.mark.filterwarnings("ignore:.*GNUPGHOME.*")
     def test_add_existing_key(self, manager_maker, datadir, gpgpath, monkeypatch):
         manage1 = manager_maker()
         account1 = manage1.get_account()

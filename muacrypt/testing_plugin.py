@@ -130,6 +130,13 @@ class ClickRunner:
     def set_basedir(self, account_dir):
         self._rootargs.insert(0, "--basedir")
         self._rootargs.insert(1, account_dir)
+        self.account_dir = account_dir
+
+    def get_account(self, account_name):
+        from .cmdline import _pluginmanager
+        from .account import AccountManager
+        am = AccountManager(self.account_dir, _pluginmanager)
+        return am.get_account(account_name)
 
     def run_ok(self, args, fnl=None, input=None):
         __tracebackhide__ = True
@@ -155,7 +162,7 @@ class ClickRunner:
         return _perform_match(res.output, fnl)
 
     def parse_recommendation(self, account_name, adrlist):
-        out = self.run_ok(["recommend", account_name] + list(adrlist))
+        out = self.run_ok(["recommend", "-a", account_name] + list(adrlist))
         return out.splitlines()[0].strip()
 
     def send_mail(self, sender, receivers, ac=True, Date=None):

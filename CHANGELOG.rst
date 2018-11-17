@@ -1,9 +1,35 @@
-0.8.4.dev
+0.9.0
 -----------------------
 
+- support and document a viable mutt/muacrypt integration
+
+- all subcommands which take an account name now do it
+  through the "-a" or "--account" option.
+
+- add "muacrypt import-public-key" subcommand to integrate
+  a key with a specified prefer-encrypt setting and e-mail
+  address.
+
+- add "scandir-incoming" subcommand to scan maildirs
+  for incoming mail and Autocrypt headers.
+
+- add "peerstate EMAILADR" command which shows Autocrypt
+  and key state for a given peer.
+
+- renamed "test-email" to "find-account" subcommand as
+  it is about finding the account for a particular (own) e-mail address.
+
+- make muacrypt fail by default in process-outgoing/sendmail
+  if no muacrypt account could be determined for an outgoing mail
+
 - fix test suite with --no-test-cache run
+
 - disable warnings for pytest_localserver's smtp support
-- add muacrypt version
+
+- add muacrypt version to pytest report header
+
+- refine tests for process-incoming and autocrypt timestamps
+
 
 0.8.3
 -----------------------

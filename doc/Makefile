@@ -245,3 +245,4 @@ regen-cmdref:
 
 regen:
 	python with_tmphome.py regendoc --update cmdline.rst
+	python with_tmphome.py regendoc --update mutt.rst

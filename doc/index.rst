@@ -25,11 +25,14 @@ Aims and goals
   implements the `decentralized ClaimChain key consistency protocol
   <https://claimchain.github.io/>`_.
 
+- :doc:`integrate muacrypt with mutt <mutt>` and other MUA setups that
+  call out into commandline tools to automatically achieve
+  e-mail e2e encryption that does not annoy others or yourself
+  (hopefully!)
+
 - integrate ``muacrypt`` with mailman3 in order to achieve
   opportunisitically encrypted mailing lists.
 
-- integrate ``muacrypt`` with mutt and other MUA setups that
-  call out into commandline tools to achieve e-mail e2e encryption
 
 
 Documentation, getting started
@@ -40,4 +43,5 @@ Documentation, getting started
 
    install
    cmdline
+   mutt
    api

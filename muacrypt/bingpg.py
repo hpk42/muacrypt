@@ -354,9 +354,17 @@ class BinGPG(object):
                 keyinfos.append(KeyInfo(keytype, bits, id, uid, date))
         return out, keyinfos
 
-    def import_keydata(self, keydata):
+    def import_keydata(self, keydata, minimize=False):
         out, err = self._gpg_outerr(["--skip-verify", "--import"], input=keydata)
-        return self._find_keyhandle(err)
+        kh = self._find_keyhandle(err)
+        if minimize:
+            # get_public_keydata gets us a minimized key
+            minimized_keydata = self.get_public_keydata(kh)
+            self._gpg_outerr(["--yes", "--delete-key", kh])
+            _, err = self._gpg_outerr(["--skip-verify", "--import"], input=minimized_keydata)
+            min_kh = self._find_keyhandle(err)
+            assert min_kh == kh
+        return kh
 
 
 class KeyInfo:

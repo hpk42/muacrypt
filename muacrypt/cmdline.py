@@ -6,8 +6,10 @@
 from __future__ import print_function
 
 import os
+import datetime
 import sys
 import subprocess
+import email
 import click
 import pluggy
 from .cmdline_utils import (
@@ -84,9 +86,20 @@ option_prefer_encrypt = click.option(
     type=click.Choice(["nopreference", "mutual"]),
     help="modify prefer-encrypt setting, default is to not change it.")
 
+account_option = click.option(
+    "-a", "--account", "account_name", default="default", metavar="name",
+    help="use this account name")
+
+account_option_none = click.option(
+    "-a", "--account", "account_name", default=None, metavar="name",
+    help="use this account name")
+
+verbose_option = click.option(
+    "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
+
 
 @mycommand("add-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @option_use_key
 @option_use_system_keyring
 @option_gpgbin
@@ -94,7 +107,7 @@ option_prefer_encrypt = click.option(
 @click.pass_context
 def add_account(ctx, account_name, use_system_keyring,
                 use_key, gpgbin, email_regex):
-    """add a named account.
+    """add named account for set of e-mail addresses.
 
     An account requires an account_name which is used to show, modify and delete it.
 
@@ -120,7 +133,7 @@ def add_account(ctx, account_name, use_system_keyring,
 
 
 @mycommand("mod-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @option_use_key
 @option_gpgbin
 @option_email_regex
@@ -142,7 +155,7 @@ def mod_account(ctx, account_name, use_key, gpgbin, email_regex, prefer_encrypt)
 
 
 @mycommand("del-account")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @click.pass_context
 def del_account(ctx, account_name):
     """delete an account, its keys and all state.
@@ -155,19 +168,11 @@ def del_account(ctx, account_name):
     _status(account_manager, verbose=True)
 
 
-account_option = click.option(
-    "-a", "--account", default=u"default", metavar="name",
-    help="perform lookup through this account")
-
-verbose_option = click.option(
-    "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
-
-
-@mycommand("test-email")
+@mycommand("find-account")
 @click.argument("emailadr", type=str, required=True)
 @click.pass_context
-def test_email(ctx, emailadr):
-    """test which account an email belongs to.
+def find_account(ctx, emailadr):
+    """print matching account for an e-mail address.
 
     Fail if no account matches.
     """
@@ -191,30 +196,60 @@ def make_header(ctx, emailadr, val):
 
 
 @mycommand("recommend")
-@click.argument("account_name", type=str, required=True)
+@account_option
 @click.argument("emailadr", type=click.STRING, nargs=-1)
 @click.pass_context
 def recommend(ctx, account_name, emailadr):
-    """print AC Level 1 recommendation for sending from an
-    account to one or more target addresses. The first
-    line contains an ui recommendation of "discourage", "available"
-    or "encrypt". Subsequent lines may contain additional information.
+    """print Autocrypt UI recommendation for target e-mail addresses.
+    The first line of output contains an ui recommendation of "discourage",
+    "available" or "encrypt". Subsequent lines may contain additional information
+    which you may process or ignore.
     """
     account = get_account(ctx, account_name)
     recommend = account.get_recommendation(list(emailadr))
     click.echo(recommend.ui_recommendation())
 
 
+@mycommand("peerstate")
+@account_option
+@click.argument("emailadr", type=click.STRING, required=True)
+@click.pass_context
+def peerstate(ctx, account_name, emailadr):
+    """print current autocrypt state information about a peer. """
+    account = get_account(ctx, account_name)
+    peerstate = account.get_peerstate(emailadr)
+
+    def D(timestamp):
+        if timestamp:
+            d = datetime.datetime.fromtimestamp(timestamp)
+            return d.isoformat()
+        return ""
+
+    click.echo("{: <16} {}".format("peer address", peerstate.addr))
+    click.echo("{: <16} {}".format("keyhandle", peerstate.public_keyhandle))
+    click.echo("{: <16} {}".format("direct_key", peerstate.has_direct_key()))
+    click.echo("{: <16} {}".format("prefer_encrypt", peerstate.prefer_encrypt))
+
+    click.echo("{: <16} {}".format("last_seen", D(peerstate.last_seen)))
+    msg_entry = peerstate._latest_msg_entry()
+    click.echo("{: <16} {}".format("last_msg", getattr(msg_entry, "msg_id", "")))
+
+    click.echo("{: <16} {}".format("ac timestamp", D(peerstate.autocrypt_timestamp)))
+    ac_entry = peerstate._latest_msg_entry()
+    click.echo("{: <16} {}".format("last_ac_msg", getattr(ac_entry, "msg_id", "")))
+    # XXX add gossip info (latest_gossip_entry)
+
+
 @mycommand("process-incoming")
 @click.pass_context
 def process_incoming(ctx):
-    """parse Autocrypt headers from stdin-read mime message
+    """parse Autocrypt info from stdin message
     if it was delivered to one of our managed accounts.
     """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    delivto = mime.get_delivered_to(msg)
-    account = account_manager.get_account_from_emailadr(delivto, raising=True)
+
+    account = account_manager.get_matching_account_for_incoming_message(msg)
     r = account.process_incoming(msg)
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
         msg = "found: " + str(r.peerstate)
@@ -222,6 +257,50 @@ def process_incoming(ctx):
         msg = "no Autocrypt header found"
     click.echo("processed mail for account '{}', {}".format(
                r.account.name, msg))
+
+
+@mycommand("scandir-incoming")
+@click.argument("directory", default=None, type=click.Path(), required=True)
+@click.pass_context
+def scandir_incoming(ctx, directory):
+    """scan directory for new incoming messages and process
+    Autocrypt and Autocrypt-gossip headers from them.
+    """
+    from termcolor import colored as C
+
+    def R(msg):
+        return C(msg, "red")
+
+    def G(msg):
+        return C(msg, "green")
+
+    account_manager = get_account_manager(ctx)
+    for i, path in enumerate(os.listdir(directory)):
+        path = os.path.join(directory, path)
+
+        with open(path) as f:
+            msg = email.message_from_file(f)
+        if msg is None:
+            continue
+        msg_id = msg.get("message-id", None)
+        if msg_id is None:
+            continue
+        account = account_manager.get_matching_account_for_incoming_message(msg)
+        r = account.process_incoming(msg)
+        if r.pah is None:
+            status = " (old)"
+        elif not r.pah.error:
+            status = "found Autocrypt addr={} keyhandle={}".format(
+                r.peerstate.addr, r.peerstate.public_keyhandle,)
+            if r.msg_date == r.peerstate.autocrypt_timestamp:
+                status += G(" (updated)")
+            else:
+                status += " (old)"
+        else:
+            status = r.pah.error
+            if "no valid Autocrypt header" not in r.pah.error:
+                status = R(status)
+        print("[%s] msg %s -- %s" % (i, msg_id, status))
 
 
 @mycommand("process-outgoing")
@@ -241,12 +320,12 @@ def process_outgoing(ctx):
 
 def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
-    msg = mime.parse_message_from_file(sys.stdin)
+    Parser = getattr(email.parser, "BytesParser", email.parser.Parser)
+    msg = Parser().parse(click.get_binary_stream("stdin"))
     addr = mime.parse_email_addr(msg["From"])
     account = account_manager.get_account_from_emailadr(addr)
     if account is None:
-        log_info("No Account associated with addr={!r}".format(addr))
-        return msg
+        raise click.ClickException("No Account associated for 'From: {}'".format(addr))
     else:
         r = account.process_outgoing(msg)
         dump_info_outgoing_result(r)
@@ -277,9 +356,7 @@ def sendmail(ctx, args):
     assert args
     args = list(args)
     msg = _process_outgoing(ctx)
-    input = msg.as_string()
-    # with open("/tmp/mail", "w") as f:
-    #    f.write(input)
+    input = msg.as_string().encode("utf-8")
     log_info(u"piping to: {}".format(" ".join(args)))
     sendmail = find_executable("sendmail")
     if not sendmail:
@@ -295,13 +372,41 @@ def sendmail(ctx, args):
         ctx.exit(ret)
 
 
+@mycommand("import-public-key")
+@account_option
+@click.option(
+    "--prefer-encrypt", default="mutual",
+    type=click.Choice(["nopreference", "mutual"]),
+    help="prefer-encrypt setting for imported key")
+@click.option(
+    "--email", type=str, default=None,
+    help="associate key with this e-mail address")
+@click.pass_context
+def import_public_key(ctx, account_name, prefer_encrypt, email):
+    """import public key data as an Autocrypt key.
+
+    This commands reads from stdin an ascii-armored public PGP key.
+    By default all e-mail addresses contained in the UIDs will be
+    associated with the key. Use options to change these default behaviours.
+    """
+    acc = get_account(ctx, account_name)
+    keydata = sys.stdin.read().encode("ascii")
+    r = acc.import_keydata_as_autocrypt(
+        keydata=keydata, prefer_encrypt=prefer_encrypt, addr=email
+    )
+    click.echo("imported key {!r} with prefer-encrypt={} for addresses".format(
+               r.keyhandle, r.prefer_encrypt))
+    for addr in r.addrs:
+        click.echo(" " + addr)
+
+
 @mycommand("export-public-key")
 @account_option
 @click.argument("keyhandle_or_email", default=None, required=False)
 @click.pass_context
-def export_public_key(ctx, account, keyhandle_or_email):
+def export_public_key(ctx, account_name, keyhandle_or_email):
     """print public key of own or peer account."""
-    account = get_account(ctx, account)
+    account = get_account(ctx, account_name)
     data = account.export_public_key(keyhandle_or_email)
     click.echo(data)
 
@@ -309,15 +414,15 @@ def export_public_key(ctx, account, keyhandle_or_email):
 @mycommand("export-secret-key")
 @account_option
 @click.pass_context
-def export_secret_key(ctx, account):
+def export_secret_key(ctx, account_name):
     """print secret key of own account."""
-    account = get_account(ctx, account)
+    account = get_account(ctx, account_name)
     data = account.export_secret_key()
     click.echo(data)
 
 
 @mycommand()
-@click.argument("account_name", type=str, required=False, default=None)
+@account_option_none
 @verbose_option
 @click.pass_context
 def status(ctx, account_name, verbose):
@@ -395,11 +500,14 @@ autocrypt_main.add_command(status)
 autocrypt_main.add_command(add_account)
 autocrypt_main.add_command(mod_account)
 autocrypt_main.add_command(del_account)
+autocrypt_main.add_command(find_account)
 autocrypt_main.add_command(process_incoming)
+autocrypt_main.add_command(scandir_incoming)
+autocrypt_main.add_command(import_public_key)
+autocrypt_main.add_command(peerstate)
+autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
-autocrypt_main.add_command(test_email)
-autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)

@@ -162,6 +162,14 @@ class PeerState(object):
         """ Return latest message with or without Autocrypt header. """
         return self._chain.latest_entry_of(MsgEntry)
 
+    def has_message(self, msg_id):
+        # XXX make this less expensive
+        for i, entry in enumerate(self._chain.iter_entries(MsgEntry)):
+            if entry.msg_id == msg_id:
+                # we already know the message, no changes
+                return True
+        return False
+
     # methods which modify/add state
     def update_from_msg(self, msg_id, effective_date, prefer_encrypt,
                         keydata, keyhandle):
@@ -174,6 +182,7 @@ class PeerState(object):
                 )
                 logging.debug("append noac %s", msg_id)
             return
+
         self._append_ac_entry(
             msg_id=msg_id, msg_date=effective_date,
             prefer_encrypt=prefer_encrypt,
