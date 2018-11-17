@@ -272,15 +272,15 @@ class TestProcessOutgoing:
         out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
         assert "available" in out
 
-        mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
-        out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
-        assert "available" in out
-
         mycmd.run_ok(["mod-account", "--prefer-encrypt", "mutual"])
         out = mycmd.run_ok(["import-public-key", "--prefer-encrypt=mutual"], input=keydata)
         assert "imported" in out
         out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
         assert "encrypt" in out
+
+        mycmd.run_ok(["import-public-key", "--prefer-encrypt=nopreference"], input=keydata)
+        out = mycmd.run_ok(["recommend", "test1@autocrypt.org"])
+        assert "available" in out
 
 
 class TestRecommendation:

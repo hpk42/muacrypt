@@ -331,7 +331,7 @@ def sendmail(ctx, args):
 @mycommand("import-public-key")
 @account_option
 @click.option(
-    "--prefer-encrypt", default="nopreference",
+    "--prefer-encrypt", default="mutual",
     type=click.Choice(["nopreference", "mutual"]),
     help="prefer-encrypt setting for imported key")
 @click.option(
@@ -342,7 +342,9 @@ def import_public_key(ctx, account_name, prefer_encrypt, email):
     """import public key data as an Autocrypt key.
 
     this commands reads from stdin an ascii-armored or binary
-    public PGP key
+    public PGP key, by default with the prefer-encrypt=mutual
+    Autocrypt policy.  By default all e-mail addresses contained
+    in the UIDs will be associated with the key.
     """
     acc = get_account(ctx, account_name)
     keydata = sys.stdin.read().encode("ascii")
