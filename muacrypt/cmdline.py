@@ -167,11 +167,11 @@ def del_account(ctx, account_name):
     _status(account_manager, verbose=True)
 
 
-@mycommand("test-email")
+@mycommand("find-account")
 @click.argument("emailadr", type=str, required=True)
 @click.pass_context
-def test_email(ctx, emailadr):
-    """test which account an email belongs to.
+def find_account(ctx, emailadr):
+    """print matching account for an e-mail address.
 
     Fail if no account matches.
     """
@@ -424,10 +424,10 @@ autocrypt_main.add_command(status)
 autocrypt_main.add_command(add_account)
 autocrypt_main.add_command(mod_account)
 autocrypt_main.add_command(del_account)
+autocrypt_main.add_command(find_account)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
-autocrypt_main.add_command(test_email)
 autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(import_public_key)

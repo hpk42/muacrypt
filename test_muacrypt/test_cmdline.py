@@ -161,9 +161,9 @@ class TestAccountCommands:
 
     def test_test_email(self, mycmd):
         mycmd.run_ok(["add-account", "--email-regex=(home|office)@example.org"])
-        mycmd.run_ok(["test-email", "home@example.org"])
-        mycmd.run_ok(["test-email", "office@example.org"])
-        mycmd.run_fail(["test-email", "xhome@example.org"], """
+        mycmd.run_ok(["find-account", "home@example.org"])
+        mycmd.run_ok(["find-account", "office@example.org"])
+        mycmd.run_fail(["find-account", "xhome@example.org"], """
             *AccountNotFound*xhome@example.org*
         """)
 

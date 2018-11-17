@@ -3,15 +3,15 @@
 
 - support mutt/muacrypt integration, XXX document
 
-- change invocation of "muacrypt recommend"
-  to work with the "-a" option
+- all subcommands which take an account name now do it
+  through the "-a" or "--account" option.
 
 - add "muacrypt import-public-key" subcommand to integrate
   a key with a specified prefer-encrypt setting and e-mail
   address.
 
-- all subcommands which take an account name now do it
-  through the "-a" or "--account" option.
+- renamed "test-email" to "find-account" subcommand as
+  it is about finding the account for a particular e-mail address.
 
 - make muacrypt fail by default in process-outgoing/sendmail
   if no muacrypt account could be determined for an outgoing mail
