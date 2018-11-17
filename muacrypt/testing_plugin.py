@@ -130,6 +130,13 @@ class ClickRunner:
     def set_basedir(self, account_dir):
         self._rootargs.insert(0, "--basedir")
         self._rootargs.insert(1, account_dir)
+        self.account_dir = account_dir
+
+    def get_account(self, account_name):
+        from .cmdline import _pluginmanager
+        from .account import AccountManager
+        am = AccountManager(self.account_dir, _pluginmanager)
+        return am.get_account(account_name)
 
     def run_ok(self, args, fnl=None, input=None):
         __tracebackhide__ = True

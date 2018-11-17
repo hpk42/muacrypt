@@ -10,6 +10,9 @@
   a key with a specified prefer-encrypt setting and e-mail
   address.
 
+- add "peerstate EMAILADR" command which shows Autocrypt
+  and key state for a given peer (on a given account).
+
 - renamed "test-email" to "find-account" subcommand as
   it is about finding the account for a particular e-mail address.
 

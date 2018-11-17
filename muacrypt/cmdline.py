@@ -6,6 +6,7 @@
 from __future__ import print_function
 
 import os
+import datetime
 import sys
 import subprocess
 import email
@@ -207,6 +208,36 @@ def recommend(ctx, account_name, emailadr):
     account = get_account(ctx, account_name)
     recommend = account.get_recommendation(list(emailadr))
     click.echo(recommend.ui_recommendation())
+
+
+@mycommand("peerstate")
+@account_option
+@click.argument("emailadr", type=click.STRING, required=True)
+@click.pass_context
+def peerstate(ctx, account_name, emailadr):
+    """print current autocrypt state information about a peer. """
+    account = get_account(ctx, account_name)
+    peerstate = account.get_peerstate(emailadr)
+
+    def D(timestamp):
+        if timestamp:
+            d = datetime.datetime.fromtimestamp(timestamp)
+            return d.isoformat()
+        return ""
+
+    click.echo("{: <16} {}".format("peer address", peerstate.addr))
+    click.echo("{: <16} {}".format("keyhandle", peerstate.public_keyhandle))
+    click.echo("{: <16} {}".format("direct_key", peerstate.has_direct_key()))
+    click.echo("{: <16} {}".format("prefer_encrypt", peerstate.prefer_encrypt))
+
+    click.echo("{: <16} {}".format("last_seen", D(peerstate.last_seen)))
+    msg_entry = peerstate._latest_msg_entry()
+    click.echo("{: <16} {}".format("last_msg", getattr(msg_entry, "msg_id", "")))
+
+    click.echo("{: <16} {}".format("ac timestamp", D(peerstate.autocrypt_timestamp)))
+    ac_entry = peerstate._latest_msg_entry()
+    click.echo("{: <16} {}".format("last_ac_msg", getattr(ac_entry, "msg_id", "")))
+    # XXX add gossip info (latest_gossip_entry)
 
 
 @mycommand("process-incoming")
@@ -428,6 +459,7 @@ autocrypt_main.add_command(find_account)
 autocrypt_main.add_command(process_incoming)
 autocrypt_main.add_command(process_outgoing)
 autocrypt_main.add_command(sendmail)
+autocrypt_main.add_command(peerstate)
 autocrypt_main.add_command(recommend)
 autocrypt_main.add_command(make_header)
 autocrypt_main.add_command(import_public_key)
