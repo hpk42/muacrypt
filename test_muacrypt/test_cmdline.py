@@ -33,7 +33,7 @@ def test_help(cmd):
 
 def test_init_and_make_header(mycmd):
     mycmd.run_fail(["make-header", "xyz"], """
-        *AccountManager*not initialized*
+        *AccountNotFound*xyz*
     """)
     adr = "x@yz.org"
     mycmd.run_ok(["add-account", "--email-regex", adr])

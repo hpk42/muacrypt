@@ -164,47 +164,19 @@ class AccountManager(object):
             if re.match(account.ownstate.email_regex, emailadr):
                 return account
         if raising:
-            raise AccountNotFound(emailadr)
+            raise AccountNotFound("no account found for e-mail {}".format(emailadr))
 
     def get_matching_account_for_incoming_message(self, msg):
         delivto = mime.get_delivered_to(msg)
         return self.get_account_from_emailadr(delivto, raising=True)
 
     def remove(self):
-        """ remove the account directory and reset this account configuration
-        to empty.  You need to add accounts to reinitialize.
+        """ remove the account directory and re-reset all muacrypt state.
+        You need to add accounts to get working again.
         """
         shutil.rmtree(self.dir, ignore_errors=True)
         self._states = States(self.dir)
         self.accountmanager_state = self._states.get_accountmanager_state()
-
-    def make_header(self, emailadr, headername="Autocrypt: "):
-        """ return an Autocrypt header line which uses our own
-        key and the provided emailadr if one of our account matches it.
-
-        :type emailadr: unicode
-        :param emailadr:
-            pure email address which we use as the "addr" attribute
-            in the generated Autocrypt header.  An account may generate
-            and send mail from multiple aliases and we advertise
-            the same key across those aliases.
-
-        :type headername: unicode
-        :param headername:
-            the prefix we use for the header, defaults to "Autocrypt".
-            By specifying an empty string you just get the header value.
-
-        :rtype: unicode
-        :returns: Autocrypt header with prefix and value (or empty string)
-        """
-        if not self.list_account_names():
-            raise NotInitialized("no accounts configured")
-        account = self.get_account_from_emailadr(emailadr, raising=True)
-        if account is None:
-            return ""
-        else:
-            assert account.ownstate.keyhandle
-            return headername + account.make_ac_header(emailadr)
 
 
 class Account:
@@ -298,6 +270,19 @@ class Account:
         return BinGPG(homedir=gpghome, gpgpath=self.ownstate.gpgbin)
 
     def make_ac_header(self, emailadr):
+        """ return Autocrypt header value which uses our own
+        key and the provided emailadr if one of our account matches it.
+
+        :type emailadr: unicode
+        :param emailadr:
+            pure email address which we use as the "addr" attribute
+            in the generated Autocrypt header.  An account may generate
+            and send mail from multiple aliases and we advertise
+            the same key across those aliases.
+
+        :rtype: unicode
+        :returns: Autocrypt header value (or empty string)
+        """
         return mime.make_ac_header_value(
             addr=emailadr,
             keydata=self.bingpg.get_public_keydata(self.ownstate.keyhandle),

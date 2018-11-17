@@ -189,9 +189,12 @@ def find_account(ctx, emailadr):
 def make_header(ctx, emailadr, val):
     """print Autocrypt header for an emailadr. """
     account_manager = get_account_manager(ctx)
-    header = account_manager.make_header(emailadr)
+    account = account_manager.get_account_from_emailadr(emailadr, raising=True)
+    header_val = account.make_ac_header(emailadr)
     if val:
-        header = header.split("Autocrypt: ", 1)[1]
+        header = header_val
+    else:
+        header = "Autocrypt: " + header_val
     click.echo(header)
 
 

@@ -404,12 +404,11 @@ class TestAccountManager:
     def test_account_header_defaults(self, manager_maker):
         account_manager = manager_maker(init=False)
         addr = "hello@xyz.org"
-        with pytest.raises(NotInitialized):
-            account_manager.make_header(addr)
         account_manager.init()
         account = account_manager.add_account()
         assert account.ownstate.gpgmode == "own"
-        h = account_manager.make_header(addr)
+        account = account_manager.get_account_from_emailadr(addr)
+        h = "Autocrypt: " + account.make_ac_header(addr)
         r = mime.parse_one_ac_header_from_string(h)
         assert r.addr == addr
         key = account.bingpg.get_public_keydata(account.ownstate.keyhandle)
@@ -480,7 +479,7 @@ class TestAccountManager:
             manager.mod_account(account.name, prefer_encrypt="random")
 
         manager.mod_account(account.name, prefer_encrypt=pref)
-        h = manager.make_header(addr)
+        h = "Autocrypt: " + account.make_ac_header(addr)
         r = mime.parse_one_ac_header_from_string(h)
         assert r.addr == addr
         key = account.bingpg.get_public_keydata(account.ownstate.keyhandle)
