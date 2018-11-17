@@ -1,7 +1,7 @@
-0.9.0.dev1
+0.9.0
 -----------------------
 
-- support mutt/muacrypt integration, XXX document
+- support and document a viable mutt/muacrypt integration
 
 - all subcommands which take an account name now do it
   through the "-a" or "--account" option.
@@ -10,11 +10,14 @@
   a key with a specified prefer-encrypt setting and e-mail
   address.
 
+- add "scandir-incoming" subcommand to scan maildirs
+  for incoming mail and Autocrypt headers.
+
 - add "peerstate EMAILADR" command which shows Autocrypt
-  and key state for a given peer (on a given account).
+  and key state for a given peer.
 
 - renamed "test-email" to "find-account" subcommand as
-  it is about finding the account for a particular e-mail address.
+  it is about finding the account for a particular (own) e-mail address.
 
 - make muacrypt fail by default in process-outgoing/sendmail
   if no muacrypt account could be determined for an outgoing mail

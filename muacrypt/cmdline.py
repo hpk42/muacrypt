@@ -107,7 +107,7 @@ verbose_option = click.option(
 @click.pass_context
 def add_account(ctx, account_name, use_system_keyring,
                 use_key, gpgbin, email_regex):
-    """add a named account.
+    """add named account for set of e-mail addresses.
 
     An account requires an account_name which is used to show, modify and delete it.
 
@@ -200,10 +200,10 @@ def make_header(ctx, emailadr, val):
 @click.argument("emailadr", type=click.STRING, nargs=-1)
 @click.pass_context
 def recommend(ctx, account_name, emailadr):
-    """print AC Level 1 recommendation for sending from an
-    account to one or more target addresses. The first
-    line contains an ui recommendation of "discourage", "available"
-    or "encrypt". Subsequent lines may contain additional information.
+    """print Autocrypt UI recommendation for target e-mail addresses.
+    The first line of output contains an ui recommendation of "discourage",
+    "available" or "encrypt". Subsequent lines may contain additional information
+    which you may process or ignore.
     """
     account = get_account(ctx, account_name)
     recommend = account.get_recommendation(list(emailadr))
@@ -243,13 +243,13 @@ def peerstate(ctx, account_name, emailadr):
 @mycommand("process-incoming")
 @click.pass_context
 def process_incoming(ctx):
-    """parse Autocrypt headers from stdin-read mime message
+    """parse Autocrypt info from stdin message
     if it was delivered to one of our managed accounts.
     """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
-    delivto = mime.get_delivered_to(msg)
-    account = account_manager.get_account_from_emailadr(delivto, raising=True)
+
+    account = account_manager.get_matching_account_for_incoming_message(msg)
     r = account.process_incoming(msg)
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
         msg = "found: " + str(r.peerstate)
@@ -257,6 +257,50 @@ def process_incoming(ctx):
         msg = "no Autocrypt header found"
     click.echo("processed mail for account '{}', {}".format(
                r.account.name, msg))
+
+
+@mycommand("scandir-incoming")
+@click.argument("directory", default=None, type=click.Path(), required=True)
+@click.pass_context
+def scandir_incoming(ctx, directory):
+    """scan directory for new incoming messages and process
+    Autocrypt and Autocrypt-gossip headers from them.
+    """
+    from termcolor import colored as C
+
+    def R(msg):
+        return C(msg, "red")
+
+    def G(msg):
+        return C(msg, "green")
+
+    account_manager = get_account_manager(ctx)
+    for i, path in enumerate(os.listdir(directory)):
+        path = os.path.join(directory, path)
+
+        with open(path) as f:
+            msg = email.message_from_file(f)
+        if msg is None:
+            continue
+        msg_id = msg.get("message-id", None)
+        if msg_id is None:
+            continue
+        account = account_manager.get_matching_account_for_incoming_message(msg)
+        r = account.process_incoming(msg)
+        if r.pah is None:
+            status = " (old)"
+        elif not r.pah.error:
+            status = "found Autocrypt addr={} keyhandle={}".format(
+                r.peerstate.addr, r.peerstate.public_keyhandle,)
+            if r.msg_date == r.peerstate.autocrypt_timestamp:
+                status += G(" (updated)")
+            else:
+                status += " (old)"
+        else:
+            status = r.pah.error
+            if "no valid Autocrypt header" not in r.pah.error:
+                status = R(status)
+        print("[%s] msg %s -- %s" % (i, msg_id, status))
 
 
 @mycommand("process-outgoing")
@@ -341,10 +385,9 @@ def sendmail(ctx, args):
 def import_public_key(ctx, account_name, prefer_encrypt, email):
     """import public key data as an Autocrypt key.
 
-    this commands reads from stdin an ascii-armored or binary
-    public PGP key, by default with the prefer-encrypt=mutual
-    Autocrypt policy.  By default all e-mail addresses contained
-    in the UIDs will be associated with the key.
+    This commands reads from stdin an ascii-armored public PGP key.
+    By default all e-mail addresses contained in the UIDs will be
+    associated with the key. Use options to change these default behaviours.
     """
     acc = get_account(ctx, account_name)
     keydata = sys.stdin.read().encode("ascii")
@@ -459,12 +502,13 @@ autocrypt_main.add_command(mod_account)
 autocrypt_main.add_command(del_account)
 autocrypt_main.add_command(find_account)
 autocrypt_main.add_command(process_incoming)
-autocrypt_main.add_command(process_outgoing)
-autocrypt_main.add_command(sendmail)
+autocrypt_main.add_command(scandir_incoming)
+autocrypt_main.add_command(import_public_key)
 autocrypt_main.add_command(peerstate)
 autocrypt_main.add_command(recommend)
+autocrypt_main.add_command(process_outgoing)
+autocrypt_main.add_command(sendmail)
 autocrypt_main.add_command(make_header)
-autocrypt_main.add_command(import_public_key)
 autocrypt_main.add_command(export_public_key)
 autocrypt_main.add_command(export_secret_key)
 autocrypt_main.add_command(bot_reply)

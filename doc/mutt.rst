@@ -131,8 +131,14 @@ Processing incoming mail from maildirs
 
 ::
 
-    $ muacrypt scan-incoming-dir -h
-    XXX
+    $ muacrypt scandir-incoming -h
+    Usage: muacrypt scandir-incoming [OPTIONS] DIRECTORY
+    
+      scan directory for new incoming messages and process Autocrypt and
+      Autocrypt-gossip headers from them.
+    
+    Options:
+      -h, --help  Show this message and exit.
 
 It is crucial to pipe each new (non-spam) incoming mail to
 the ``muacrypt process-incoming`` subcommand,
@@ -185,6 +191,17 @@ might assign this to a key.  Note that the default
 Please refer to the help for more info on how to change the defaults::
 
     $ muacrypt import-public-key -h
-    XXX
-
-
+    Usage: muacrypt import-public-key [OPTIONS]
+    
+      import public key data as an Autocrypt key.
+    
+      This commands reads from stdin an ascii-armored public PGP key. By default
+      all e-mail addresses contained in the UIDs will be associated with the
+      key. Use options to change these default behaviours.
+    
+    Options:
+      -a, --account name              use this account name
+      --prefer-encrypt [nopreference|mutual]
+                                      prefer-encrypt setting for imported key
+      --email TEXT                    associate key with this e-mail address
+      -h, --help                      Show this message and exit.

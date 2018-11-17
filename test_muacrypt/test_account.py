@@ -14,14 +14,25 @@ from muacrypt import mime
 from muacrypt.cmdline import make_plugin_manager
 
 
-def gen_ac_mail_msg(sender, recipients, payload=None, charset=None, Date=None, ENCRYPT=None):
+def gen_ac_mail_msg(sender, recipients, payload=None, charset=None,
+                    Date=None, ENCRYPT=None, _dto=False):
     if isinstance(recipients, Account):
         recipients = [recipients]
     return mime.gen_mail_msg(
         From=sender.addr, To=[rec.addr for rec in recipients],
         Autocrypt=sender.make_ac_header(sender.addr),
         payload=payload, charset=charset, Date=Date,
-        ENCRYPT=ENCRYPT,
+        ENCRYPT=ENCRYPT, _dto=_dto,
+    )
+
+
+def gen_noac_mail_msg(sender, recipients, payload=None, charset=None, Date=None, _dto=False):
+    if isinstance(recipients, Account):
+        recipients = [recipients]
+    return mime.gen_mail_msg(
+        From=sender.addr, To=[rec.addr for rec in recipients],
+        payload=payload, charset=charset, Date=Date,
+        _dto=_dto,
     )
 
 

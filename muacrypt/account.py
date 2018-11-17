@@ -166,6 +166,10 @@ class AccountManager(object):
         if raising:
             raise AccountNotFound(emailadr)
 
+    def get_matching_account_for_incoming_message(self, msg):
+        delivto = mime.get_delivered_to(msg)
+        return self.get_account_from_emailadr(delivto, raising=True)
+
     def remove(self):
         """ remove the account directory and reset this account configuration
         to empty.  You need to add accounts to reinitialize.
@@ -317,9 +321,9 @@ class Account:
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
     def process_incoming(self, msg):
-        """ process incoming mail message and states information
-        from any Autocrypt header for the From/Autocrypt peer
-        which created the message.
+        """ process incoming mail message for Autocrypt headers
+        both in the cleartext and encrypted parts which will
+        be decrypted to process Autocrypt-Gossip headers.
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
@@ -351,6 +355,8 @@ class Account:
         )
 
     def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
+        if peerstate.has_message(msg_id):
+            return None
         pah = mime.parse_one_ac_header_from_msg(msg, [From])
         if pah.error:
             if "no valid Autocrypt" not in pah.error:

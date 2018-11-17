@@ -10,6 +10,16 @@ from muacrypt import mime
 from .test_account import gen_ac_mail_msg
 
 
+@pytest.fixture
+def account_maker(mycmd):
+    def account_maker(name, addr):
+        mycmd.run_ok(["add-account", "-a", name, "--email-regex=" + addr])
+        acc = mycmd.get_account(name)
+        acc.addr = addr
+        return acc
+    return account_maker
+
+
 def test_help(cmd):
     cmd.run_ok([], """
         *make-header*
@@ -99,15 +109,42 @@ class TestProcessIncoming:
         """, input=msg.as_string())
         mycmd.run_ok(["peerstate", "a@a.org"])
 
-    def test_peer_with_ac_keys(self, mycmd, datadir):
-        mycmd.run_ok(["add-account", "-a", "acc1", "--email-regex=a@a.org"])
-        mycmd.run_ok(["add-account", "-a", "acc2", "--email-regex=b@b.org"])
-        acc1, acc2 = mycmd.get_account("acc1"), mycmd.get_account("acc2")
-        acc1.addr, acc2.addr = "a@a.org", "b@b.org"
+    def test_peerstate_with_ac_keys(self, mycmd, account_maker, datadir):
+        acc1 = account_maker("acc1", "a@a.org")
+        acc2 = account_maker("acc2", "b@b.org")
         acc2.process_incoming(gen_ac_mail_msg(acc1, acc2))
         mycmd.run_ok(["peerstate", "-a", "acc2", "a@a.org"])
         acc1.process_incoming(gen_ac_mail_msg(acc2, acc1))
         mycmd.run_ok(["peerstate", "-a", "acc1", "b@b.org"])
+
+
+class TestScandir:
+    def test_scandir_incoming_ac(self, mycmd, account_maker, tmpdir):
+        acc1 = account_maker("account1", "acc1@x.org")
+        acc2 = account_maker("account2", "acc2@x.org")
+
+        maildir = tmpdir.ensure("maildir", dir=True)
+        msg = gen_ac_mail_msg(acc1, acc2, _dto=True)
+        maildir.join("msg1").write(msg.as_string())
+
+        peerstate = acc2.get_peerstate("acc1@x.org")
+        assert not peerstate.has_direct_key()
+        mycmd.run_ok(["scandir-incoming", str(maildir)])
+        peerstate = acc2.get_peerstate("acc1@x.org")
+        assert peerstate.has_direct_key()
+
+    def test_scandir_incoming_ac_twice(self, mycmd, account_maker, tmpdir):
+        acc1 = account_maker("account1", "acc1@x.org")
+        acc2 = account_maker("account2", "acc2@x.org")
+
+        maildir = tmpdir.ensure("maildir", dir=True)
+        msg = gen_ac_mail_msg(acc1, acc2, _dto=True)
+        maildir.join("msg1").write(msg.as_string())
+        msg2 = gen_ac_mail_msg(acc1, acc2, _dto=True)
+        maildir.join("msg2").write(msg2.as_string())
+        mycmd.run_ok(["scandir-incoming", str(maildir)])
+        peerstate = acc2.get_peerstate("acc1@x.org")
+        assert peerstate.has_direct_key()
 
 
 class TestAccountCommands:
