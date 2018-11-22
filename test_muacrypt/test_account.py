@@ -9,7 +9,7 @@ import six
 import email
 from email.mime.image import MIMEImage
 import pytest
-from muacrypt.account import Account, AccountManager, NotInitialized
+from muacrypt.account import Account, AccountManager
 from muacrypt import mime
 from muacrypt.cmdline import make_plugin_manager
 
