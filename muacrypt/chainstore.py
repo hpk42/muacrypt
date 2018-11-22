@@ -177,7 +177,10 @@ class Chain(object):
         tag = getattr(entryclass, "TAG", None)
         for block in self._chainstore.iter_blocks():
             if block and (tag is None or block.type == tag):
-                yield entryclass(*block.args)
+                try:
+                    yield entryclass(*block.args)
+                except:
+                    pass  # XXX hack ignore because it comes from bad py27/py35 usage ...
 
     def latest_entry_of(self, entryclass):
         for entry in self.iter_entries(entryclass):
