@@ -95,6 +95,7 @@ class AccountManager(object):
         return self.accountmanager_state.version is not None
 
     def get_account(self, account_name="default", check=True):
+        assert isinstance(account_name, six.text_type)
         self._ensure_init()
         account = Account(self._states, account_name, plugin_manager=self.plugin_manager)
         if check and not account.exists():
@@ -167,6 +168,15 @@ class AccountManager(object):
             raise AccountNotFound("no account found for e-mail {}".format(emailadr))
 
     def get_matching_account_for_incoming_message(self, msg):
+        l = []
+        for name in self.list_account_names():
+            account = self.get_account(name)
+            email_regex = account.ownstate.email_regex
+            l.append((email_regex, account))
+        for adr in mime.get_target_emailadr(msg):
+            for regex, account in l:
+                if re.match(regex, adr.lower()):
+                    return account
         delivto = mime.get_delivered_to(msg)
         return self.get_account_from_emailadr(delivto, raising=True)
 
@@ -224,6 +234,7 @@ class Account:
                         in the user's system GnuPG keyring.
         """
         assert gpgmode in ("own", "system")
+        assert isinstance(gpgmode, six.text_type), repr(gpgmode)
         self.ownstate.new_config(
             name=name,
             email_regex=email_regex,
@@ -312,12 +323,14 @@ class Account:
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
-        :rtype: ProcessIncomingResult
+        :rtype: ProcessIncomingResult or NoneType if message is known already.
         """
         From = mime.parse_email_addr(msg["From"])
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
+        if peerstate.has_message(msg_id):
+            return
         pah = self.process_autocrypt_header(msg, From, peerstate, msg_date, msg_id)
         if mime.is_encrypted(msg):
             dec_msg = self.decrypt_mime(msg).dec_msg

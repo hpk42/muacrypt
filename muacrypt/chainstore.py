@@ -12,7 +12,7 @@ from __future__ import unicode_literals, print_function
 
 import os
 import time
-import marshal
+from execnet.gateway_base import load, dump, dumps
 import hashlib
 from pprint import pprint
 import attr
@@ -29,7 +29,7 @@ class BlockService:
         # each block references a parent block (or None if it's the
         # genesis block) and a timestamp.
         data = [type, parent, time.time()] + list(args)
-        serialized = marshal.dumps(data)
+        serialized = dumps(data)
         cid = hashlib.sha256(serialized).hexdigest()
         path = os.path.join(self._basedir, cid)
         with open(path, "wb") as f:
@@ -41,7 +41,7 @@ class BlockService:
         path = os.path.join(self._basedir, fn_cid)
         if os.path.exists(path):
             with open(path, "rb") as f:
-                data = marshal.load(f)
+                data = load(f)
             return Block(cid, data, bs=self)
 
 
@@ -99,7 +99,7 @@ class HeadTracker:
     def _getheads(self, prefix=""):
         if os.path.exists(self._path):
             with open(self._path, "rb") as f:
-                d = marshal.load(f)
+                d = load(f)
                 if prefix:
                     d = dict((x[len(prefix):], y) for x, y in d.items()
                              if x.startswith(prefix))
@@ -110,7 +110,7 @@ class HeadTracker:
         heads = self._getheads()
         filtered = dict((x, y) for x, y in heads.items() if not cal(x, y))
         with open(self._path, "wb") as f:
-            marshal.dump(filtered, f)
+            dump(f, filtered)
 
     def upsert(self, account, cid):
         if isinstance(cid, Block):
@@ -118,7 +118,7 @@ class HeadTracker:
         heads = self._getheads()
         heads[account] = cid
         with open(self._path, "wb") as f:
-            marshal.dump(heads, f)
+            dump(f, heads)
 
 
 class ChainStates(object):
@@ -177,12 +177,7 @@ class Chain(object):
         tag = getattr(entryclass, "TAG", None)
         for block in self._chainstore.iter_blocks():
             if block and (tag is None or block.type == tag):
-                try:
-                    yield entryclass(*block.args)
-                except GeneratorExit:
-                    raise
-                except Exception:
-                    pass  # XXX hack ignore because it comes from bad py27/py35 usage ...
+                yield entryclass(*block.args)
 
     def latest_entry_of(self, entryclass):
         for entry in self.iter_entries(entryclass):

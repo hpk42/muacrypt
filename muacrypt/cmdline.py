@@ -6,17 +6,19 @@
 from __future__ import print_function
 
 import os
+import time
 import datetime
 import sys
 import subprocess
 import email
 import click
 import pluggy
+import muacrypt
 from .cmdline_utils import (
     get_account, get_account_manager, MyGroup, MyCommandUnknownOptions,
     out_red, log_info, mycommand,
 )
-from .account import AccountManager  # , AccountNotFound
+from .account import AccountManager, AccountNotFound, effective_date, parse_date_to_float
 from .bingpg import find_executable
 from . import mime, hookspec
 from .bot import bot_reply
@@ -125,7 +127,7 @@ def add_account(ctx, account_name, use_system_keyring,
     account_manager = get_account_manager(ctx)
     account = account_manager.add_account(
         account_name, keyhandle=use_key, gpgbin=gpgbin,
-        gpgmode="system" if use_system_keyring else "own",
+        gpgmode=u"system" if use_system_keyring else u"own",
         email_regex=email_regex
     )
     click.echo("account added: '{}'".format(account.name))
@@ -254,6 +256,11 @@ def process_incoming(ctx):
 
     account = account_manager.get_matching_account_for_incoming_message(msg)
     r = account.process_incoming(msg)
+    if r is None:
+        click.echo("message with {} already known, skipping processing".format(
+                   msg["Message-Id"]))
+        return
+
     if r.peerstate.autocrypt_timestamp == r.peerstate.last_seen:
         msg = "found: " + str(r.peerstate)
     else:
@@ -278,19 +285,48 @@ def scandir_incoming(ctx, directory):
         return C(msg, "green")
 
     account_manager = get_account_manager(ctx)
-    for i, path in enumerate(os.listdir(directory)):
-        path = os.path.join(directory, path)
+    now = time.time()
 
-        with open(path) as f:
-            msg = email.message_from_file(f)
+    def is_too_old(d):
+        diffdays = (now - d) / (60 * 60 * 24)
+        return diffdays > 90
+
+    for i, lpath in enumerate(os.listdir(directory)):
+        path = os.path.join(directory, lpath)
+        st = os.stat(path)
+        if is_too_old(st.st_mtime):
+            print("[%s] msgfile %s older than 90 days, skipped" % (i, lpath))
+            continue
+
+        with open(path, "rb") as f:
+            reader = getattr(email, "message_from_binary_file", email.message_from_file)
+            msg = reader(f)
         if msg is None:
             continue
         msg_id = msg.get("message-id", None)
         if msg_id is None:
             continue
-        account = account_manager.get_matching_account_for_incoming_message(msg)
-        r = account.process_incoming(msg)
-        if r.pah is None:
+        msg_date = effective_date(parse_date_to_float(msg.get("Date")))
+        if is_too_old(msg_date):
+            print("[%s] message %s older than 90 days, skipped" % (i, msg_id))
+            continue
+
+        try:
+            account = account_manager.get_matching_account_for_incoming_message(msg)
+        except AccountNotFound as e:
+            print("[%s] msg %s: %s" % (i, msg_id, e))
+            continue
+        except ValueError as e:
+            print("[%s] msg %s: %s" % (i, msg_id, e))
+            continue
+        try:
+            r = account.process_incoming(msg)
+        except muacrypt.bingpg.InvocationFailure:
+            print("[%s] msg could not decrypt %s, skipping" % (i, msg_id))
+            continue
+        if r is None:
+            status = "already known message, skipped processing"
+        elif r.pah is None:
             status = " (old)"
         elif not r.pah.error:
             status = "found Autocrypt addr={} keyhandle={}".format(
@@ -303,7 +339,7 @@ def scandir_incoming(ctx, directory):
             status = r.pah.error
             if "no valid Autocrypt header" not in r.pah.error:
                 status = R(status)
-        print("[%s] msg %s -- %s" % (i, msg_id, status))
+        print("[%s] [%s] msg %s -- %s" % (i, account.name, msg_id, status))
 
 
 @mycommand("process-outgoing")
@@ -492,9 +528,11 @@ def _status_account(account, verbose=False):
                     status = "past-autocrypt"
                 else:
                     continue
-                click.echo("  {to}: last seen key {keyhandle}, status: {status}".format(
-                           to=pi.addr, keyhandle=pi.public_keyhandle,
-                           status=status))
+                click.echo("  {to}: last seen key {keyhandle}, status: {status}, "
+                           "last_seen: {last_seen}".format(
+                               to=pi.addr, keyhandle=pi.public_keyhandle,
+                               last_seen=time.ctime(pi.last_seen),
+                               status=status))
         else:
             click.echo("  ---- no peers registered -----")
 

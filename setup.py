@@ -34,7 +34,7 @@ def main():
             [console_scripts]
             muacrypt=muacrypt.cmdline:muacrypt_main
         ''',
-        install_requires = ["click>=6.0", "six", "attrs", "pluggy", "termcolor"],
+        install_requires = ["click>=6.0", "six", "attrs", "pluggy", "termcolor", "execnet"],
         zip_safe=False,
     )
 

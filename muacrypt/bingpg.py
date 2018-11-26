@@ -10,6 +10,7 @@ contexts.
 from __future__ import print_function, unicode_literals
 import logging
 from distutils.version import LooseVersion as V
+import six
 import os
 import sys
 from subprocess import Popen, PIPE
@@ -229,6 +230,7 @@ class BinGPG(object):
         return self._parse_list(args, ("sec", "ssb"))
 
     def get_secret_keyhandle(self, keyhandle):
+        assert isinstance(keyhandle, six.text_type)
         for k in self.list_secret_keyinfos(keyhandle):
             is_in_uids = any(keyhandle in uid for uid in k.uids)
             if is_in_uids or k.match(keyhandle):
@@ -377,7 +379,7 @@ class KeyInfo:
 
     def match(self, other_id):
         i = min(len(other_id), len(self.id))
-        return self.id[-i:] == other_id[-i:]
+        return self.id[-i:].lower() == other_id[-i:].lower()
 
     def __str__(self):
         return "KeyInfo(id={id!r}, uids={uids!r}, bits={bits}, type={type})".format(

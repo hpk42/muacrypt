@@ -30,6 +30,8 @@
 
 - refine tests for process-incoming and autocrypt timestamps
 
+- use stable serializers/unserializers from the cross-py2/py3 execnet package
+
 
 0.8.3
 -----------------------
