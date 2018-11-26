@@ -14,7 +14,7 @@ The muacrypt/mutt integration manages PGP keys automatically according to
 the `Autocrypt Level 1 specification <https://autocrypt.org/level1.html>`_.
 **You don't need to import keys or make decisions about them**.
 
-Apart from `installing muacrypt <install>`_ you will need to
+Apart from :doc:`installing muacrypt <install>` you will need to
 create a muacrypt account and configure the processing of incoming
 and outgoing mail with your particular mutt/mail setup. The
 example mutt/muacrypt integration below assumes that you already
