@@ -181,7 +181,7 @@ class Chain(object):
                     yield entryclass(*block.args)
                 except GeneratorExit:
                     raise
-                except:
+                except Exception:
                     pass  # XXX hack ignore because it comes from bad py27/py35 usage ...
 
     def latest_entry_of(self, entryclass):
