@@ -96,7 +96,9 @@ Controlling encryption through the ENCRYPT header
 
 Both the ``muacrypt sendmail`` and ``muacrypt process-outgoing`` sub commands
 check for the ``ENCRYPT`` header in each mail they are processing.
-The ``ENCRYPT`` header can have one of three different values:
+The ``ENCRYPT`` header is only used for internal mutt/muacrypt communication
+and controls how muacrypt is to treat outgoing messages. The ``ENCRYPT`` header
+can have one of three different values:
 
 - ``opportunistic`` (also the assumed default value if no env-var is present):
   uses the ui-recommendation of Autocrypt to determine
