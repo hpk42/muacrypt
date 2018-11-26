@@ -21,7 +21,7 @@ def ac_sender(manager_maker, request):
 @pytest.fixture
 def bcmd(mycmd):
     adr = "bot@autocrypt.org"
-    mycmd.run_ok(["add-account", "--email-regex={}".format(adr)])
+    mycmd.run_ok(["add-account", "-a", "default", "--email-regex={}".format(adr)])
     mycmd.bot_adr = adr
     return mycmd
 

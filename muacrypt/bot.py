@@ -122,6 +122,7 @@ def bot_reply(ctx, smtp, fallback_delivto):
     if ui_recommendation == 'encrypt':
         r = account.encrypt_mime(reply_msg, [From] + newlist)
         reply_msg = r.enc_msg
+        assert mime.is_encrypted(reply_msg)
     if smtp:
         host, port = smtp.split(",")
         send_reply(host, int(port), reply_msg)

@@ -195,8 +195,8 @@ def linematch():
 @pytest.fixture
 def cmd():
     """ invoke a command line subcommand. """
-    from muacrypt.cmdline import autocrypt_main
-    return ClickRunner(autocrypt_main)
+    from muacrypt.cmdline import muacrypt_main
+    return ClickRunner(muacrypt_main)
 
 
 @pytest.fixture

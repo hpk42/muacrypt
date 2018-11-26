@@ -32,7 +32,7 @@ def main():
         packages=['muacrypt', 'test_muacrypt'],
         entry_points='''
             [console_scripts]
-            muacrypt=muacrypt.cmdline:autocrypt_main
+            muacrypt=muacrypt.cmdline:muacrypt_main
         ''',
         install_requires = ["click>=6.0", "six", "attrs", "pluggy", "termcolor"],
         zip_safe=False,

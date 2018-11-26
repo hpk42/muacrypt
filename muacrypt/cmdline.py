@@ -29,7 +29,7 @@ from .bot import bot_reply
               help="directory where muacrypt state is stored")
 @click.version_option()
 @click.pass_context
-def autocrypt_main(context, basedir):
+def muacrypt_main(context, basedir):
     """access and manage Autocrypt keys, options, headers."""
     basedir = os.path.abspath(os.path.expanduser(basedir))
     context.account_manager = AccountManager(basedir, _pluginmanager)
@@ -499,23 +499,23 @@ def _status_account(account, verbose=False):
             click.echo("  ---- no peers registered -----")
 
 
-autocrypt_main.add_command(status)
-autocrypt_main.add_command(add_account)
-autocrypt_main.add_command(mod_account)
-autocrypt_main.add_command(del_account)
-autocrypt_main.add_command(find_account)
-autocrypt_main.add_command(process_incoming)
-autocrypt_main.add_command(scandir_incoming)
-autocrypt_main.add_command(import_public_key)
-autocrypt_main.add_command(peerstate)
-autocrypt_main.add_command(recommend)
-autocrypt_main.add_command(process_outgoing)
-autocrypt_main.add_command(sendmail)
-autocrypt_main.add_command(make_header)
-autocrypt_main.add_command(export_public_key)
-autocrypt_main.add_command(export_secret_key)
-autocrypt_main.add_command(bot_reply)
-autocrypt_main.add_command(destroy_all)
+muacrypt_main.add_command(status)
+muacrypt_main.add_command(add_account)
+muacrypt_main.add_command(mod_account)
+muacrypt_main.add_command(del_account)
+muacrypt_main.add_command(find_account)
+muacrypt_main.add_command(process_incoming)
+muacrypt_main.add_command(scandir_incoming)
+muacrypt_main.add_command(import_public_key)
+muacrypt_main.add_command(peerstate)
+muacrypt_main.add_command(recommend)
+muacrypt_main.add_command(process_outgoing)
+muacrypt_main.add_command(sendmail)
+muacrypt_main.add_command(make_header)
+muacrypt_main.add_command(export_public_key)
+muacrypt_main.add_command(export_secret_key)
+muacrypt_main.add_command(bot_reply)
+muacrypt_main.add_command(destroy_all)
 
 
 # we need a plugin manager early to add sub commands
@@ -523,7 +523,7 @@ def make_plugin_manager():
     pm = pluggy.PluginManager("muacrypt")
     pm.add_hookspecs(hookspec)
     pm.load_setuptools_entrypoints("muacrypt")
-    pm.hook.add_subcommands(plugin_manager=pm, command_group=autocrypt_main)
+    pm.hook.add_subcommands(plugin_manager=pm, command_group=muacrypt_main)
     return pm
 
 

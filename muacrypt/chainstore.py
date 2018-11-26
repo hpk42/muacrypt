@@ -179,6 +179,8 @@ class Chain(object):
             if block and (tag is None or block.type == tag):
                 try:
                     yield entryclass(*block.args)
+                except GeneratorExit:
+                    raise
                 except:
                     pass  # XXX hack ignore because it comes from bad py27/py35 usage ...
 
