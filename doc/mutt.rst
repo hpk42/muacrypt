@@ -34,8 +34,10 @@ because muacrypt will leave already encrypted outgoing messages alone.
 Creating an muacrypt account
 ----------------------------
 
-First, you need to add a new muacrypt Account. All muacrypt
-state is typically kept in ``$HOME/.config/muacrypt``.
+First, you need to add a new muacrypt Account to keep the Autocrypt
+state for incoming and outgoing mails and keys. Muacrypt of all accounts
+is kept in ``$HOME/.config/muacrypt`` by default.
+
 Because we are working with your existing mutt/pgp integration
 for being able to decrypt messages it's a good idea to not use
 muacrypt's default account-creation because this would happen
