@@ -159,17 +159,17 @@ that muacrypt needs to see. In the absence of a fitting mutt hook
 (please suggest one if you know one!) you may use, outside of mutt,
 a helper command to scan directories for incoming mail::
 
-    muacrypt scan-incoming-dir /some/path/to/maildir/
+    muacrypt scandir-incoming /some/path/to/maildir/
 
 All files in the ``/some/path/to/maildir`` directory will be scanned.
 If you actually use the Maildir format for your local e-mail copies,
 it's recommended to only scan mails in the "new" folder::
 
-    muacrypt scan-incoming-dir /some/path/to/maildir/new
+    muacrypt scandir-incoming /some/path/to/maildir/new
 
-In any case, you need to make sure that ``muacrypt scan-incoming-dir``
+In any case, you need to make sure that ``muacrypt scandir-incoming``
 is invoked every time you have re-synced your local folder from the
-remote IMAP one.  Note that ``scan-incoming-dir`` is just a helper
+remote IMAP one.  Note that ``scandir-incoming`` is just a helper
 which eventually pipes each found mail/file into ``muacrypt process-incoming``.
 If you have other ways of piping new incoming messages through
 ``muacrypt process-incoming`` then, by all means, do it and
