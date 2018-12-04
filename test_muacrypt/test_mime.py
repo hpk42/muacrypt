@@ -51,9 +51,11 @@ def test_make_and_parse_header_value():
     assert not r.extra_attr
 
 
-def test_make_and_parse_header_value_with_full_addr():
-    addr, keydata = "name <x@xy.z>", b64encode(b'123')
+@pytest.mark.parametrize("addr", ["x@xy.z", "X@xY.z"])
+def test_make_and_parse_header_value_with_full_addr(addr):
+    addr, keydata = "name <{}>".format(addr), b64encode(b'123')
     h = mime.make_ac_header_value(addr=addr, keydata=keydata)
+    assert "x@xy.z" in h
     r = mime.parse_ac_headervalue(h)
     assert not r.error
     assert r.keydata == keydata

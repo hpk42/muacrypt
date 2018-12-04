@@ -88,7 +88,7 @@ def parse_email_addr(string):
     prefix, emailadr = email.utils.parseaddr(string)
     if isinstance(emailadr, bytes):
         emailadr = six.text_type(quopri.encodestring(emailadr))
-    return emailadr
+    return emailadr.lower()
 
 
 def parse_message_from_file(fp):
