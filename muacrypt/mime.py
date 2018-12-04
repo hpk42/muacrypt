@@ -183,7 +183,7 @@ def parse_ac_headervalue(value):
             if value not in ("nopreference", "mutual"):
                 return ACParseResult(error="unknown prefer-encrypt setting '%s'" % value)
         elif name == "addr":
-            pass
+            value = parse_email_addr(value)
         elif name[0] != "_":
             return ACParseResult(error="unknown critical attr '%s'" % name)
         else:

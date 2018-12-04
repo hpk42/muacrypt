@@ -63,6 +63,12 @@ def test_make_and_parse_header_value_with_full_addr(addr):
     assert not r.extra_attr
 
 
+def test_parse_autocrypt_addr_case_insensitive(datadir):
+    msg = mime.parse_message_from_string(datadir.read("rsa2048-simple-casing.eml"))
+    r = mime.parse_one_ac_header_from_msg(msg)
+    assert r.addr == "alice@testsuite.autocrypt.org"
+
+
 def test_make_and_parse_header_prefer_encrypt():
     addr, keydata = "x@xy.z", b64encode(b'123')
     h = mime.make_ac_header_value(addr=addr, keydata=keydata, prefer_encrypt="notset")
