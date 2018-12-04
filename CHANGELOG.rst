@@ -1,3 +1,9 @@
+0.9.1.dev
+-----------------------
+
+- fix #82: properly lowercase e-mail addresses coming in autocrypt headers
+
+
 0.9.0
 -----------------------
 
