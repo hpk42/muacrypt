@@ -353,8 +353,6 @@ class Account:
         )
 
     def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
-        if peerstate.has_message(msg_id):
-            return None
         pah = mime.parse_one_ac_header_from_msg(msg, [From])
         if pah.error:
             if "no valid Autocrypt" not in pah.error:

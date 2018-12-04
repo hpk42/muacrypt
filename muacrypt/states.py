@@ -163,18 +163,27 @@ class PeerState(object):
         return self._chain.latest_entry_of(MsgEntry)
 
     def has_message(self, msg_id):
+        return self.get_message_entry(msg_id) is not None
+
+    def get_message_entry(self, msg_id, class_=MsgEntry):
         # XXX make this less expensive
-        for i, entry in enumerate(self._chain.iter_entries(MsgEntry)):
+        for entry in self._chain.iter_entries(class_):
             if entry.msg_id == msg_id:
-                # we already know the message, no changes
-                return True
-        return False
+                return entry
 
     # methods which modify/add state
     def update_from_msg(self, msg_id, effective_date, prefer_encrypt,
                         keydata, keyhandle):
         if effective_date < self.autocrypt_timestamp:
             return
+        entry = self.get_message_entry(msg_id)
+        if entry is not None:
+            if (entry.msg_date == effective_date and
+                    entry.keydata == keydata and
+                    entry.keyhandle == keyhandle and
+                    entry.prefer_encrypt == prefer_encrypt):
+                return
+
         if not keydata:
             if effective_date > self.last_seen:
                 self._append_noac_entry(
@@ -193,6 +202,12 @@ class PeerState(object):
         if effective_date < self.autocrypt_timestamp:
             return
         assert keydata
+        entry = self.get_message_entry(msg_id, class_=MsgGossipEntry)
+        if entry is not None:
+            if (entry.msg_date == effective_date and
+                    entry.keydata == keydata and
+                    entry.keyhandle == keyhandle):
+                return
         self._append_ac_gossip_entry(
             msg_id=msg_id, msg_date=effective_date,
             keydata=keydata, keyhandle=keyhandle,
