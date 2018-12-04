@@ -3,6 +3,8 @@
 
 - fix #82: properly lowercase e-mail addresses coming in autocrypt headers
 
+- avoid duplicate entries in peerstate for incoming messages
+
 
 0.9.0
 -----------------------
