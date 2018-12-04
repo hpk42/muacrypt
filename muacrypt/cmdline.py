@@ -270,10 +270,12 @@ def process_incoming(ctx):
 
 
 @mycommand("scandir-incoming")
+@click.option("--reparse", default=False, is_flag=True,
+              help="force reparsing message even if it is already known")
 @click.argument("directory", default=None, type=click.Path(), required=True)
 @click.pass_context
-def scandir_incoming(ctx, directory):
-    """scan directory for new incoming messages and process
+def scandir_incoming(ctx, directory, reparse):
+    """scan directory for incoming messages and process
     Autocrypt and Autocrypt-gossip headers from them.
     """
     from termcolor import colored as C
@@ -320,7 +322,7 @@ def scandir_incoming(ctx, directory):
             print("[%s] msg %s: %s" % (i, msg_id, e))
             continue
         try:
-            r = account.process_incoming(msg)
+            r = account.process_incoming(msg, ignore_existing=not reparse)
         except muacrypt.bingpg.InvocationFailure:
             print("[%s] msg could not decrypt %s, skipping" % (i, msg_id))
             continue

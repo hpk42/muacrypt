@@ -5,6 +5,10 @@
 
 - avoid duplicate entries in peerstate for incoming messages
 
+- new scandir option "--reparse" which forces re-processing an
+  already known message -- by default already parsed messages
+  are ignored.
+
 
 0.9.0
 -----------------------

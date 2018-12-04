@@ -138,7 +138,7 @@ class TestScandir:
         peerstate = acc2.get_peerstate("acc1@x.org")
         assert peerstate.has_direct_key()
 
-    def test_scandir_incoming_ac_twice(self, mycmd, account_maker, tmpdir):
+    def test_scandir_incoming_ac_twice(self, mycmd, account_maker, tmpdir, linematch):
         acc1 = account_maker("account1", "acc1@x.org")
         acc2 = account_maker("account2", "acc2@x.org")
 
@@ -150,6 +150,14 @@ class TestScandir:
         mycmd.run_ok(["scandir-incoming", str(maildir)])
         peerstate = acc2.get_peerstate("acc1@x.org")
         assert peerstate.has_direct_key()
+        out = mycmd.run_ok(["scandir-incoming", str(maildir)])
+        linematch(out, """
+            *already known*
+        """)
+        out = mycmd.run_ok(["scandir-incoming", "--reparse", str(maildir)])
+        linematch(out, """
+            *found Autocrypt*
+        """)
 
 
 class TestAccountCommands:
