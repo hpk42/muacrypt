@@ -100,6 +100,11 @@ class TestProcessIncoming:
         mycmd.run_ok(["export-public-key", "--account=account1", keyhandle])
         mycmd.run_ok(["status"])
 
+        # try again
+        out = mycmd.run_ok(["process-incoming"], """
+            *processed*account*account1*
+        """, input=newmail)
+
     def test_process_incoming_no_autocrypt(self, mycmd, datadir):
         mycmd.run_ok(["add-account", "--email-regex=b@b.org"])
         mycmd.run_ok(["peerstate", "a@a.org"])

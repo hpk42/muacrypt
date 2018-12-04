@@ -255,7 +255,7 @@ def process_incoming(ctx):
     msg = mime.parse_message_from_file(sys.stdin)
 
     account = account_manager.get_matching_account_for_incoming_message(msg)
-    r = account.process_incoming(msg)
+    r = account.process_incoming(msg, ignore_existing=False)
     if r is None:
         click.echo("message with {} already known, skipping processing".format(
                    msg["Message-Id"]))
