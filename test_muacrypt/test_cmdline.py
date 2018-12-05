@@ -100,12 +100,7 @@ class TestProcessIncoming:
         mycmd.run_ok(["export-public-key", "--account=account1", keyhandle])
         mycmd.run_ok(["status"])
 
-        # try again
-        out = mycmd.run_ok(["process-incoming"], """
-            *processed*account*account1*
-        """, input=newmail)
-
-    def test_process_incoming_no_autocrypt(self, mycmd, datadir):
+    def test_process_incoming_no_autocrypt(self, mycmd):
         mycmd.run_ok(["add-account", "--email-regex=b@b.org"])
         mycmd.run_ok(["peerstate", "a@a.org"])
         msg = mime.gen_mail_msg(From="Alice <a@a.org>", To=["b@b.org"], _dto=True)
@@ -114,13 +109,27 @@ class TestProcessIncoming:
         """, input=msg.as_string())
         mycmd.run_ok(["peerstate", "a@a.org"])
 
-    def test_peerstate_with_ac_keys(self, mycmd, account_maker, datadir):
+    def test_peerstate_with_ac_keys(self, mycmd, account_maker):
         acc1 = account_maker("acc1", "a@a.org")
         acc2 = account_maker("acc2", "b@b.org")
         acc2.process_incoming(gen_ac_mail_msg(acc1, acc2))
         mycmd.run_ok(["peerstate", "-a", "acc2", "a@a.org"])
         acc1.process_incoming(gen_ac_mail_msg(acc2, acc1))
         mycmd.run_ok(["peerstate", "-a", "acc1", "b@b.org"])
+
+    def test_twice(self, mycmd, account_maker, linematch):
+        acc1 = account_maker("acc1", "a@a.org")
+        acc2 = account_maker("acc2", "b@b.org")
+        msg = gen_ac_mail_msg(acc1, acc2)
+        mycmd.run_ok(["process-incoming", "-a", "acc2"], input=msg.as_string())
+        out = mycmd.run_ok(["process-incoming", "-a", "acc2"], input=msg.as_string())
+        linematch(out, """
+            *already known*
+        """)
+        out = mycmd.run_ok(["process-incoming", "-a", "acc2", "--reparse"], input=msg.as_string())
+        linematch(out, """
+            *processed*found*
+        """)
 
 
 class TestScandir:

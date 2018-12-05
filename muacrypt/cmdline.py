@@ -90,14 +90,18 @@ option_prefer_encrypt = click.option(
 
 account_option = click.option(
     "-a", "--account", "account_name", default="default", metavar="name",
-    help="use this account name")
+    help="use this account name, and default to account named 'default'")
 
 account_option_none = click.option(
     "-a", "--account", "account_name", default=None, metavar="name",
-    help="use this account name")
+    help="if not set, automatically determine account")
 
 verbose_option = click.option(
     "-v", "--verbose", default=False, is_flag=True, help="be more verbose")
+
+option_reparse = click.option(
+    "--reparse", default=False, is_flag=True,
+    help="force reparsing message even if it is already known")
 
 
 @mycommand("add-account")
@@ -246,16 +250,22 @@ def peerstate(ctx, account_name, emailadr):
 
 
 @mycommand("process-incoming")
+@account_option_none
+@option_reparse
 @click.pass_context
-def process_incoming(ctx):
+def process_incoming(ctx, reparse, account_name):
     """parse Autocrypt info from stdin message
-    if it was delivered to one of our managed accounts.
+    if it was addressed to one of our managed accounts.
     """
     account_manager = get_account_manager(ctx)
     msg = mime.parse_message_from_file(sys.stdin)
 
-    account = account_manager.get_matching_account_for_incoming_message(msg)
-    r = account.process_incoming(msg, ignore_existing=False)
+    if account_name is None:
+        account = account_manager.get_matching_account_for_incoming_message(msg)
+    else:
+        account = account_manager.get_account(account_name)
+
+    r = account.process_incoming(msg, ignore_existing=not reparse)
     if r is None:
         click.echo("message with {} already known, skipping processing".format(
                    msg["Message-Id"]))
@@ -270,8 +280,7 @@ def process_incoming(ctx):
 
 
 @mycommand("scandir-incoming")
-@click.option("--reparse", default=False, is_flag=True,
-              help="force reparsing message even if it is already known")
+@option_reparse
 @click.argument("directory", default=None, type=click.Path(), required=True)
 @click.pass_context
 def scandir_incoming(ctx, directory, reparse):

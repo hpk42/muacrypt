@@ -9,6 +9,8 @@
   already known message -- by default already parsed messages
   are ignored.
 
+- add --reparse and --account option to process-incoming subcommand
+
 
 0.9.0
 -----------------------
