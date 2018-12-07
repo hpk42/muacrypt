@@ -3,6 +3,14 @@
 
 - fix #82: properly lowercase e-mail addresses coming in autocrypt headers
 
+- avoid duplicate entries in peerstate for incoming messages
+
+- new scandir option "--reparse" which forces re-processing an
+  already known message -- by default already parsed messages
+  are ignored.
+
+- add --reparse and --account option to process-incoming subcommand
+
 
 0.9.0
 -----------------------

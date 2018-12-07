@@ -316,7 +316,7 @@ class Account:
         """ return armored public key for this account. """
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
-    def process_incoming(self, msg):
+    def process_incoming(self, msg, ignore_existing=False):
         """ process incoming mail message for Autocrypt headers
         both in the cleartext and encrypted parts which will
         be decrypted to process Autocrypt-Gossip headers.
@@ -329,7 +329,7 @@ class Account:
         peerstate = self.get_peerstate(From)
         msg_date = effective_date(parse_date_to_float(msg.get("Date")))
         msg_id = six.text_type(msg["Message-Id"])
-        if peerstate.has_message(msg_id):
+        if ignore_existing and peerstate.has_message(msg_id):
             return
         pah = self.process_autocrypt_header(msg, From, peerstate, msg_date, msg_id)
         if mime.is_encrypted(msg):
@@ -353,8 +353,6 @@ class Account:
         )
 
     def process_autocrypt_header(self, msg, From, peerstate, msg_date, msg_id):
-        if peerstate.has_message(msg_id):
-            return None
         pah = mime.parse_one_ac_header_from_msg(msg, [From])
         if pah.error:
             if "no valid Autocrypt" not in pah.error:

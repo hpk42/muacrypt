@@ -138,6 +138,24 @@ class TestAccount:
         r2 = acc2.process_incoming(msg2)
         assert r2.peerstate.public_keyhandle == acc3.ownstate.keyhandle
 
+    def test_parse_incoming_msg_twice_same_entries(self, account_maker):
+        acc1, acc2 = account_maker(), account_maker()
+        msg1 = mime.gen_mail_msg(
+            From=acc1.addr, To=[acc2.addr],
+            Autocrypt=acc1.make_ac_header(acc1.addr))
+        msg2 = mime.gen_mail_msg(
+            From=acc1.addr, To=[acc2.addr],
+            Autocrypt=acc1.make_ac_header(acc1.addr))
+        r = acc2.process_incoming(msg1)
+        assert r.peerstate.public_keyhandle == acc1.ownstate.keyhandle
+        assert r.peerstate._latest_msg_entry().msg_id == msg1["Message-Id"]
+        r = acc2.process_incoming(msg2)
+        assert r.peerstate._latest_msg_entry().msg_id == msg2["Message-Id"]
+        i = len(r.peerstate._chain)
+        r = acc2.process_incoming(msg1, ignore_existing=False)
+        r = acc2.process_incoming(msg2, ignore_existing=False)
+        assert i == len(r.peerstate._chain)
+
     def test_parse_incoming_mails_effective_date(self, account_maker, monkeypatch):
         fixed_time = time.time()
         later_date = 'Thu, 16 Feb 2050 15:00:00 -0000'
@@ -288,6 +306,9 @@ class TestAccount:
         assert r.gossip_pahs[rec2.addr].keydata == ge.keydata
         assert not ps._latest_ac_entry()  # no direct key
         assert not ps.prefer_encrypt
+        i = len(ps._chain)
+        rec1.process_incoming(enc_msg)
+        assert i == len(ps._chain)
 
     def test_using_gossip_key(self, account_maker):
         sender = account_maker()
