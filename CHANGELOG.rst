@@ -1,3 +1,8 @@
+0.9.2.dev
+-----------------------
+
+- use setuptools_scm for automatic versioning
+
 0.9.1
 -----------------------
 
