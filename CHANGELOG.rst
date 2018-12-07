@@ -1,7 +1,7 @@
-0.9.1.dev
+0.9.1
 -----------------------
 
-- fix #82: properly lowercase e-mail addresses coming in autocrypt headers
+- fix #82: properly lowercase e-mail addresses in autocrypt headers
 
 - avoid duplicate entries in peerstate for incoming messages
 
