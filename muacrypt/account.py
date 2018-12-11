@@ -210,10 +210,10 @@ class Account:
         routable_addr = mime.parse_email_addr(addr)
         return self._states.get_peerstate(self.name, routable_addr)
 
-    def get_recommendation(self, addrs, reply_to_enc=False):
+    def get_recommendation(self, addrs, reply_to_enc=False, From=None):
         assert isinstance(addrs, (list, set, tuple)), addrs
         addrs = map(mime.parse_email_addr, addrs)
-        peerstates = {addr: self.get_peerstate(addr) for addr in addrs}
+        peerstates = {addr: self.get_peerstate(addr) for addr in addrs if addr != From}
         return Recommendation(peerstates, self.ownstate.prefer_encrypt,
                               reply_to_enc=reply_to_enc)
 
@@ -455,12 +455,14 @@ class Account:
         else:
             msg["Autocrypt"] = added_autocrypt = self.make_ac_header(addr)
 
-        if not mime.is_encrypted(msg) and enc_header:
+        if not mime.is_encrypted(msg):
             recipients = mime.get_target_emailadr(msg)
             froms = msg.get_all("From") or []
             assert len(froms) == 1
-            rec = self.get_recommendation(recipients).ui_recommendation()
-            recipients.append(mime.parse_email_addr(froms[0]))
+            from_addr = mime.parse_email_addr(froms[0])
+            rec = self.get_recommendation(recipients, From=from_addr).ui_recommendation()
+            if from_addr not in recipients:
+                recipients.append(from_addr)
             if enc_header != "no":
                 if (rec == "encrypt" or (rec != "disable" and enc_header == "yes")):
                     r = self.encrypt_mime(msg, recipients)
@@ -494,13 +496,14 @@ class Account:
             if not kh:
                 if re.match(self.ownstate.email_regex, addr):
                     kh = self.ownstate.keyhandle
+                    keyhandles.append(kh)
                 else:
                     raise ValueError("keyhandle not found for: " + addr)
             else:
                 recipient2keydata[addr] = peer.public_keydata
+                keyhandles.append(kh)
                 value = mime.make_ac_header_value(addr, peer.public_keydata)
                 clear_payload_msg.add_header('Autocrypt-Gossip', value)
-                keyhandles.append(kh)
 
         self.plugin_manager.hook.process_before_encryption(
             sender_addr=mime.parse_email_addr(msg["From"]),

@@ -56,7 +56,7 @@ class TestRecommendation:
     def test_disable_on_initial_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()
         rec = get_recommendation(composer, peer)
-        assert rec.target_keyhandles()[peer.addr] is None
+        assert not rec.target_keyhandles()[peer.addr]
         assert rec.ui_recommendation() == 'disable'
 
     def test_available_after_receiving_ac_mail(self, account_maker):
@@ -74,7 +74,7 @@ class TestRecommendation:
 
         send_no_ac_mail(peer, composer)
         rec = get_recommendation(composer, peer)
-        assert rec.target_keyhandles()[peer.addr] is None
+        assert not rec.target_keyhandles()[peer.addr]
 
     def test_available_after_receiving_no_ac_mail_after_ac_mail(self, account_maker):
         composer, peer = account_maker(), account_maker()

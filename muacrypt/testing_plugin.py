@@ -307,9 +307,9 @@ def account_maker(tmpdir, gpgpath):
         basedir = tmpdir.mkdir(bname).strpath
         states = States(basedir)
         account = Account(states, bname, plugin_manager=make_plugin_manager())
-        account.create(name=bname, email_regex=email_regex, gpgmode=gpgmode, gpgbin=gpgbin,
+        account.addr = u"%d@x.org" % (i, )
+        account.create(name=bname, email_regex=u".*", gpgmode=gpgmode, gpgbin=gpgbin,
                        keyhandle=None)
-        account.addr = "%d@x.org" % (i, )
         account._fulladdr = "%s <%s>" % (bname, account.addr)
         account.plugin_manager.hook.instantiate_account(
             plugin_manager=account.plugin_manager,

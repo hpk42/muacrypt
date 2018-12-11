@@ -109,6 +109,7 @@ def is_encrypted(msg):
         return (len(parts) == 2
                 and parts[0].get_content_type() == 'application/pgp-encrypted'
                 and parts[1].get_content_type() == 'application/octet-stream')
+    return False
 
 
 def parse_one_ac_header_from_string(string):
