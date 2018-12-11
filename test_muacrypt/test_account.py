@@ -373,6 +373,14 @@ class TestAccount:
         elif encrypt == "yes":
             assert mime.is_encrypted(r.msg)
 
+    def test_process_outgoing_self(self, account_maker):
+        sender = account_maker()
+        sender.modify(prefer_encrypt="mutual")
+        # let's first send a message to get the autocrypt haeder accross
+        msg = gen_ac_mail_msg(sender, [sender])
+        r = sender.process_outgoing(msg)
+        assert mime.is_encrypted(r.msg)
+
     @pytest.mark.parametrize("encrypt", ["opportunistic", "no", "yes"])
     def test_process_outgoing_with_enc_header_mutual(self, account_maker, encrypt):
         sender, recipient = account_maker(), account_maker()

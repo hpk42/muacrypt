@@ -3,6 +3,8 @@
 
 - use setuptools_scm for automatic versioning
 
+- encrypt to own sending key handle for outgoing mails
+
 0.9.1
 -----------------------
 
