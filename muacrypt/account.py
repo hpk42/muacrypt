@@ -261,6 +261,8 @@ class Account:
             kwargs["email_regex"] = email_regex
         if prefer_encrypt is not None:
             kwargs["prefer_encrypt"] = prefer_encrypt
+        if gpgbin is not None:
+            kwargs["gpgbin"] = gpgbin
         return self.ownstate.change_config(**kwargs)
 
     def delete(self):

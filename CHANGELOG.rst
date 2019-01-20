@@ -3,6 +3,10 @@
 
 - use setuptools_scm for automatic versioning
 
+- fixe mod-account subcommand: actually set the specified "gpgbin" -- it
+  was ignored.
+
+
 0.9.1
 -----------------------
 
