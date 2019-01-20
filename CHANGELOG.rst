@@ -6,6 +6,7 @@
 - fixe mod-account subcommand: actually set the specified "gpgbin" -- it
   was ignored.
 
+- encrypt to own sending key handle for outgoing mails
 
 0.9.1
 -----------------------

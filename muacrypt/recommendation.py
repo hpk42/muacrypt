@@ -10,10 +10,16 @@ class Recommendation:
         self.reply_to_enc = reply_to_enc
 
     def ui_recommendation(self):
-        # only consider first peer for now
         peer_recommendations = [
             self._peer_recommendation(peer).ui_recommendation()
             for peer in self.peerstates.values()]
+        if not peer_recommendations:
+            if self.prefer_encrypt == "mutual":
+                return "encrypt"
+            elif self.prefer_encrypt == "nopreference":
+                return "available"
+            assert 0
+
         for rec in ['disable', 'discourage', 'available', 'encrypt']:
             if rec in peer_recommendations:
                 return rec
@@ -50,11 +56,11 @@ class PeerRecommendation:
         return pre
 
     def target_keyhandle(self):
-        return getattr(self.peer.entry_for_encryption(), "keyhandle", None)
+        return self.peer.public_keyhandle
 
     def _preliminary_recommendation(self):
         logging.debug("target_keyhandle=%s", self.target_keyhandle())
-        if self.target_keyhandle() is None:
+        if not self.target_keyhandle():
             return 'disable'
         if not self.peer.has_direct_key():
             return 'discourage'
