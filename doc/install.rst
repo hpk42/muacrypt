@@ -9,9 +9,9 @@ don't have it you can install it on Debian systems::
 
     sudo apt-get install python-pip
 
-And now you can install the autocrypt package::
+And now you can install the muacrypt package::
 
-    pip install --user autocrypt
+    pip install --user muacrypt
 
 And then make sure that ``~/.local/bin`` is contained
 in your ``PATH`` variable.
