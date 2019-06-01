@@ -211,6 +211,7 @@ class ACParseResult(object):
 
 def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
                  Subject="testmail", Date=None, _dto=False,
+                 Resent_From=None,
                  MessageID=None, payload='Autoresponse\n',
                  ENCRYPT=None,
                  charset=None):
@@ -236,6 +237,9 @@ def gen_mail_msg(From, To, Cc=None, _extra=None, Autocrypt=None,
         msg['Subject'] = Subject
     if ENCRYPT is not None:
         msg['ENCRYPT'] = ENCRYPT
+    if Resent_From is not None:
+        msg['Resent-From'] = Resent_From
+
     Date = 0 if not Date else Date
     if isinstance(Date, int):
         Date = formatdate(time.time() + Date)

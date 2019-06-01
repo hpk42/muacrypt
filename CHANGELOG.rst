@@ -1,6 +1,10 @@
 0.9.2.dev
 -----------------------
 
+- "muacrypt process-outgoing" to process bounced mails with
+  "Resent-From" headers -- which now do not raise "account not found
+  headers for the "From" header, but rather look at Resent-From.
+
 - use setuptools_scm for automatic versioning
 
 - fixe mod-account subcommand: actually set the specified "gpgbin" -- it

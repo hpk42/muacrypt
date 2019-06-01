@@ -350,10 +350,11 @@ def gen_mail(request):
     nid = request.node.nodeid
     counter = itertools.count()
 
-    def do_gen_mail(From="a@a.org", body=None):
+    def do_gen_mail(From="a@a.org", Resent_From=None, body=None):
         msg = mime.gen_mail_msg(
             From=From, To=["b@b.org"],
             Subject="test mail {} [{}]".format(next(counter), nid),
+            Resent_From=Resent_From,
         )
         if body is not None:
             msg.set_payload(body)

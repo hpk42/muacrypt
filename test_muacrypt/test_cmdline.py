@@ -267,6 +267,12 @@ class TestProcessOutgoing:
         msg2 = mime.parse_message_from_string(out1)
         assert "account1@a.org" in msg2["Autocrypt"]
 
+    def test_resent_mail_matches(self, mycmd, gen_mail):
+        mycmd.run_ok(["add-account", "--email-regex=account1@a.org"])
+        mail = gen_mail(From="x@y.org", Resent_From="account1@a.org")
+        out0 = mycmd.run_ok(["process-outgoing"], input=mail.as_string())
+        assert "Autocrypt" not in out0
+
     def test_simple_dont_replace(self, mycmd, gen_mail):
         mycmd.run_ok(["add-account"])
         mail = gen_mail()
