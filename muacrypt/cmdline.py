@@ -372,14 +372,24 @@ def _process_outgoing(ctx):
     account_manager = get_account_manager(ctx)
     Parser = getattr(email.parser, "BytesParser", email.parser.Parser)
     msg = Parser().parse(click.get_binary_stream("stdin"))
-    addr = mime.parse_email_addr(msg["From"])
-    account = account_manager.get_account_from_emailadr(addr)
-    if account is None:
-        raise click.ClickException("No Account associated for 'From: {}'".format(addr))
+    resent_from = msg.get("Resent-From")
+    if resent_from:
+        resent_addr = mime.parse_email_addr(resent_from)
+        account = account_manager.get_account_from_emailadr(resent_addr)
+        if account is None:
+            raise click.ClickException(
+                "No Account associated for 'Resent-From: {}'".format(resent_addr))
+        # we do not modify the mail, as we can not but just bounce it
+        return msg
     else:
-        r = account.process_outgoing(msg)
-        dump_info_outgoing_result(r)
-        return r.msg
+        addr = mime.parse_email_addr(msg["From"])
+        account = account_manager.get_account_from_emailadr(addr)
+        if account is None:
+            raise click.ClickException("No Account associated for 'From: {}'".format(addr))
+        else:
+            r = account.process_outgoing(msg)
+            dump_info_outgoing_result(r)
+            return r.msg
 
 
 def dump_info_outgoing_result(r):
