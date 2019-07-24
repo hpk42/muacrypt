@@ -251,9 +251,11 @@ def peerstate(ctx, account_name, emailadr):
 
 @mycommand("process-incoming")
 @account_option_none
+@click.option("--no-decrypt", default=False, is_flag=True,
+              help="specify if you do not want to parse the encrypted part of a message")
 @option_reparse
 @click.pass_context
-def process_incoming(ctx, reparse, account_name):
+def process_incoming(ctx, reparse, account_name, no_decrypt):
     """parse Autocrypt info from stdin message
     if it was addressed to one of our managed accounts.
     """
@@ -265,7 +267,7 @@ def process_incoming(ctx, reparse, account_name):
     else:
         account = account_manager.get_account(account_name)
 
-    r = account.process_incoming(msg, ignore_existing=not reparse)
+    r = account.process_incoming(msg, ignore_existing=not reparse, no_decrypt=no_decrypt)
     if r is None:
         click.echo("message with {} already known, skipping processing".format(
                    msg["Message-Id"]))

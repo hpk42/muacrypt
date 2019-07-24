@@ -109,6 +109,14 @@ class TestProcessIncoming:
         """, input=msg.as_string())
         mycmd.run_ok(["peerstate", "a@a.org"])
 
+    def test_process_incoming_no_do_not_decrypt(self, mycmd):
+        mycmd.run_ok(["add-account", "--email-regex=b@b.org"])
+        msg = mime.gen_mail_msg(From="Alice <a@a.org>", To=["b@b.org"], _dto=True)
+        mycmd.run_ok(["process-incoming", "--no-decrypt"], """
+            *processed*default*no*Autocrypt*header*
+        """, input=msg.as_string())
+        mycmd.run_ok(["peerstate", "a@a.org"])
+
     def test_peerstate_with_ac_keys(self, mycmd, account_maker):
         acc1 = account_maker("acc1", "a@a.org")
         acc2 = account_maker("acc2", "b@b.org")
