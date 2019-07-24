@@ -12,6 +12,10 @@
 
 - encrypt to own sending key handle for outgoing mails
 
+- new "muacrypt process-incoming --no-decrypt" option if you only
+  want to parse the autocrypt header but can not or do not want
+  to decrypt the encrypted part (which might contain gossip headers)
+
 0.9.1
 -----------------------
 

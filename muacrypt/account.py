@@ -318,13 +318,14 @@ class Account:
         """ return armored public key for this account. """
         return self.bingpg.get_secret_keydata(self.ownstate.keyhandle, armor=True)
 
-    def process_incoming(self, msg, ignore_existing=False):
+    def process_incoming(self, msg, ignore_existing=False, no_decrypt=False):
         """ process incoming mail message for Autocrypt headers
         both in the cleartext and encrypted parts which will
         be decrypted to process Autocrypt-Gossip headers.
 
         :type msg: email.message.Message
         :param msg: instance of a standard email Message.
+        :param no_decrypt: if True no encryption (and no gossip keys) will be done.
         :rtype: ProcessIncomingResult or NoneType if message is known already.
         """
         From = mime.parse_email_addr(msg["From"])
@@ -334,7 +335,7 @@ class Account:
         if ignore_existing and peerstate.has_message(msg_id):
             return
         pah = self.process_autocrypt_header(msg, From, peerstate, msg_date, msg_id)
-        if mime.is_encrypted(msg):
+        if not no_decrypt and mime.is_encrypted(msg):
             dec_msg = self.decrypt_mime(msg).dec_msg
             gossip_pahs = self.process_gossip_headers(dec_msg, msg_date, msg_id)
             self.plugin_manager.hook.process_incoming_gossip(
