@@ -1,6 +1,9 @@
 muacrypt: Autocrypt encryption for mail agents
 ==============================================
 
+**This repository is not maintained anymore.**
+
+
 ``muacrypt`` is a support tool for implementing `Autocrypt Level 1
 <https://autocrypt.org/autocrypt-spec-1.0.0.pdf>`_ compliant mail agents.
 Autocrypt state is kept in one or more accounts which process and produce
